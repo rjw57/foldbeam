@@ -29,12 +29,17 @@ def main():
             dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
     parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
             dest='height', help='the height of the map in pixels (default: use width and projection aspect)')
+    parser.add_argument('--cache-dir', metavar='DIRECTORY', type=str, nargs='?',
+            dest='cache_dir', help='cache downloaded tiles into this directory')
     args = parser.parse_args()
 
+    if args.cache_dir is None:
+        cache_config = { 'name': 'Test' }
+    else:
+        cache_config = { 'name': 'Disk', 'path': args.cache_dir }
+
     config = TileStache.Config.buildConfiguration({
-        'cache': {
-            'name': 'Test',
-        },
+        'cache': cache_config,
         'layers': {
             'osm': {
                 'provider': {
