@@ -8,11 +8,13 @@ Examples
 
 After building with buildout, you should have the `bin/foldbeam-render` script. Some examples:
 
-.. code::
+::
+
     # Generate a world map using equirectangular projection
     $ bin/foldbeam-render --output world-equirectangular.tiff -w 1280 -l -180 -r 180 -t 89 -b -89
     # Generate a world map using mercator projection
-    $ bin/foldbeam-render --output world-mercator.tiff -w 1000 -l -20000000 -t 16000000 -r 20000000 -b -14000000 --epsg 3395
+    $ bin/foldbeam-render --output world-mercator.tiff -w 1000 \
+        -l -20000000 -t 16000000 -r 20000000 -b -14000000 --epsg 3395
     # Generate the US National Atlas equal area projection
     $ bin/foldbeam-render --output us.tiff -w 1280 -l -3000000 -t 2500000 -r 3600000 -b -4700000 --epsg 2163
     # Generate a UK OS national grid map with 1 pixel == 1 km
