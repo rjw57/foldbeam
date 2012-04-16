@@ -11,7 +11,7 @@ After building with buildout, you should have the `bin/foldbeam-render` script. 
 ::
 
     # Generate a world map using equirectangular projection
-    $ bin/foldbeam-render --output world-equirectangular.tiff -w 1280 -l -180 -r 180 -t 89 -b -89
+    $ bin/foldbeam-render --output world-equirectangular.tiff -w 1280 -l -180 -r 180 -t 84 -b -84
     # Generate a world map using mercator projection
     $ bin/foldbeam-render --output world-mercator.tiff -w 1000 \
         -l -20000000 -t 16000000 -r 20000000 -b -14000000 --epsg 3395
@@ -22,14 +22,14 @@ After building with buildout, you should have the `bin/foldbeam-render` script. 
     # Generate a UK OS national grid map centred on Big Ben
     $ bin/foldbeam-render --output bigben.tiff -w 800 -l 530069 -t 179830 -r 530469 -b 179430 --epsg 27700
 
-These examples generate the following output. Data, imagery and map information provided by `MapQuest`_, `Open Street Map`_
-and contributors, `CC-BY-SA`_.
+These examples generate the output displayed below. Data, imagery and map information provided by `MapQuest`_, `Open
+Street Map`_ and contributors, `CC-BY-SA`_.
 
-.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-equirectangular.jpg
-.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-mercator.jpg
-.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/us.jpg
-.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/uk.jpg
-.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/bigben.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-equirectangular.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-mercator.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/us.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/uk.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/bigben.jpg
 
 License
 -------
