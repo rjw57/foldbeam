@@ -118,7 +118,10 @@ class TileStacheRasterNode(RasterNode):
                 tile_br_point = self.layer.projection.coordinateProj(tile_coord.right().down())
 
                 try:
-                    _, png_data = TileStache.getTile(self.layer, tile_coord, 'PNG')
+                    tile_type, png_data = TileStache.getTile(self.layer, tile_coord, 'png')
+                    if tile_type != 'image/png':
+                        print('Did not get PNG data when fetching tile %s. Skipping.' % (tile_coord))
+                        continue
                 except IOError as e:
                     print('Ignoring error fetching tile %s (%s).' % (tile_coord, e))
                     continue
