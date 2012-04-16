@@ -105,13 +105,13 @@ class TileStacheRasterNode(RasterNode):
         desired_srs_wkt = srs.ExportToWkt()
         assert png_driver is not None
         for r in xrange(top_left.row-1, bottom_right.row+1):
-            # skip out of range tile co-ords
-            if r < 0 or r >= math.pow(2, zoom):
-                continue
+            if r < 0:
+                r += math.pow(2, zoom) 
+            r = r % math.pow(2, zoom)
             for c in xrange(top_left.column-1, bottom_right.column+1):
-                # skip out of range tile co-ords
-                if c < 0 or c >= math.pow(2, zoom):
-                    continue
+                if c < 0:
+                    c += math.pow(2, zoom) 
+                c = c % math.pow(2, zoom)
 
                 tile_coord = Coordinate(r, c, zoom)
                 tile_tl_point = self.layer.projection.coordinateProj(tile_coord)
