@@ -1,5 +1,70 @@
+import argparse
+import TileStache
+from foldbeam import nodes
+from osgeo import gdal
+from osgeo.osr import SpatialReference
+import sys
+
 def main():
-    print('Boo')
+    parser = argparse.ArgumentParser(description='Generate maps of the world from OpenStreetMaps data')
+    parser.add_argument('-o', '--output', metavar='FILENAME', type=str, nargs='?',
+            required=True, dest='output',
+            help='the filename to write the output map in GeoTIFF format')
+    parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
+            dest='epsg', default=4326,
+            help='the target projection\'s number in the EPSG database (default: WGS84 latitude/longitude)')
+    parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
+            required=True, dest='left',
+            help='the left-most boundary of the map in projection co-ordinates')
+    parser.add_argument('-r', '--right', metavar='NUMBER', type=float, nargs='?',
+            required=True, dest='right',
+            help='the right-most boundary of the map in projection co-ordinates')
+    parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
+            required=True, dest='top',
+            help='the top boundary of the map in projection co-ordinates')
+    parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
+            required=True, dest='bottom',
+            help='the bottom boundary of the map in projection co-ordinates')
+    parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
+            dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
+    parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
+            dest='height', help='the height of the map in pixels (default: use width and projection aspect)')
+    args = parser.parse_args()
+
+    config = TileStache.Config.buildConfiguration({
+        'cache': {
+            'name': 'Test',
+        },
+        'layers': {
+            'osm': {
+                'provider': {
+                    'name': 'proxy', 
+                    'url': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{Z}/{X}/{Y}.png',
+                },
+            },
+        },
+    })
+
+    envelope = (args.left, args.top, args.right-args.left, args.bottom-args.top)
+    envelope_srs = SpatialReference()
+    envelope_srs.ImportFromEPSG(args.epsg)
+
+    if args.width is None and args.height is None:
+        print('error: at least one of height or width must be set')
+        sys.exit(1)
+    elif args.height is None:
+        args.height = max(1, int(args.width * abs(envelope[3]) / abs(envelope[2])))
+    elif args.width is None:
+        args.width = max(1, int(args.height * abs(envelope[2]) / abs(envelope[3])))
+    else:
+        assert False
+
+    node = nodes.TileStacheRasterNode(config.layers['osm'])
+    size = (args.width, args.height)
+    raster = node.render(envelope, envelope_srs, size)
+
+    driver = gdal.GetDriverByName('GTiff')
+    driver.CreateCopy(args.output, raster)
 
 if __name__ == '__main__':
     main()
