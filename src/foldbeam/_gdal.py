@@ -1,3 +1,4 @@
+from core import Envelope
 from osgeo import gdal, ogr
 
 _counter = 0
@@ -15,15 +16,14 @@ def create_render_dataset(envelope, envelope_srs, size=None, band_count=3, data_
 
     # Set the dataset projection and geo transform
     raster.SetProjection(envelope_srs.ExportToWkt())
-    xscale = float(envelope[2]) / float(size[0])
-    yscale = float(envelope[3]) / float(size[1])
-    raster.SetGeoTransform((envelope[0], xscale, 0, envelope[1], 0, yscale))
+    xscale, yscale = [float(x[0])/float(x[1]) for x in zip(envelope.offset(), size)]
+    raster.SetGeoTransform((envelope.left, xscale, 0, envelope.top, 0, yscale))
 
     return raster
 
 def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
-    """envelope is a tuple giving the (left, top, width, height) of an envelope in the src_srs ogr.SpatialReference.
-    Return the corresponding envelope in the dts_srs ogr.SpatialReference.
+    """envelope is a core.Envelope instance giving the (left, right, top, bottom) of an envelope in the src_srs
+    ogr.SpatialReference.  Return the corresponding envelope in the dts_srs ogr.SpatialReference.
 
     If segment_length is not None it is the maximum length *in the source SRS* to segment the boundary by.
 
@@ -36,10 +36,10 @@ def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
     # Create polygon representing envelope
     bound_geom = ogr.Geometry(type=ogr.wkbLineString)
     bound_geom.AssignSpatialReference(src_srs)
-    bound_geom.AddPoint_2D(envelope[0],                   envelope[1])
-    bound_geom.AddPoint_2D(envelope[0],                   envelope[1] + envelope[3])
-    bound_geom.AddPoint_2D(envelope[0] + envelope[2],   envelope[1] + envelope[3])
-    bound_geom.AddPoint_2D(envelope[0] + envelope[2],   envelope[1])
+    bound_geom.AddPoint_2D(envelope.left, envelope.top)
+    bound_geom.AddPoint_2D(envelope.right, envelope.top)
+    bound_geom.AddPoint_2D(envelope.right, envelope.bottom)
+    bound_geom.AddPoint_2D(envelope.left, envelope.bottom)
     bound_geom.CloseRings()
     if segment_length is not None:
         bound_geom.Segmentize(segment_length)
@@ -47,5 +47,4 @@ def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
     if err != 0:
         raise RuntimeError('Error projecting boundary: %s' % (err,))
 
-    x1, x2, y1, y2 = bound_geom.GetEnvelope()
-    return (x1, y1, x2-x1, y2-y1)
+    return Envelope(*bound_geom.GetEnvelope())

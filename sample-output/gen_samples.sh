@@ -1,14 +1,14 @@
 #!/bin/sh
 
 THISDIR="${PWD}/`dirname $0`"
-WIDTH=1024
+WIDTH=852
 RENDER="${THISDIR}/../bin/foldbeam-render"
 CACHE="${THISDIR}/tilecache"
 
 cd "${THISDIR}"
 
 # Generate a world map using equirectangular projection
-${RENDER} --output world-equirectangular.tiff -w ${WIDTH} -l -180 -r 180 -t 89 -b -89 --cache-dir "${CACHE}"
+${RENDER} --output world-equirectangular.tiff -w ${WIDTH} -l -180 -r 180 -t 84 -b -84 --cache-dir "${CACHE}"
 # Generate a world map using mercator projection
 ${RENDER} --output world-mercator.tiff -w ${WIDTH} \
     -l -20000000 -t 16000000 -r 20000000 -b -14000000 --epsg 3395 --cache-dir "${CACHE}"

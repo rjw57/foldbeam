@@ -1,6 +1,6 @@
 import argparse
 import TileStache
-from foldbeam import nodes
+from foldbeam import nodes, core
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 import sys
@@ -50,7 +50,7 @@ def main():
         },
     })
 
-    envelope = (args.left, args.top, args.right-args.left, args.bottom-args.top)
+    envelope = core.Envelope(args.left, args.right, args.top, args.bottom)
     envelope_srs = SpatialReference()
     envelope_srs.ImportFromEPSG(args.epsg)
 
@@ -58,9 +58,11 @@ def main():
         print('error: at least one of height or width must be set')
         sys.exit(1)
     elif args.height is None:
-        args.height = max(1, int(args.width * abs(envelope[3]) / abs(envelope[2])))
+        ew, eh = map(abs, envelope.offset())
+        args.height = max(1, int(args.width * eh / ew))
     elif args.width is None:
-        args.width = max(1, int(args.height * abs(envelope[2]) / abs(envelope[3])))
+        ew, eh = map(abs, envelope.offset())
+        args.width = max(1, int(args.height * ew / eh))
     else:
         assert False
 

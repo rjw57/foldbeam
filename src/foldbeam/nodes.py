@@ -1,4 +1,5 @@
 from _gdal import create_render_dataset, transform_envelope
+from core import Envelope
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
@@ -15,7 +16,7 @@ class UnsupportedSpatialReferenceError(Exception):
 class RasterNode(object):
 
     def render(self, envelope, srs, size=None):
-        """envelope is a tuple giving (left, top, width, height) of the raster.
+        """envelope is an instance of core.Envelope giving the (left, top, width, height) of the raster.
 
         srs is the spatial reference associated with the co-ordinates described in envelope
 
@@ -60,37 +61,83 @@ class TileStacheRasterNode(RasterNode):
         n_tiles = map(lambda x: x/256.0, size)
 
         # Over what range?
-        proj_range = min(envelope[2:])
+        envelope_size = map(abs, envelope.offset())
+        proj_range = min(envelope_size)
 
         # Giving a rough tile size in projection coordinate of...
-        zoomed_tile_size = map(lambda x: abs(x[0])/x[1], zip(envelope[2:], n_tiles))
-        
+        zoomed_tile_size = map(lambda x: x[0]/x[1], zip(envelope_size, n_tiles))
+    
         # And convert to a zoom
         zooms = map(lambda x: math.log(x[0], 2) - math.log(x[1], 2), zip(self.proj_size, zoomed_tile_size))
 
+        # Which is closer to the precise zoom we want?
+        zoom = max(zooms)
+
+        floor_diff = abs(math.pow(2, zoom) - math.pow(2, math.floor(zoom)))
+        ceil_diff = abs(math.pow(2, zoom) - math.pow(2, math.ceil(zoom)))
+
         # Choose an overall zoom from these
-        return int(math.floor(max(zooms)))
+        return int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
 
     def render(self, envelope, srs, size=None):
-        # Get the destination raster
-        raster = super(TileStacheRasterNode, self).render(envelope, srs, size)
-        size = (raster.RasterXSize, raster.RasterYSize)
+        if size is None:
+            size = map(abs, envelope[2:])
 
-        # Convert the envelope into the preferred srs
-        pref_envelope = transform_envelope(envelope, srs, self.preferred_srs,
-                min(map(abs, envelope[2:])) / float(max(size)))
+        envelope_size = map(abs, envelope.offset())
+        pref_envelope = transform_envelope(
+                envelope, srs, self.preferred_srs,
+                min(envelope_size) / float(max(size)))
         zoom = self._zoom_for_envelope(pref_envelope, size)
 
-        # Get the minimum and maximum projection coords
-        min_pref = [min(pref_envelope[i], pref_envelope[i]+pref_envelope[i+2]) for i in xrange(2)]
-        max_pref = [max(pref_envelope[i], pref_envelope[i]+pref_envelope[i+2]) for i in xrange(2)]
+        if size[0] <= 256 and size[1] <= 256:
+            return self._render_tile(self, envelope, srs, size, zoom)
 
-        # How many tiles in x and y at that zoom?
+        raster = create_render_dataset(envelope, srs, size)
+        assert(raster.RasterXSize == size[0])
+        assert(raster.RasterYSize == size[1])
+        xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
+
+        max_size = 256
+        for x in xrange(0, size[0], max_size):
+            width = min(x + max_size, size[0]) - x
+            for y in xrange(0, size[1], max_size):
+                height = min(y + max_size, size[1]) - y
+                tile_envelope = Envelope(
+                        envelope.left + xscale * x,
+                        envelope.left + xscale * (x + width),
+                        envelope.top + yscale * y,
+                        envelope.top + yscale * (y + height),
+                )
+                tile_raster = self._render_tile(tile_envelope, srs, (width, height), zoom)
+                tile_data = tile_raster.ReadRaster(0, 0, width, height)
+                raster.WriteRaster(x, y, width, height, tile_data)
+        
+        return raster
+
+    def _render_tile(self, envelope, srs, size, zoom):
+        # Get the destination raster
+        raster = create_render_dataset(envelope, srs, size)
+        assert size == (raster.RasterXSize, raster.RasterYSize)
+
+        # Convert the envelope into the preferred srs
+        envelope_size = map(abs, envelope.offset())
+        pref_envelope = transform_envelope(
+                envelope, srs, self.preferred_srs,
+                min(envelope_size) / float(max(size)))
+
+        # Get the minimum and maximum projection coords
+        min_pref = (min(pref_envelope.left, pref_envelope.right), min(pref_envelope.top, pref_envelope.bottom))
+        max_pref = (max(pref_envelope.left, pref_envelope.right), max(pref_envelope.top, pref_envelope.bottom))
+
+        # How many tiles overall in x and y at the zoom level?
         n_proj_tiles = math.pow(2, zoom)
 
         # Convert min and max projection coords to tile coords
         min_norm = [n_proj_tiles * (x[0]-x[1])/x[2] for x in zip(min_pref, self.proj_origin, self.proj_axes)]
         max_norm = [n_proj_tiles * (x[0]-x[1])/x[2] for x in zip(max_pref, self.proj_origin, self.proj_axes)]
+
+        xtile_size = self.proj_axes[0] / n_proj_tiles
+        ytile_size = self.proj_axes[1] / n_proj_tiles
 
         # Get tile coords
         top_left = Coordinate(
@@ -104,18 +151,17 @@ class TileStacheRasterNode(RasterNode):
         png_driver = gdal.GetDriverByName('PNG')
         desired_srs_wkt = srs.ExportToWkt()
         assert png_driver is not None
-        for r in xrange(top_left.row-1, bottom_right.row+1):
-            if r < 0:
-                r += math.pow(2, zoom) 
-            r = r % math.pow(2, zoom)
-            for c in xrange(top_left.column-1, bottom_right.column+1):
+        for r in xrange(top_left.row, bottom_right.row+1):
+            if r < 0 or r >= n_proj_tiles:
+                continue
+            for c in xrange(top_left.column, bottom_right.column+1):
+                c = c % n_proj_tiles
                 if c < 0:
-                    c += math.pow(2, zoom) 
-                c = c % math.pow(2, zoom)
+                    c = c + n_proj_tiles
 
                 tile_coord = Coordinate(r, c, zoom)
                 tile_tl_point = self.layer.projection.coordinateProj(tile_coord)
-                tile_br_point = self.layer.projection.coordinateProj(tile_coord.right().down())
+                tile_br_point = Point(tile_tl_point.x + xtile_size, tile_tl_point.y + ytile_size)
 
                 try:
                     tile_type, png_data = TileStache.getTile(self.layer, tile_coord, 'png')
@@ -131,8 +177,8 @@ class TileStacheRasterNode(RasterNode):
                 tile_raster = gdal.Open('/vsimem/tmptile.png')
                 tile_raster.SetProjection(self.preferred_srs_wkt)
 
-                xscale = (tile_br_point.x - tile_tl_point.x) / tile_raster.RasterXSize
-                yscale = (tile_br_point.y - tile_tl_point.y) / tile_raster.RasterYSize
+                xscale = xtile_size / (tile_raster.RasterXSize-1)
+                yscale = ytile_size / (tile_raster.RasterYSize-1)
                 tile_raster.SetGeoTransform((
                     tile_tl_point.x, xscale, 0.0,
                     tile_tl_point.y, 0.0, yscale,
