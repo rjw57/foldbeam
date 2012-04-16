@@ -22,6 +22,15 @@ After building with buildout, you should have the `bin/foldbeam-render` script. 
     # Generate a UK OS national grid map centred on Big Ben
     $ bin/foldbeam-render --output bigben.tiff -w 800 -l 530069 -t 179830 -r 530469 -b 179430 --epsg 27700
 
+These examples generate the following output. Data, imagery and map information provided by `MapQuest`_, `Open Street Map`_
+and contributors, `CC-BY-SA`_.
+
+.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-equirectangular.jpg
+.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-mercator.jpg
+.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/us.jpg
+.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/uk.jpg
+.. image:: https://github.com/rjw57/foldbeam/raw/master/sample-output/bigben.jpg
+
 License
 -------
 
@@ -38,3 +47,6 @@ Credits
 .. _Distribute: http://pypi.python.org/pypi/distribute
 .. _`modern-package-template`: http://pypi.python.org/pypi/modern-package-template
 .. _TileStache: http://tilestache.org/
+.. _MapQuest: http://www.mapquest.com/
+.. _`Open Street Map`: http://www.openstreetmap.org/
+.. _`CC-BY-SA`: http://creativecommons.org/licenses/by-sa/2.0/
