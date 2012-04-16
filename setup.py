@@ -12,6 +12,9 @@ install_requires = [
     # List your project dependencies here.
     # For more details, see:
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
+    'gdal',
+    'modestmaps',
+    'tilestache',
 ]
 
 
@@ -32,7 +35,6 @@ setup(name='foldbeam',
     zip_safe=False,
     install_requires=install_requires,
     entry_points={
-        'console_scripts':
-            ['foldbeam=foldbeam:main']
+        'console_scripts': ['foldbeam=foldbeam:main', 'foldbeam-render=foldbeam.tool.render:main']
     }
 )
