@@ -148,46 +148,35 @@ class TileStacheRasterNode(Node):
             print('Ignoring projection error and returning empty raster')
             return raster
 
-        # Get the minimum and maximum projection coords
-        min_pref = (min(pref_envelope.left, pref_envelope.right), min(pref_envelope.top, pref_envelope.bottom))
-        max_pref = (max(pref_envelope.left, pref_envelope.right), max(pref_envelope.top, pref_envelope.bottom))
-
-        # How many tiles overall in x and y at the zoom level?
+        # How many tiles overall in x and y at this zoom
         n_proj_tiles = math.pow(2, zoom)
 
-        # Convert min and max projection coords to tile coords
-        min_norm = [n_proj_tiles * (x[0]-x[1])/x[2] for x in zip(min_pref, self.proj_origin, self.proj_axes)]
-        max_norm = [n_proj_tiles * (x[0]-x[1])/x[2] for x in zip(max_pref, self.proj_origin, self.proj_axes)]
+        # Compute the tile co-ordinates of each corner
+        corners = [
+                self.layer.projection.projCoordinate(Point(pref_envelope.left, pref_envelope.top)),
+                self.layer.projection.projCoordinate(Point(pref_envelope.right, pref_envelope.top)),
+                self.layer.projection.projCoordinate(Point(pref_envelope.left, pref_envelope.bottom)),
+                self.layer.projection.projCoordinate(Point(pref_envelope.right, pref_envelope.bottom)),
+        ]
+        corners = [c.zoomTo(zoom) for c in corners]
 
-        xtile_size = self.proj_axes[0] / n_proj_tiles
-        ytile_size = self.proj_axes[1] / n_proj_tiles
-
-        # Get tile coords
-        top_left = Coordinate(
-                int(math.floor(min(min_norm[1], max_norm[1]))),
-                int(math.floor(min(min_norm[0], max_norm[0]))), zoom)
-        bottom_right = Coordinate(
-                int(math.ceil(max(min_norm[1], max_norm[1]))),
-                int(math.ceil(max(min_norm[0], max_norm[0]))), zoom)
+        corner_rows = [int(math.floor(x.row)) for x in corners]
+        corner_columns = [int(math.floor(x.column)) for x in corners]
 
         # Get each tile image
         png_driver = gdal.GetDriverByName('PNG')
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
         assert png_driver is not None
-        for r in xrange(top_left.row, bottom_right.row+1):
+        for r in xrange(min(corner_rows), max(corner_rows)+1):
             if r < 0 or r >= n_proj_tiles:
                 continue
-            for c in xrange(top_left.column, bottom_right.column+1):
-                tile_tl_point = Point(
-                        self.proj_origin[0] + c*xtile_size,
-                        self.proj_origin[1] + r*ytile_size)
-                tile_br_point = Point(
-                        tile_tl_point.x + xtile_size,
-                        tile_tl_point.y + ytile_size)
+            for c in xrange(min(corner_columns), max(corner_columns)+1):
+                tile_tl_point = self.layer.projection.coordinateProj(Coordinate(r,c,zoom))
+                tile_br_point = self.layer.projection.coordinateProj(Coordinate(r+1,c+1,zoom))
 
                 c = c % n_proj_tiles
                 if c < 0:
-                    c = c + n_proj_tiles
+                    c += n_proj_tiles
                 tile_coord = Coordinate(r, c, zoom)
 
                 try:
@@ -204,8 +193,8 @@ class TileStacheRasterNode(Node):
                 tile_raster = gdal.Open('/vsimem/tmptile.png')
                 tile_raster.SetProjection(self.preferred_srs_wkt)
 
-                xscale = xtile_size / tile_raster.RasterXSize
-                yscale = ytile_size / tile_raster.RasterYSize
+                xscale = (tile_br_point.x - tile_tl_point.x) / tile_raster.RasterXSize
+                yscale = (tile_br_point.y - tile_tl_point.y) / tile_raster.RasterXSize
                 tile_raster.SetGeoTransform((
                     tile_tl_point.x, xscale, 0.0,
                     tile_tl_point.y, 0.0, yscale,
