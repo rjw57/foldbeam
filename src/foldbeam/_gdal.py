@@ -21,6 +21,10 @@ def create_render_dataset(envelope, envelope_srs, size=None, band_count=3, data_
 
     return raster
 
+class ProjectionError(Exception):
+    def __init__(self, message):
+        self.message = message
+
 def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
     """envelope is a core.Envelope instance giving the (left, right, top, bottom) of an envelope in the src_srs
     ogr.SpatialReference.  Return the corresponding envelope in the dts_srs ogr.SpatialReference.
@@ -32,6 +36,8 @@ def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
     # Test for identity transform
     if src_srs.IsSame(dst_srs):
         return envelope
+
+    gdal.SetConfigOption('OGR_ENABLE_PARTIAL_REPROJECTION', 'TRUE')
 
     # Create polygon representing envelope
     bound_geom = ogr.Geometry(type=ogr.wkbLineString)
@@ -45,6 +51,6 @@ def transform_envelope(envelope, src_srs, dst_srs, segment_length=None):
         bound_geom.Segmentize(segment_length)
     err = bound_geom.TransformTo(dst_srs)
     if err != 0:
-        raise RuntimeError('Error projecting boundary: %s' % (err,))
+        raise ProjectionError('Error projecting boundary: %s' % (err,))
 
     return Envelope(*bound_geom.GetEnvelope())

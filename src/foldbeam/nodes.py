@@ -1,4 +1,4 @@
-from _gdal import create_render_dataset, transform_envelope
+from _gdal import create_render_dataset, transform_envelope, ProjectionError
 from core import Envelope
 import math
 from ModestMaps.Core import Point, Coordinate
@@ -83,13 +83,12 @@ class TileStacheRasterNode(RasterNode):
         if size is None:
             size = map(abs, envelope[2:])
 
-        envelope_size = map(abs, envelope.offset())
-        pref_envelope = transform_envelope(
-                envelope, srs, self.preferred_srs,
-                min(envelope_size) / float(max(size)))
-        zoom = self._zoom_for_envelope(pref_envelope, size)
-
         if size[0] <= 256 and size[1] <= 256:
+            envelope_size = map(abs, envelope.offset())
+            pref_envelope = transform_envelope(
+                    envelope, srs, self.preferred_srs,
+                    min(envelope_size) / float(max(size)))
+            zoom = self._zoom_for_envelope(pref_envelope, size)
             return self._render_tile(self, envelope, srs, size, zoom)
 
         raster = create_render_dataset(envelope, srs, size)
@@ -98,6 +97,8 @@ class TileStacheRasterNode(RasterNode):
         xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
 
         max_size = 256
+        max_zoom = 0
+        tiles = []
         for x in xrange(0, size[0], max_size):
             width = min(x + max_size, size[0]) - x
             for y in xrange(0, size[1], max_size):
@@ -108,9 +109,13 @@ class TileStacheRasterNode(RasterNode):
                         envelope.top + yscale * y,
                         envelope.top + yscale * (y + height),
                 )
-                tile_raster = self._render_tile(tile_envelope, srs, (width, height), zoom)
-                tile_data = tile_raster.ReadRaster(0, 0, width, height)
-                raster.WriteRaster(x, y, width, height, tile_data)
+                max_zoom = max(max_zoom, self._zoom_for_envelope(tile_envelope, (width, height)))
+                tiles.append((tile_envelope, (x,y), (width, height)))
+
+        for tile_envelope, tile_pos, tile_size in tiles:
+            tile_raster = self._render_tile(tile_envelope, srs, tile_size, max_zoom)
+            tile_data = tile_raster.ReadRaster(0, 0, tile_size[0], tile_size[1])
+            raster.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
         return raster
 
@@ -121,9 +126,12 @@ class TileStacheRasterNode(RasterNode):
 
         # Convert the envelope into the preferred srs
         envelope_size = map(abs, envelope.offset())
-        pref_envelope = transform_envelope(
-                envelope, srs, self.preferred_srs,
-                min(envelope_size) / float(max(size)))
+        try:
+            pref_envelope = transform_envelope(
+                    envelope, srs, self.preferred_srs,
+                    min(envelope_size) / float(max(size)))
+        except ProjectionError:
+            return raster
 
         # Get the minimum and maximum projection coords
         min_pref = (min(pref_envelope.left, pref_envelope.right), min(pref_envelope.top, pref_envelope.bottom))
