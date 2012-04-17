@@ -1,6 +1,3 @@
-The :py:mod:`foldbeam` manual
-=============================
-
 Contents
 --------
 
