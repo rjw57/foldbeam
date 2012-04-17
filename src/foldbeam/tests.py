@@ -137,6 +137,27 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         raster.write_tiff('big-ben-sm.tiff')
 
+    def test_tilestache_big_ben_proj_units(self):
+        # test letting image size be determined from projection units
+
+        # square around Big Ben
+        skirt = (300, 100) # metres
+        centre = self.big_ben_os
+
+        envelope_srs = SpatialReference()
+        envelope_srs.ImportFromEPSG(27700) # British national grid
+        envelope = core.Envelope(
+                centre[0]-0.5*skirt[0], centre[0]+0.5*skirt[0], centre[1]+0.5*skirt[1], centre[1]-0.5*skirt[1],
+                envelope_srs)
+
+        node = nodes.TileStacheRasterNode(self.config.layers['osm'])
+        t, raster = node.outputs['raster'](envelope)
+        self.assertEqual(t, graph.ContentType.RASTER)
+        self.assertEqual(raster.dataset.RasterXSize, skirt[0])
+        self.assertEqual(raster.dataset.RasterYSize, skirt[1])
+
+        raster.write_tiff('big-ben-metres.tiff')
+
 class TestBoundary(unittest.TestCase):
     def test_bbox(self):
         srs = SpatialReference()
