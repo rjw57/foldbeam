@@ -26,6 +26,8 @@ def main():
     parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='bottom',
             help='the bottom envelope of the map in projection co-ordinates')
+    parser.add_argument('-u', '--units', metavar='NUMBER', type=float, nargs='?',
+            default=1.0, help='scale left, right, top and bottom by NUMBER (default: 1)')
     parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
             dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
     parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
@@ -65,7 +67,7 @@ def main():
         envelope_srs.ImportFromProj4(args.proj)
     else:
         envelope_srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
-    envelope = core.Envelope(args.left, args.right, args.top, args.bottom, envelope_srs)
+    envelope = core.Envelope(args.left*args.units, args.right*args.units, args.top*args.units, args.bottom*args.units, envelope_srs)
 
     if args.width is None and args.height is None:
         print('error: at least one of height or width must be set')
