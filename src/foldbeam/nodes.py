@@ -112,9 +112,13 @@ class TileStacheRasterNode(RasterNode):
                         envelope.top + yscale * (y + height),
                         envelope.spatial_reference,
                 )
-                pref_envelope = tile_envelope.transform_to(
-                        self.preferred_srs,
-                        min(tile_envelope.size()) / float(max(width, height)))
+                try:
+                    pref_envelope = tile_envelope.transform_to(
+                            self.preferred_srs,
+                            min(tile_envelope.size()) / float(max(width, height)))
+                except core.ProjectionError:
+                    # Skip projection errors
+                    continue
                 zooms.append(self._zoom_for_envelope(pref_envelope, (width, height)))
                 tiles.append((tile_envelope, (x,y), (width, height)))
         

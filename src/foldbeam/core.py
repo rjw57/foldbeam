@@ -1,6 +1,6 @@
 import json
 from TileStache.Geography import Point
-from osgeo import ogr
+from osgeo import ogr, gdal
 
 def boundary_from_envelope(envelope):
     wkt = 'POLYGON ((%s))' % (
@@ -53,7 +53,10 @@ class Boundary(object):
         if src_seg_len is not None:
             geom.Segmentize(float(src_seg_len))
 
+        old_opt = gdal.GetConfigOption('OGR_ENABLE_PARTIAL_REPROJECTION')
+        gdal.SetConfigOption('OGR_ENABLE_PARTIAL_REPROJECTION', 'TRUE')
         err = geom.TransformTo(other_spatial_reference)
+        gdal.SetConfigOption('OGR_ENABLE_PARTIAL_REPROJECTION', old_opt)
         if err != 0:
             raise ProjectionError('Unable to project boundary into target projection (%s).' % (err,))
 
