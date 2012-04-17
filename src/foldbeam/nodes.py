@@ -72,7 +72,6 @@ class TileStacheRasterNode(RasterNode):
 
         # Which is closer to the precise zoom we want?
         zoom = max(zooms)
-
         floor_diff = abs(math.pow(2, zoom) - math.pow(2, math.floor(zoom)))
         ceil_diff = abs(math.pow(2, zoom) - math.pow(2, math.ceil(zoom)))
 
@@ -97,7 +96,7 @@ class TileStacheRasterNode(RasterNode):
         xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
 
         max_size = 256
-        max_zoom = 0
+        zooms = []
         tiles = []
         for x in xrange(0, size[0], max_size):
             width = min(x + max_size, size[0]) - x
@@ -109,11 +108,19 @@ class TileStacheRasterNode(RasterNode):
                         envelope.top + yscale * y,
                         envelope.top + yscale * (y + height),
                 )
-                max_zoom = max(max_zoom, self._zoom_for_envelope(tile_envelope, (width, height)))
+                tile_envelope_size = map(abs, tile_envelope.offset())
+                pref_envelope = transform_envelope(
+                        tile_envelope, srs, self.preferred_srs,
+                        min(tile_envelope_size) / float(max(width, height)))
+                zooms.append(self._zoom_for_envelope(pref_envelope, (width, height)))
                 tiles.append((tile_envelope, (x,y), (width, height)))
+        
+        # Choose the median zoom
+        zooms.sort()
+        zoom = zooms[len(zooms)>>1]
 
         for tile_envelope, tile_pos, tile_size in tiles:
-            tile_raster = self._render_tile(tile_envelope, srs, tile_size, max_zoom)
+            tile_raster = self._render_tile(tile_envelope, srs, tile_size, zoom)
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
