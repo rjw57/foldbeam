@@ -14,6 +14,7 @@ install_requires = [
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     'gdal',
     'modestmaps',
+    'py-notify',
     'tilestache',
 ]
 

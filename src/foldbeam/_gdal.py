@@ -9,6 +9,10 @@ class _DatasetWrapper(object):
         self.dataset = dataset
         self.filename = filename
 
+    def write_tiff(self, filename):
+        global _driver
+        _driver.CreateCopy(filename, self.dataset)
+
     def __del__(self):
         if self.filename is not None:
             gdal.Unlink(self.filename)
@@ -17,7 +21,7 @@ def create_render_dataset(envelope, size=None, band_count=3, data_type=gdal.GDT_
     global _counter, _driver
 
     if size is None:
-        size = envelope.size()
+        size = map(int, envelope.size())
 
     _counter += 1
     name = '/vsimem/tmp/raster_%07d.tiff' % _counter

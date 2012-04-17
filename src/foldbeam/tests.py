@@ -1,5 +1,6 @@
 import _gdal
 import core
+import graph
 import nodes
 import math
 from osgeo import gdal
@@ -18,20 +19,6 @@ class TestUtility(unittest.TestCase):
         self.assertIsNotNone(r1.dataset)
         self.assertEqual(r1.dataset.RasterXSize, 256)
         self.assertEqual(r1.dataset.RasterYSize, 128)
-
-class TestRasterNode(unittest.TestCase):
-    def test_create_node(self):
-        n = nodes.RasterNode()
-
-    def test_render_node(self):
-        envelope_srs = SpatialReference()
-        envelope_srs.ImportFromEPSG(27700) # British national grid
-        envelope = core.Envelope(369475, 369475 + 1429*50, 205525, 205525 + 1887*-50, envelope_srs)
-
-        node = nodes.RasterNode()
-        raster = node.render(envelope, (256, 256))
-        self.assertEqual(raster.dataset.RasterXSize, 256)
-        self.assertEqual(raster.dataset.RasterYSize, 256)
 
 class TestTileStacheRasterNode(unittest.TestCase):
     def setUp(self):
@@ -60,12 +47,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1024, 512)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('world-latlng.tiff', raster.dataset)
+        raster.write_tiff('world-latlng.tiff')
 
     def test_tilestache_usna(self):
         envelope_srs = SpatialReference()
@@ -74,12 +61,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1200, 800)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('world-usna.tiff', raster.dataset)
+        raster.write_tiff('world-usna.tiff')
 
     def test_tilestache_osgrid(self):
         envelope_srs = SpatialReference()
@@ -88,12 +75,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (700, 1300)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('uk-osgrid.tiff', raster.dataset)
+        raster.write_tiff('uk-osgrid.tiff')
 
     def test_tilestache_osgrid_crazy(self):
         envelope_srs = SpatialReference()
@@ -102,12 +89,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (800, 1200)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('mad-osgrid.tiff', raster.dataset)
+        raster.write_tiff('mad-osgrid.tiff')
 
     def test_tilestache_big_ben(self):
         # square around Big Ben
@@ -122,12 +109,13 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
         driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('big-ben.tiff', raster.dataset)
+        raster.write_tiff('big-ben.tiff')
 
     def test_tilestache_big_ben_small(self):
         # square around Big Ben
@@ -142,12 +130,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        raster = node.render(envelope, size)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
         self.assertEqual(raster.dataset.RasterXSize, size[0])
         self.assertEqual(raster.dataset.RasterYSize, size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy('big-ben-sm.tiff', raster.dataset)
+        raster.write_tiff('big-ben-sm.tiff')
 
 class TestBoundary(unittest.TestCase):
     def test_bbox(self):
@@ -168,10 +156,45 @@ class TestBoundary(unittest.TestCase):
         self.assertTrue(not uk_latlng.contains_point(-8.47, 51.897222)) # Cork
         self.assertTrue(not uk_latlng.contains_point(2.3508, 48.8567)) # Paris
 
+class TestOutputPad(unittest.TestCase):
+    def setUp(self):
+        self.bng_srs = SpatialReference()
+        self.bng_srs.ImportFromEPSG(27700) # British national grid
+
+    def test_damage(self):
+        damages = []
+        def damage_cb(d):
+            damages.append(d)
+
+        e = graph.OutputPad()
+        e.damaged.connect(damage_cb)
+
+        self.assertEqual(len(damages), 0)
+        env1 = core.Envelope(0,0,1,1,self.bng_srs)
+        self.assertIsNotNone(env1)
+        env2 = core.Envelope(0,0,2,2,self.bng_srs)
+        self.assertIsNotNone(env2)
+
+        e.notify_damage(env1)
+        self.assertEqual(len(damages), 1)
+        self.assertEqual(damages[-1], env1)
+        self.assertNotEqual(damages[-1], env2)
+
+        e.notify_damage(env2)
+        self.assertEqual(len(damages), 2)
+        self.assertEqual(damages[-1], env2)
+        self.assertNotEqual(damages[-1], env1)
+
+        e.damaged.disconnect(damage_cb)
+        e.notify_damage(env1)
+        self.assertEqual(len(damages), 2)
+        self.assertEqual(damages[-1], env2)
+        self.assertNotEqual(damages[-1], env1)
+
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(TestUtility),
-        unittest.makeSuite(TestRasterNode),
         unittest.makeSuite(TestTileStacheRasterNode),
         unittest.makeSuite(TestBoundary),
+        unittest.makeSuite(TestOutputPad),
     ])

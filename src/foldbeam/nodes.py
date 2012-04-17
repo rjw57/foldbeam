@@ -7,35 +7,12 @@ from osgeo.osr import SpatialReference
 import StringIO
 import TileStache
 
-class Node(object):
-    pass
+from graph import *
 
-class UnsupportedSpatialReferenceError(Exception):
-    pass
-
-class RasterNode(object):
-
-    def render(self, envelope, size=None):
-        """Render a single tile covering a given envelope
-
-        :param envelope: tile projection envelope
-        :type envelope: core.core.Envelope
-        :param size: the width and heigh of the tile to render
-        :type size: None or int pair
-        
-        If size is not None, it is a tuple giving (width, height) of the raster in pixels. If None, the width and height
-        is taken directly from the boundary.
-        
-        Return a dataset providing a view into this raster with the specified bounds in the spatial reference system.
-
-        Raises an UnsupportedSpatialReferenceError if the spatial reference is unsupported.
-        """
-
-        return _gdal.create_render_dataset(envelope, size)
-
-class TileStacheRasterNode(RasterNode):
+class TileStacheRasterNode(Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
+        self.outputs['raster'] = CallableOutputPad(self._render)
 
         self.layer = layer
         self.preferred_srs = SpatialReference()
@@ -82,16 +59,16 @@ class TileStacheRasterNode(RasterNode):
         int_zoom = int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
         return max(0, min(18, int_zoom))
 
-    def render(self, envelope, size=None):
+    def _render(self, envelope, size=None):
         if size is None:
-            size = envelope.size()
+            size = map(int, envelope.size())
 
         if size[0] <= 256 and size[1] <= 256:
             pref_envelope = envelope.transform_to(
                     self.preferred_srs,
                     min(envelope.size()) / float(max(size)))
             zoom = self._zoom_for_envelope(pref_envelope, size)
-            return self._render_tile(envelope, size, zoom)
+            return ContentType.RASTER, self._render_tile(envelope, size, zoom)
 
         raster = _gdal.create_render_dataset(envelope, size)
         assert(raster.dataset.RasterXSize == size[0])
@@ -131,7 +108,7 @@ class TileStacheRasterNode(RasterNode):
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
-        return raster
+        return ContentType.RASTER, raster
 
     def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
