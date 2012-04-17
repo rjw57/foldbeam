@@ -4,6 +4,15 @@ from osgeo import gdal, ogr
 _counter = 0
 _driver = gdal.GetDriverByName('GTiff')
 
+class _DatasetWrapper(object):
+    def __init__(self, dataset, filename):
+        self.dataset = dataset
+        self.filename = filename
+
+    def __del__(self):
+        if self.filename is not None:
+            gdal.Unlink(self.filename)
+
 def create_render_dataset(envelope, envelope_srs, size=None, band_count=3, data_type=gdal.GDT_Byte):
     global _counter, _driver
 
@@ -19,7 +28,7 @@ def create_render_dataset(envelope, envelope_srs, size=None, band_count=3, data_
     xscale, yscale = [float(x[0])/float(x[1]) for x in zip(envelope.offset(), size)]
     raster.SetGeoTransform((envelope.left, xscale, 0, envelope.top, 0, yscale))
 
-    return raster
+    return _DatasetWrapper(raster, name)
 
 class ProjectionError(Exception):
     def __init__(self, message):

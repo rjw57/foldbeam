@@ -15,8 +15,9 @@ class TestUtility(unittest.TestCase):
 
         r1 = _gdal.create_render_dataset(Envelope(0,0,1,1), srs, (256, 128))
         self.assertIsNotNone(r1)
-        self.assertEqual(r1.RasterXSize, 256)
-        self.assertEqual(r1.RasterYSize, 128)
+        self.assertIsNotNone(r1.dataset)
+        self.assertEqual(r1.dataset.RasterXSize, 256)
+        self.assertEqual(r1.dataset.RasterYSize, 128)
 
     def test_transform_envelope(self):
         # 200m x 200m square around stonehenge

@@ -71,7 +71,7 @@ def main():
     raster = node.render(envelope, envelope_srs, size)
 
     driver = gdal.GetDriverByName('GTiff')
-    driver.CreateCopy(args.output, raster)
+    driver.CreateCopy(args.output, raster.dataset)
 
 if __name__ == '__main__':
     main()

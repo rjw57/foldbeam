@@ -92,8 +92,8 @@ class TileStacheRasterNode(RasterNode):
             return self._render_tile(self, envelope, srs, size, zoom)
 
         raster = create_render_dataset(envelope, srs, size)
-        assert(raster.RasterXSize == size[0])
-        assert(raster.RasterYSize == size[1])
+        assert(raster.dataset.RasterXSize == size[0])
+        assert(raster.dataset.RasterYSize == size[1])
         xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
 
         max_size = 256
@@ -114,15 +114,15 @@ class TileStacheRasterNode(RasterNode):
 
         for tile_envelope, tile_pos, tile_size in tiles:
             tile_raster = self._render_tile(tile_envelope, srs, tile_size, max_zoom)
-            tile_data = tile_raster.ReadRaster(0, 0, tile_size[0], tile_size[1])
-            raster.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
+            tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
+            raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
         return raster
 
     def _render_tile(self, envelope, srs, size, zoom):
         # Get the destination raster
         raster = create_render_dataset(envelope, srs, size)
-        assert size == (raster.RasterXSize, raster.RasterYSize)
+        assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)
 
         # Convert the envelope into the preferred srs
         envelope_size = map(abs, envelope.offset())
@@ -192,7 +192,9 @@ class TileStacheRasterNode(RasterNode):
                     tile_tl_point.y, 0.0, yscale,
                 ))
 
-                gdal.ReprojectImage(tile_raster, raster, self.preferred_srs_wkt, desired_srs_wkt, gdal.GRA_Bilinear)
+                gdal.ReprojectImage(
+                        tile_raster, raster.dataset,
+                        self.preferred_srs_wkt, desired_srs_wkt, gdal.GRA_Bilinear)
 
                 gdal.Unlink('/vsimem/tmptile.png')
 
