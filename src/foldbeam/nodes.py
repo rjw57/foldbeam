@@ -192,8 +192,8 @@ class TileStacheRasterNode(RasterNode):
                 tile_raster = gdal.Open('/vsimem/tmptile.png')
                 tile_raster.SetProjection(self.preferred_srs_wkt)
 
-                xscale = xtile_size / (tile_raster.RasterXSize-1)
-                yscale = ytile_size / (tile_raster.RasterYSize-1)
+                xscale = xtile_size / tile_raster.RasterXSize
+                yscale = ytile_size / tile_raster.RasterYSize
                 tile_raster.SetGeoTransform((
                     tile_tl_point.x, xscale, 0.0,
                     tile_tl_point.y, 0.0, yscale,
