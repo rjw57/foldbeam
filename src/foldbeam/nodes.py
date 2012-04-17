@@ -182,8 +182,12 @@ class TileStacheRasterNode(RasterNode):
                     c = c + n_proj_tiles
 
                 tile_coord = Coordinate(r, c, zoom)
-                tile_tl_point = self.layer.projection.coordinateProj(tile_coord)
-                tile_br_point = Point(tile_tl_point.x + xtile_size, tile_tl_point.y + ytile_size)
+                tile_tl_point = Point(
+                        self.proj_origin[0] + c*xtile_size,
+                        self.proj_origin[1] + r*ytile_size)
+                tile_br_point = Point(
+                        tile_tl_point.x + xtile_size,
+                        tile_tl_point.y + ytile_size)
 
                 try:
                     tile_type, png_data = TileStache.getTile(self.layer, tile_coord, 'png')
