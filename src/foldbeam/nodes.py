@@ -177,17 +177,17 @@ class TileStacheRasterNode(RasterNode):
             if r < 0 or r >= n_proj_tiles:
                 continue
             for c in xrange(top_left.column, bottom_right.column+1):
-                c = c % n_proj_tiles
-                if c < 0:
-                    c = c + n_proj_tiles
-
-                tile_coord = Coordinate(r, c, zoom)
                 tile_tl_point = Point(
                         self.proj_origin[0] + c*xtile_size,
                         self.proj_origin[1] + r*ytile_size)
                 tile_br_point = Point(
                         tile_tl_point.x + xtile_size,
                         tile_tl_point.y + ytile_size)
+
+                c = c % n_proj_tiles
+                if c < 0:
+                    c = c + n_proj_tiles
+                tile_coord = Coordinate(r, c, zoom)
 
                 try:
                     tile_type, png_data = TileStache.getTile(self.layer, tile_coord, 'png')
