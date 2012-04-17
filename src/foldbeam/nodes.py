@@ -9,6 +9,30 @@ import TileStache
 
 from graph import *
 
+class GDALDatasetRasterNode(Node):
+    def __init__(self, dataset):
+        super(GDALDatasetRasterNode, self).__init__()
+        self.outputs['raster'] = CallableOutputPad(self._render)
+        self.dataset = dataset
+
+    def _render(self, envelope, size=None):
+        if size is None:
+            size = map(int, envelope.size())
+
+        # Get the destination raster
+        raster = _gdal.create_render_dataset(
+                envelope, size,
+                self.dataset.RasterCount)
+
+        desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
+        gdal.ReprojectImage(
+                self.dataset, raster.dataset,
+                self.dataset.GetProjection(),
+                desired_srs_wkt,
+                gdal.GRA_Bilinear)
+
+        return ContentType.RASTER, raster
+
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
