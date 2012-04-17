@@ -1,0 +1,13 @@
+{
+    "cache": {
+        "name": "Disk",
+        "path": "test-tile-cache"
+    },
+    "layers": {
+        "sample": {
+            "provider": {
+                "class": "foldbeam.tilestache:NodeProvider"
+            }
+        }
+    }
+}
