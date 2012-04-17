@@ -15,16 +15,16 @@ def main():
             help='the target projection\'s number in the EPSG database (default: WGS84 latitude/longitude)')
     parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='left',
-            help='the left-most boundary of the map in projection co-ordinates')
+            help='the left-most envelope of the map in projection co-ordinates')
     parser.add_argument('-r', '--right', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='right',
-            help='the right-most boundary of the map in projection co-ordinates')
+            help='the right-most envelope of the map in projection co-ordinates')
     parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='top',
-            help='the top boundary of the map in projection co-ordinates')
+            help='the top envelope of the map in projection co-ordinates')
     parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='bottom',
-            help='the bottom boundary of the map in projection co-ordinates')
+            help='the bottom envelope of the map in projection co-ordinates')
     parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
             dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
     parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
@@ -50,9 +50,9 @@ def main():
         },
     })
 
-    envelope = core.Envelope(args.left, args.right, args.top, args.bottom)
     envelope_srs = SpatialReference()
     envelope_srs.ImportFromEPSG(args.epsg)
+    envelope = core.Envelope(args.left, args.right, args.top, args.bottom, envelope_srs)
 
     if args.width is None and args.height is None:
         print('error: at least one of height or width must be set')
@@ -68,7 +68,7 @@ def main():
 
     node = nodes.TileStacheRasterNode(config.layers['osm'])
     size = (args.width, args.height)
-    raster = node.render(envelope, envelope_srs, size)
+    raster = node.render(envelope, size)
 
     driver = gdal.GetDriverByName('GTiff')
     driver.CreateCopy(args.output, raster.dataset)

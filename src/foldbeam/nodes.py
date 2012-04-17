@@ -1,5 +1,5 @@
-from _gdal import create_render_dataset, transform_envelope, ProjectionError
-from core import Envelope
+import _gdal
+import core
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
@@ -15,20 +15,23 @@ class UnsupportedSpatialReferenceError(Exception):
 
 class RasterNode(object):
 
-    def render(self, envelope, srs, size=None):
-        """envelope is an instance of core.Envelope giving the (left, top, width, height) of the raster.
+    def render(self, envelope, size=None):
+        """Render a single tile covering a given envelope
 
-        srs is the spatial reference associated with the co-ordinates described in envelope
-
+        :param envelope: tile projection envelope
+        :type envelope: core.core.Envelope
+        :param size: the width and heigh of the tile to render
+        :type size: None or int pair
+        
         If size is not None, it is a tuple giving (width, height) of the raster in pixels. If None, the width and height
-        is taken directly from the envelope.
+        is taken directly from the boundary.
         
         Return a dataset providing a view into this raster with the specified bounds in the spatial reference system.
 
         Raises an UnsupportedSpatialReferenceError if the spatial reference is unsupported.
         """
 
-        return create_render_dataset(envelope, srs, size)
+        return _gdal.create_render_dataset(envelope, size)
 
 class TileStacheRasterNode(RasterNode):
     def __init__(self, layer):
@@ -76,21 +79,21 @@ class TileStacheRasterNode(RasterNode):
         ceil_diff = abs(math.pow(2, zoom) - math.pow(2, math.ceil(zoom)))
 
         # Choose an overall zoom from these
-        return int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
+        int_zoom = int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
+        return max(0, min(18, int_zoom))
 
-    def render(self, envelope, srs, size=None):
+    def render(self, envelope, size=None):
         if size is None:
-            size = map(abs, envelope[2:])
+            size = envelope.size()
 
         if size[0] <= 256 and size[1] <= 256:
-            envelope_size = map(abs, envelope.offset())
-            pref_envelope = transform_envelope(
-                    envelope, srs, self.preferred_srs,
-                    min(envelope_size) / float(max(size)))
+            pref_envelope = envelope.transform_to(
+                    self.preferred_srs,
+                    min(envelope.size()) / float(max(size)))
             zoom = self._zoom_for_envelope(pref_envelope, size)
-            return self._render_tile(self, envelope, srs, size, zoom)
+            return self._render_tile(envelope, size, zoom)
 
-        raster = create_render_dataset(envelope, srs, size)
+        raster = _gdal.create_render_dataset(envelope, size)
         assert(raster.dataset.RasterXSize == size[0])
         assert(raster.dataset.RasterYSize == size[1])
         xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
@@ -102,16 +105,16 @@ class TileStacheRasterNode(RasterNode):
             width = min(x + max_size, size[0]) - x
             for y in xrange(0, size[1], max_size):
                 height = min(y + max_size, size[1]) - y
-                tile_envelope = Envelope(
+                tile_envelope = core.Envelope(
                         envelope.left + xscale * x,
                         envelope.left + xscale * (x + width),
                         envelope.top + yscale * y,
                         envelope.top + yscale * (y + height),
+                        envelope.spatial_reference,
                 )
-                tile_envelope_size = map(abs, tile_envelope.offset())
-                pref_envelope = transform_envelope(
-                        tile_envelope, srs, self.preferred_srs,
-                        min(tile_envelope_size) / float(max(width, height)))
+                pref_envelope = tile_envelope.transform_to(
+                        self.preferred_srs,
+                        min(tile_envelope.size()) / float(max(width, height)))
                 zooms.append(self._zoom_for_envelope(pref_envelope, (width, height)))
                 tiles.append((tile_envelope, (x,y), (width, height)))
         
@@ -120,24 +123,24 @@ class TileStacheRasterNode(RasterNode):
         zoom = zooms[(len(zooms)>>1) + (len(zooms)>>2)]
 
         for tile_envelope, tile_pos, tile_size in tiles:
-            tile_raster = self._render_tile(tile_envelope, srs, tile_size, zoom)
+            tile_raster = self._render_tile(tile_envelope, tile_size, zoom)
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
         return raster
 
-    def _render_tile(self, envelope, srs, size, zoom):
+    def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
-        raster = create_render_dataset(envelope, srs, size)
+        raster = _gdal.create_render_dataset(envelope, size)
         assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)
 
-        # Convert the envelope into the preferred srs
-        envelope_size = map(abs, envelope.offset())
+        # Convert the envelope into the preferred spatial reference
         try:
-            pref_envelope = transform_envelope(
-                    envelope, srs, self.preferred_srs,
-                    min(envelope_size) / float(max(size)))
-        except ProjectionError:
+            pref_envelope = envelope.transform_to(
+                    self.preferred_srs,
+                    min(envelope.size()) / float(max(size)))
+        except core.ProjectionError:
+            print('Ignoring projection error and returning empty raster')
             return raster
 
         # Get the minimum and maximum projection coords
@@ -164,7 +167,7 @@ class TileStacheRasterNode(RasterNode):
 
         # Get each tile image
         png_driver = gdal.GetDriverByName('PNG')
-        desired_srs_wkt = srs.ExportToWkt()
+        desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
         assert png_driver is not None
         for r in xrange(top_left.row, bottom_right.row+1):
             if r < 0 or r >= n_proj_tiles:
