@@ -115,9 +115,9 @@ class TileStacheRasterNode(RasterNode):
                 zooms.append(self._zoom_for_envelope(pref_envelope, (width, height)))
                 tiles.append((tile_envelope, (x,y), (width, height)))
         
-        # Choose the median zoom
+        # Choose the 75th percentile zoom
         zooms.sort()
-        zoom = zooms[len(zooms)>>1]
+        zoom = zooms[(len(zooms)>>1) + (len(zooms)>>2)]
 
         for tile_envelope, tile_pos, tile_size in tiles:
             tile_raster = self._render_tile(tile_envelope, srs, tile_size, zoom)
