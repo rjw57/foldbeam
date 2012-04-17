@@ -8,6 +8,7 @@ Contents
     :maxdepth: 2
 
     reference
+    design
 
 Indices and tables
 ------------------
