@@ -31,6 +31,7 @@ def main():
             dest='height', help='the height of the map in pixels (default: use width and projection aspect)')
     parser.add_argument('--cache-dir', metavar='DIRECTORY', type=str, nargs='?',
             dest='cache_dir', help='cache downloaded tiles into this directory')
+    parser.add_argument('--aerial', action='store_true', default=False, help='use aerial imagery')
     args = parser.parse_args()
 
     if args.cache_dir is None:
@@ -45,6 +46,12 @@ def main():
                 'provider': {
                     'name': 'proxy', 
                     'url': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{Z}/{X}/{Y}.png',
+                },
+            },
+            'aerial': {
+                'provider': {
+                    'name': 'proxy', 
+                    'url': 'http://oatile1.mqcdn.com/naip/{Z}/{X}/{Y}.jpg',
                 },
             },
         },
@@ -66,7 +73,7 @@ def main():
     else:
         assert False
 
-    node = nodes.TileStacheRasterNode(config.layers['osm'])
+    node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
     raster = node.render(envelope, size)
 
