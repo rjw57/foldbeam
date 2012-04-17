@@ -11,8 +11,9 @@ def main():
             required=True, dest='output',
             help='the filename to write the output map in GeoTIFF format')
     parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
-            dest='epsg', default=4326,
-            help='the target projection\'s number in the EPSG database (default: WGS84 latitude/longitude)')
+            dest='epsg', help='the target projection\'s number in the EPSG database')
+    parser.add_argument('--proj', metavar='PROJ-INITIALISER', type=str, nargs='?',
+            help='the target projection\'s proj4-style initialiser')
     parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
             required=True, dest='left',
             help='the left-most envelope of the map in projection co-ordinates')
@@ -58,7 +59,12 @@ def main():
     })
 
     envelope_srs = SpatialReference()
-    envelope_srs.ImportFromEPSG(args.epsg)
+    if args.epsg is not None:
+        envelope_srs.ImportFromEPSG(args.epsg)
+    elif args.proj is not None:
+        envelope_srs.ImportFromProj4(args.proj)
+    else:
+        envelope_srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
     envelope = core.Envelope(args.left, args.right, args.top, args.bottom, envelope_srs)
 
     if args.width is None and args.height is None:
