@@ -22,5 +22,15 @@ ${RENDER} --output bigben.tiff -w ${WIDTH} -l 530069 -t 179830 -r 530469 -b 1794
 ${RENDER} --output lambert-conformal-conic.tiff -w ${WIDTH} --epsg 2062 \
     -l -8000000 -r 8000000 -t 6000000 -b -4000000 --cache-dir "${CACHE}"
 
-for i in *.tiff; do convert "$i" "`basename $i tiff`jpg"; done
+# Generate a Lambert conformal conic projection
+${RENDER} --output lambert-conformal-conic-aerial.tiff -w ${WIDTH} --epsg 2062 \
+    --aerial -l -8000000 -r 8000000 -t 6000000 -b -4000000 --cache-dir "${CACHE}"
+# Generate a UK OS national grid map with 1 pixel == 1 km
+${RENDER} --output uk-aerial.tiff -w 700 \
+    --aerial -l 0 -r 700000 -t 1300000 -b 0 --epsg 27700 --cache-dir "${CACHE}"
+# Generate the US National Atlas equal area projection
+${RENDER} --output us-aerial.tiff -w ${WIDTH} \
+    --aerial -l -3000000 -t 2500000 -r 3600000 -b -4700000 --epsg 2163 --cache-dir "${CACHE}"
+
+for i in *.tiff; do convert "$i" "`basename $i .tiff`.jpg"; done
 rm *.tiff

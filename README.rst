@@ -29,15 +29,18 @@ After building with buildout, you should have the `bin/foldbeam-render` script. 
     $ bin/foldbeam-render --output lambert-conformal-conic.tiff -w 1024 \
         -l -8000000 -r 8000000 -t 6000000 -b -4000000 --epsg 2062
 
-These examples generate the output displayed below. Data, imagery and map information provided by `MapQuest`_, `Open
-Street Map`_ and contributors, `CC-BY-SA`_.
+These examples (and those in the `sample-output/gen_samples.sh` file) generate the output displayed below. Data, imagery
+and map information provided by `MapQuest`_, `Open Street Map`_ and contributors, `CC-BY-SA`_.
 
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-equirectangular.jpg
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/world-mercator.jpg
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/us.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/us-aerial.jpg
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/uk.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/uk-aerial.jpg
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/bigben.jpg
 .. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/lambert-conformal-conic.jpg
+.. figure:: https://github.com/rjw57/foldbeam/raw/master/sample-output/lambert-conformal-conic-aerial.jpg
 
 License
 -------
