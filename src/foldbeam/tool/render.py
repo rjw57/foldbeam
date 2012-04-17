@@ -78,8 +78,6 @@ def main():
     elif args.width is None:
         ew, eh = map(abs, envelope.offset())
         args.width = max(1, int(args.height * ew / eh))
-    else:
-        assert False
 
     node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
