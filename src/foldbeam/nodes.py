@@ -56,9 +56,7 @@ class LayerRasterNode(Node):
         if output is None:
             return ContentType.NONE, None
 
-        return ContentType.RASTER, core.Raster(output, envelope,
-                band_colors=(core.Raster.RED, core.Raster.GREEN, core.Raster.BLUE, core.Raster.ALPHA),
-                rgb_scale=1.0)
+        return ContentType.RASTER, core.Raster(output, envelope, to_rgba=lambda x: x)
 
 class GDALDatasetRasterNode(Node):
     def __init__(self, dataset):
@@ -74,6 +72,39 @@ class GDALDatasetRasterNode(Node):
         self.is_palette = any([
             self.dataset.GetRasterBand(i).GetColorInterpretation() == gdal.GCI_PaletteIndex
             for i in xrange(1, self.dataset.RasterCount+1)])
+
+    def _to_rgba(self, array):
+        rgba = core.to_rgba_unknown(array)
+        if np.any(rgba[:,:,3] != 1.0):
+            mask_alpha = rgba[:,:,3]
+        else:
+            mask_alpha = 1.0
+
+        for i in xrange(1, self.dataset.RasterCount+1):
+            band = self.dataset.GetRasterBand(i)
+            interp = band.GetColorInterpretation()
+            data = array[:,:,i-1] * mask_alpha
+
+            if interp == gdal.GCI_RedBand:
+                rgba[:,:,0] = data / 255.0
+            elif interp == gdal.GCI_GreenBand:
+                rgba[:,:,1] = data / 255.0
+            elif interp == gdal.GCI_BlueBand:
+                rgba[:,:,2] = data / 255.0
+            elif interp == gdal.GCI_AlphaBand:
+                rgba[:,:,3] = data / 255.0
+            elif interp == gdal.GCI_GrayIndex:
+                rgba[:,:,:3] = np.repeat(np.atleast_3d(data / 255.0), 3, 2)
+            elif interp == gdal.GCI_PaletteIndex:
+                table = band.GetColorTable()
+                entries = np.array([tuple(table.GetColorEntry(i)) for i in xrange(table.GetCount())])
+
+                # FIXME: This assumes the palette is RGBA
+                rgba = np.float32(entries[np.int32(data)]) / 255.0
+                for i in xrange(4):
+                    rgba[:,:,i] *= mask_alpha
+
+        return rgba
 
     def _render(self, envelope, size=None):
         if size is None:
@@ -116,7 +147,7 @@ class GDALDatasetRasterNode(Node):
                 gdal.GRA_NearestNeighbour)
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
-        return ContentType.RASTER, core.Raster.from_dataset(ds, mask_band=mask_band, rgb_scale=1.0/255.0)
+        return ContentType.RASTER, core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
@@ -172,13 +203,21 @@ class TileStacheRasterNode(Node):
         if size is None:
             size = map(int, envelope.size())
 
+        to_rgba = core.RgbaFromBands(
+            (
+                (core.RgbaFromBands.RED,    1.0/255.0),
+                (core.RgbaFromBands.GREEN,  1.0/255.0),
+                (core.RgbaFromBands.BLUE,   1.0/255.0),
+            ),
+            True)
+
         if size[0] <= 256 and size[1] <= 256:
             pref_envelope = envelope.transform_to(
                     self.preferred_srs,
                     min(envelope.size()) / float(max(size)))
             zoom = self._zoom_for_envelope(pref_envelope, size)
             raster = self._render_tile(envelope, size, zoom)
-            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
+            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, to_rgba=to_rgba)
 
         raster = _gdal.create_render_dataset(envelope, size)
         assert(raster.dataset.RasterXSize == size[0])
@@ -218,7 +257,7 @@ class TileStacheRasterNode(Node):
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, to_rgba=to_rgba)
 
     def _render_tile(self, envelope, size, zoom):
         # Get the destination raster

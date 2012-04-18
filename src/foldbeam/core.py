@@ -209,31 +209,99 @@ class Envelope(object):
     def __str__(self):
         return '(%f => %f, %f => %f)' % (self.left, self.right, self.top, self.bottom)
 
-class Raster(object):
-    # Band interpretations
+def to_rgba_unknown(array):
+    array = np.atleast_2d(array)
+    rgba = np.empty(array.shape[:2] + (4,))
+    red = np.reshape(np.arange(array.shape[1], dtype=np.float32) / array.shape[1], (1, array.shape[1]))
+    green = np.reshape(np.arange(array.shape[0], dtype=np.float32) / array.shape[0], (array.shape[0], 1))
+    alpha = 1
+    mask = np.ma.getmask(array)
+    if mask is not np.ma.nomask:
+        alpha = np.where(np.any(mask, 2), 0.0, 1.0)
+    rgba[:,:,0] = np.repeat(red, array.shape[0], 0) * alpha
+    rgba[:,:,1] = np.repeat(green, array.shape[1], 1) * alpha
+    rgba[:,:,2] = 0
+    rgba[:,:,3] = alpha
+    return rgba
 
-    RED         = 0
-    GREEN       = 1
-    BLUE        = 2
-    ALPHA       = 3
-    GRAY        = 4
+class RgbaFromBands(object):
+    # Band interpretations
+    RED         = 'RED'
+    GREEN       = 'GREEN'
+    BLUE        = 'BLUE'
+    ALPHA       = 'ALPHA'
+    GRAY        = 'GRAY'
+    NONE        = 'NONE'
+
+    def __init__(self, bands, is_premultiplied):
+        self.bands = bands
+        self.is_premultiplied = is_premultiplied
+
+    def __call__(self, array):
+        rgba = to_rgba_unknown(array)
+        if np.any(rgba[:,:,3] != 1.0):
+            mask_alpha = rgba[:,:,3]
+        else:
+            mask_alpha = 1.0
+
+        for idx, band in enumerate(self.bands):
+            scale = (band[1] if len(band) >= 2 else 1.0) * mask_alpha
+            interp = band[0]
+
+            if interp is RgbaFromBands.GRAY:
+                rgba[:,:,:3] = np.repeat(array[:,:,idx], 3, 2) * scale
+            elif interp is RgbaFromBands.RED:
+                rgba[:,:,0] = array[:,:,idx]
+                rgba[:,:,0] *= scale
+            elif interp is RgbaFromBands.GREEN:
+                rgba[:,:,1] = array[:,:,idx]
+                rgba[:,:,1] *= scale
+            elif interp is RgbaFromBands.BLUE:
+                rgba[:,:,2] = array[:,:,idx]
+                rgba[:,:,2] *= scale
+            elif interp is RgbaFromBands.ALPHA:
+                rgba[:,:,3] = array[:,:,idx]
+                rgba[:,:,3] *= scale
+
+        if not self.is_premultiplied:
+            for i in xrange(3):
+                rgba[:,:,i] *= rgba[:,:,3]
+
+        return rgba
+
+class Raster(object):
     PALETTE     = 5
     UNKNOWN     = 6
 
-    _gdal_interp_map = {
-        gdal.GCI_Undefined      :   UNKNOWN,
-        gdal.GCI_RedBand        :   RED,
-        gdal.GCI_GreenBand      :   GREEN,
-        gdal.GCI_BlueBand       :   BLUE,
-        gdal.GCI_AlphaBand      :   ALPHA,
-        gdal.GCI_GrayIndex      :   GRAY,
-        gdal.GCI_PaletteIndex   :   PALETTE,
-        # FIXME: Remaining
-    }
+    def __init__(self, array, envelope, to_rgba=None):
+        self.array = np.atleast_3d(np.float32(array))
+        self.envelope = envelope
+        if to_rgba is None:
+            to_rgba = to_rgba_unknown
+        self._to_rgba = to_rgba
+
+    def to_rgba(self):
+        return self._to_rgba(self.array)
+
+    def as_dataset(self):
+        arr = self.array
+        if len(arr.shape) > 2:
+            arr = arr.transpose((2,0,1))
+        ds = gdal_array.OpenArray(arr)
+        ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
+        size = [self.array.shape[i] for i in (1,0)]
+        xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
+        ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
+
+        return ds
+
+    def write_tiff(self, filename):
+        driver = gdal.GetDriverByName('GTiff')
+        driver.CreateCopy(filename, self.as_dataset())
 
     @classmethod
     def from_dataset(cls, ds, mask_band=None, **kwargs):
-        ds_array = np.float32(ds.ReadAsArray())
+        ds_array = ds.ReadAsArray()
         if len(ds_array.shape) > 2:
             ds_array = ds_array.transpose((1,2,0))
         else:
@@ -248,86 +316,15 @@ class Raster(object):
         srs.ImportFromWkt(ds.GetProjection())
         envelope = _gdal.dataset_envelope(ds, srs)
 
-        band_colors = [
-                Raster._gdal_interp_map[ds.GetRasterBand(i).GetColorInterpretation()]
-                for i in xrange(1, ds.RasterCount+1)
-        ]
+        #band_colors = [
+        #        Raster._gdal_interp_map[ds.GetRasterBand(i).GetColorInterpretation()]
+        #        for i in xrange(1, ds.RasterCount+1)
+        #]
+#
+        #palette = None
+        #if Raster.PALETTE in band_colors:
+        #    palette_idx = band_colors.index(Raster.PALETTE)
+        #    color_table = ds.GetRasterBand(palette_idx+1).GetColorTable()
+        #    palette = [tuple(color_table.GetColorEntry(i)) for i in xrange(0, color_table.GetCount())]
 
-        palette = None
-        if Raster.PALETTE in band_colors:
-            palette_idx = band_colors.index(Raster.PALETTE)
-            color_table = ds.GetRasterBand(palette_idx+1).GetColorTable()
-            palette = [tuple(color_table.GetColorEntry(i)) for i in xrange(0, color_table.GetCount())]
-
-        return Raster(ds_array, envelope, band_colors=band_colors, palette=palette, **kwargs)
-
-    def __init__(self, array, envelope, band_colors=None, rgb_scale=1.0, palette=None):
-        self.array = array
-        self.envelope = envelope
-        self.rgb_scale = rgb_scale
-        self.palette = palette
-
-        expected_len = np.atleast_3d(self.array).shape[2]
-        if band_colors is not None:
-            if len(band_colors) != expected_len:
-                raise ValueError('band_colours: expected a sequence with %i entries for this array' % (expected_len,))
-            self.band_colors = band_colors
-        else:
-            self.band_colors = (Raster.UNKNOWN,) * expected_len
-
-    def as_dataset(self):
-        arr = self.array
-        if len(arr.shape) > 2:
-            arr = arr.transpose((2,0,1))
-        ds = gdal_array.OpenArray(arr)
-        ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
-        size = [self.array.shape[i] for i in (1,0)]
-        xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
-        ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
-
-        # FIXME: Set band colour interpretation
-
-        return ds
-
-    def to_rgba(self):
-        src = np.atleast_3d(self.array)
-        scale = self.rgb_scale
-
-        rgba = np.empty((src.shape[0], src.shape[1], 4), dtype=np.float32)
-
-        # Handle masked arrays properly
-        mask = np.ma.getmask(src)
-        if mask is np.ma.nomask:
-            rgba[:,:,3] = 1
-        else:
-            rgba[:,:,3] = 1 - np.any(mask, 2)
-
-        def premultiply():
-            for i in xrange(3):
-                rgba[:,:,i] *= rgba[:,:,3]
-
-        if Raster.GRAY in self.band_colors:
-            rgba[:,:,:3] = np.repeat(np.atleast_3d(scale * src[:,:,0]), 3, 2)
-            premultiply()
-        elif Raster.PALETTE in self.band_colors:
-            if self.palette is None:
-                print('Cannot render palettised raster to RGBA if palette is not set')
-                return None
-
-            image = np.array(self.palette)[np.int32(src[:,:,0])] / 255.0
-            rgba[:,:,:3] = image[:,:,:3]
-            #rgba[:,:,3] *= image[:,:,3]
-            premultiply()
-        elif all([x in self.band_colors for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]):
-            indices = [self.band_colors.index(x) for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]
-            rgba[:,:,:3] = scale * src[:,:,indices]
-            premultiply()
-        else:
-            print('Skipping unknown band colors: %s' % (self.band_colors,))
-            return None
-
-        return rgba
-
-    def write_tiff(self, filename):
-        driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy(filename, self.as_dataset())
+        return Raster(ds_array, envelope, **kwargs)
