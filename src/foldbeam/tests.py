@@ -35,6 +35,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
                         'url': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{Z}/{X}/{Y}.png',
                     },
                 },
+                'aerial': {
+                    'provider': {
+                        'name': 'proxy', 
+                        'provider': 'MICROSOFT_AERIAL',
+                    },
+                },
             },
         })
 
@@ -73,6 +79,29 @@ class TestTileStacheRasterNode(unittest.TestCase):
         self.assertEqual(ds.RasterXSize, size[0])
         self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('world-usna.tiff')
+
+    def test_tilestache_osgrid_overlay(self):
+        envelope_srs = SpatialReference()
+        envelope_srs.ImportFromEPSG(27700) # British national grid
+        envelope = core.Envelope(0, 700000, 1300000, 0, envelope_srs)
+
+        roads_node = nodes.TileStacheRasterNode(self.config.layers['osm'])
+        aerial_node = nodes.TileStacheRasterNode(self.config.layers['aerial'])
+        node = nodes.LayerRasterNode(
+            [x.outputs['raster'] for x in (aerial_node, roads_node)],
+            (1, 0.5),
+        )
+
+        size = (700, 1300)
+        t, raster = node.outputs['raster'](envelope, size)
+        self.assertEqual(t, graph.ContentType.RASTER)
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
+
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
+        raster.write_tiff('uk-osgrid-overlay.tiff')
 
     def test_tilestache_osgrid(self):
         envelope_srs = SpatialReference()

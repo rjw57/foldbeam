@@ -11,29 +11,38 @@ import TileStache
 from graph import *
 
 class LayerRasterNode(Node):
-    def __init__(self, pads):
+    def __init__(self, pads, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.outputs['raster'] = CallableOutputPad(self._render)
+        self.outputs['raster'] = RasterOutputPad(self._render)
         self.pads = pads
+        if opacities is None:
+            self.opacities = (1,) * len(self.pads)
+        else:
+            self.opacities = opacities
+            if len(self.opacities) != len(self.pads):
+                raise ValueError('opacities: expected sequence of length %s' % (len(self.pads),))
 
-    def _render(self, envelope, size=None):
+    def _render(self, tiles):
+        rv = []
+        for envelope, size in tiles:
+            rv.append(self._render_tile(envelope, size))
+        return rv
+
+    def _render_tile(self, envelope, size):
         if len(self.pads) == 0:
             return None
 
-        if size is None:
-            size = map(int, envelope.size())
-
-        responses = [pad(envelope, size) for pad in self.pads]
-        responses = [x for x in responses if x is not None]
-        if len(responses) == 0:
-            return None
-
         output = None
-        for type_, raster in responses:
+        for response, opacity in zip([pad(envelope, size) for pad in self.pads], self.opacities):
+            if response is None:
+                continue
+
+            type_, raster = response
+
             if type_ == ContentType.NONE:
                 continue
 
-            if type_ != ContentType.RASTER:
+            if type_ is not ContentType.RASTER:
                 raise RuntimeError('Input is not raster')
             
             layer = raster.to_rgba()
@@ -45,23 +54,23 @@ class LayerRasterNode(Node):
                 output = layer
                 continue
 
-            one_minus_alpha = np.atleast_3d(1.0 - layer[:,:,3])
+            one_minus_alpha = np.atleast_3d(1.0 - opacity * layer[:,:,3])
             
             output[:,:,:3] *= np.repeat(one_minus_alpha, 3, 2) 
-            output[:,:,:3] += layer[:,:,:3]
+            output[:,:,:3] += opacity * layer[:,:,:3]
 
             output[:,:,3] *= one_minus_alpha[:,:,0]
-            output[:,:,3] += layer[:,:,3]
+            output[:,:,3] += opacity * layer[:,:,3]
 
         if output is None:
-            return ContentType.NONE, None
+            return None
 
-        return ContentType.RASTER, core.Raster(output, envelope, to_rgba=lambda x: x)
+        return core.Raster(output, envelope, to_rgba=lambda x: x)
 
 class GDALDatasetRasterNode(Node):
     def __init__(self, dataset):
         super(GDALDatasetRasterNode, self).__init__()
-        self.outputs['raster'] = RasterOutputPad(self._render)
+        self.outputs['raster'] = RasterOutputPad(self._render, tile_size=256)
         self.dataset = dataset
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
@@ -106,7 +115,13 @@ class GDALDatasetRasterNode(Node):
 
         return rgba
 
-    def _render(self, envelope, size):
+    def _render(self, tiles):
+        rv = []
+        for envelope, size in tiles:
+            rv.append(self._render_tile(envelope, size))
+        return rv
+
+    def _render_tile(self, envelope, size):
         # check if the requested area is contained within the dataset bounds
         ds_boundary = self.boundary.transform_to(
                 envelope.spatial_reference,
@@ -149,7 +164,7 @@ class GDALDatasetRasterNode(Node):
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
-        self.outputs['raster'] = RasterOutputPad(self._render)
+        self.outputs['raster'] = RasterOutputPad(self._render, tile_size=256)
 
         self.layer = layer
         self.preferred_srs = SpatialReference()
@@ -196,15 +211,29 @@ class TileStacheRasterNode(Node):
         int_zoom = int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
         return max(0, min(18, int_zoom))
 
-    def _render(self, envelope, size=None):
-        if size is None:
-            size = map(int, envelope.size())
+    def _render(self, tiles):
+        rv = []
 
-        pref_envelope = envelope.transform_to(
-                self.preferred_srs,
-                min(envelope.size()) / float(max(size)))
-        zoom = self._zoom_for_envelope(pref_envelope, size)
+        zooms = []
+        for envelope, size in tiles:
+            try:
+                pref_envelope = envelope.transform_to(
+                        self.preferred_srs,
+                        min(envelope.size()) / float(max(size)))
+            except core.ProjectionError:
+                # Skip projection errors
+                continue
+            zooms.append(self._zoom_for_envelope(pref_envelope, size))
+        
+        # Choose the 75th percentile zoom
+        zooms.sort()
+        zoom = zooms[(len(zooms)>>1) + (len(zooms)>>2)]
 
+        for envelope, size in tiles:
+            rv.append(self._render_tile(envelope, size, zoom))
+        return rv
+
+    def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
         raster = _gdal.create_render_dataset(envelope, size)
         assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)

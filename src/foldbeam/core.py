@@ -270,9 +270,6 @@ class RgbaFromBands(object):
         return rgba
 
 class Raster(object):
-    PALETTE     = 5
-    UNKNOWN     = 6
-
     def __init__(self, array, envelope, to_rgba=None):
         self.array = np.atleast_3d(np.float32(array))
         self.envelope = envelope
