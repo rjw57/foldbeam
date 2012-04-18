@@ -278,10 +278,22 @@ class Raster(object):
         self.envelope = envelope
         if to_rgba is None:
             to_rgba = to_rgba_unknown
-        self._to_rgba = to_rgba
+        self.to_rgba_cb = to_rgba
 
     def to_rgba(self):
-        return self._to_rgba(self.array)
+        return self.to_rgba_cb(self.array)
+
+    def as_rgba_dataset(self):
+        arr = self.to_rgba()
+        if len(arr.shape) > 2:
+            arr = arr.transpose((2,0,1))
+        ds = gdal_array.OpenArray(np.uint8(255.0*np.clip(arr,0,1)))
+        ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
+        size = [ds.RasterXSize, ds.RasterYSize]
+        xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
+        ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
+
+        return ds
 
     def as_dataset(self):
         arr = self.array
@@ -289,7 +301,7 @@ class Raster(object):
             arr = arr.transpose((2,0,1))
         ds = gdal_array.OpenArray(arr)
         ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
-        size = [self.array.shape[i] for i in (1,0)]
+        size = [ds.RasterXSize, ds.RasterYSize]
         xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
         ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
 
@@ -297,7 +309,7 @@ class Raster(object):
 
     def write_tiff(self, filename):
         driver = gdal.GetDriverByName('GTiff')
-        driver.CreateCopy(filename, self.as_dataset())
+        driver.CreateCopy(filename, self.as_rgba_dataset())
 
     @classmethod
     def from_dataset(cls, ds, mask_band=None, **kwargs):

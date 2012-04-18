@@ -61,7 +61,7 @@ class LayerRasterNode(Node):
 class GDALDatasetRasterNode(Node):
     def __init__(self, dataset):
         super(GDALDatasetRasterNode, self).__init__()
-        self.outputs['raster'] = CallableOutputPad(self._render)
+        self.outputs['raster'] = RasterOutputPad(self._render)
         self.dataset = dataset
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
@@ -106,10 +106,7 @@ class GDALDatasetRasterNode(Node):
 
         return rgba
 
-    def _render(self, envelope, size=None):
-        if size is None:
-            size = map(int, envelope.size())
-
+    def _render(self, envelope, size):
         # check if the requested area is contained within the dataset bounds
         ds_boundary = self.boundary.transform_to(
                 envelope.spatial_reference,
@@ -119,7 +116,7 @@ class GDALDatasetRasterNode(Node):
         requested_boundary = core.boundary_from_envelope(envelope)
         if not ds_boundary.geometry.Intersects(requested_boundary.geometry):
             # early out if the dataset is nowhere near the requested envelope
-            return ContentType.NONE, None
+            return None
 
         # Get the destination raster
         raster = _gdal.create_render_dataset(
@@ -147,12 +144,12 @@ class GDALDatasetRasterNode(Node):
                 gdal.GRA_NearestNeighbour)
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
-        return ContentType.RASTER, core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
+        return core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
-        self.outputs['raster'] = CallableOutputPad(self._render)
+        self.outputs['raster'] = RasterOutputPad(self._render)
 
         self.layer = layer
         self.preferred_srs = SpatialReference()
@@ -203,63 +200,11 @@ class TileStacheRasterNode(Node):
         if size is None:
             size = map(int, envelope.size())
 
-        to_rgba = core.RgbaFromBands(
-            (
-                (core.RgbaFromBands.RED,    1.0/255.0),
-                (core.RgbaFromBands.GREEN,  1.0/255.0),
-                (core.RgbaFromBands.BLUE,   1.0/255.0),
-            ),
-            True)
+        pref_envelope = envelope.transform_to(
+                self.preferred_srs,
+                min(envelope.size()) / float(max(size)))
+        zoom = self._zoom_for_envelope(pref_envelope, size)
 
-        if size[0] <= 256 and size[1] <= 256:
-            pref_envelope = envelope.transform_to(
-                    self.preferred_srs,
-                    min(envelope.size()) / float(max(size)))
-            zoom = self._zoom_for_envelope(pref_envelope, size)
-            raster = self._render_tile(envelope, size, zoom)
-            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, to_rgba=to_rgba)
-
-        raster = _gdal.create_render_dataset(envelope, size)
-        assert(raster.dataset.RasterXSize == size[0])
-        assert(raster.dataset.RasterYSize == size[1])
-        xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
-
-        max_size = 256
-        zooms = []
-        tiles = []
-        for x in xrange(0, size[0], max_size):
-            width = min(x + max_size, size[0]) - x
-            for y in xrange(0, size[1], max_size):
-                height = min(y + max_size, size[1]) - y
-                tile_envelope = core.Envelope(
-                        envelope.left + xscale * x,
-                        envelope.left + xscale * (x + width),
-                        envelope.top + yscale * y,
-                        envelope.top + yscale * (y + height),
-                        envelope.spatial_reference,
-                )
-                try:
-                    pref_envelope = tile_envelope.transform_to(
-                            self.preferred_srs,
-                            min(tile_envelope.size()) / float(max(width, height)))
-                except core.ProjectionError:
-                    # Skip projection errors
-                    continue
-                zooms.append(self._zoom_for_envelope(pref_envelope, (width, height)))
-                tiles.append((tile_envelope, (x,y), (width, height)))
-        
-        # Choose the 75th percentile zoom
-        zooms.sort()
-        zoom = zooms[(len(zooms)>>1) + (len(zooms)>>2)]
-
-        for tile_envelope, tile_pos, tile_size in tiles:
-            tile_raster = self._render_tile(tile_envelope, tile_size, zoom)
-            tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
-            raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
-        
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, to_rgba=to_rgba)
-
-    def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
         raster = _gdal.create_render_dataset(envelope, size)
         assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)
@@ -331,4 +276,10 @@ class TileStacheRasterNode(Node):
                 tile_raster = None
                 gdal.Unlink('/vsimem/tmptile.png')
 
-        return raster
+        return core.Raster.from_dataset(raster.dataset, to_rgba=core.RgbaFromBands(
+            (
+                (core.RgbaFromBands.RED,    1.0/255.0),
+                (core.RgbaFromBands.GREEN,  1.0/255.0),
+                (core.RgbaFromBands.BLUE,   1.0/255.0),
+            ),
+            True))
