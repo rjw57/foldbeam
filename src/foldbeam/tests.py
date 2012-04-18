@@ -49,9 +49,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (1024, 512)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('world-latlng.tiff')
 
     def test_tilestache_usna(self):
@@ -63,9 +66,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (1200, 800)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('world-usna.tiff')
 
     def test_tilestache_osgrid(self):
@@ -77,9 +83,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (700, 1300)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('uk-osgrid.tiff')
 
     def test_tilestache_osgrid_crazy(self):
@@ -91,9 +100,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (800, 1200)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('mad-osgrid.tiff')
 
     def test_tilestache_big_ben(self):
@@ -111,10 +123,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (512, 512)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
-        driver = gdal.GetDriverByName('GTiff')
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('big-ben.tiff')
 
     def test_tilestache_big_ben_small(self):
@@ -132,9 +146,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         size = (512, 512)
         t, raster = node.outputs['raster'](envelope, size)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, size[0])
-        self.assertEqual(raster.dataset.RasterYSize, size[1])
+        self.assertEqual(raster.array.shape[1], size[0])
+        self.assertEqual(raster.array.shape[0], size[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, size[0])
+        self.assertEqual(ds.RasterYSize, size[1])
         raster.write_tiff('big-ben-sm.tiff')
 
     def test_tilestache_big_ben_proj_units(self):
@@ -153,9 +170,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         t, raster = node.outputs['raster'](envelope)
         self.assertEqual(t, graph.ContentType.RASTER)
-        self.assertEqual(raster.dataset.RasterXSize, skirt[0])
-        self.assertEqual(raster.dataset.RasterYSize, skirt[1])
+        self.assertEqual(raster.array.shape[1], skirt[0])
+        self.assertEqual(raster.array.shape[0], skirt[1])
 
+        ds = raster.as_dataset()
+        self.assertEqual(ds.RasterXSize, skirt[0])
+        self.assertEqual(ds.RasterYSize, skirt[1])
         raster.write_tiff('big-ben-metres.tiff')
 
 class TestBoundary(unittest.TestCase):

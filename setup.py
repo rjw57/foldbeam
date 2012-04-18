@@ -16,6 +16,7 @@ install_requires = [
     'modestmaps',
     'py-notify',
     'tilestache',
+    'numpy',
 ]
 
 

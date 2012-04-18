@@ -10,7 +10,8 @@ represented by tiles between spatial references.
 
 import json
 from TileStache.Geography import Point
-from osgeo import ogr, gdal
+from osgeo import osr, ogr, gdal, gdal_array
+import numpy as np
 
 def boundary_from_envelope(envelope):
     """Construct a :py:class:`Boundary` from an :py:class:`Envelope`. The boundary is the bounding box which encloses
@@ -207,3 +208,40 @@ class Envelope(object):
     def __str__(self):
         return '(%f => %f, %f => %f)' % (self.left, self.right, self.top, self.bottom)
 
+class Raster(object):
+    @classmethod
+    def from_dataset(cls, ds):
+        ds_array = ds.ReadAsArray()
+        if len(ds_array.shape) > 2:
+            ds_array = ds_array.transpose((1,2,0))
+        
+        geo_transform = ds.GetGeoTransform()
+        left = geo_transform[0]
+        right = left + geo_transform[1] * ds.RasterXSize
+        top = geo_transform[3]
+        bottom = top + geo_transform[5] * ds.RasterYSize
+
+        srs = osr.SpatialReference()
+        srs.ImportFromWkt(ds.GetProjection())
+        envelope = Envelope(left, right, top, bottom, srs)
+
+        return Raster(ds_array, envelope)
+
+    def __init__(self, array, envelope):
+        self.array = array
+        self.envelope = envelope
+
+    def as_dataset(self):
+        arr = self.array
+        if len(arr.shape) > 2:
+            arr = arr.transpose((2,0,1))
+        ds = gdal_array.OpenArray(arr)
+        ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
+        size = [self.array.shape[i] for i in (1,0)]
+        xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
+        ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
+        return ds
+
+    def write_tiff(self, filename):
+        driver = gdal.GetDriverByName('GTiff')
+        driver.CreateCopy(filename, self.as_dataset())

@@ -31,7 +31,7 @@ class GDALDatasetRasterNode(Node):
                 desired_srs_wkt,
                 gdal.GRA_Bilinear)
 
-        return ContentType.RASTER, raster
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
@@ -92,7 +92,8 @@ class TileStacheRasterNode(Node):
                     self.preferred_srs,
                     min(envelope.size()) / float(max(size)))
             zoom = self._zoom_for_envelope(pref_envelope, size)
-            return ContentType.RASTER, self._render_tile(envelope, size, zoom)
+            raster = self._render_tile(envelope, size, zoom)
+            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
 
         raster = _gdal.create_render_dataset(envelope, size)
         assert(raster.dataset.RasterXSize == size[0])
@@ -132,7 +133,7 @@ class TileStacheRasterNode(Node):
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
-        return ContentType.RASTER, raster
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
 
     def _render_tile(self, envelope, size, zoom):
         # Get the destination raster

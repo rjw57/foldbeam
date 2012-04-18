@@ -5,6 +5,7 @@ from PIL import Image
 from TileStache import *
 import os
 from osgeo import osr, gdal
+import numpy as np
 
 class NodeProvider(object):
     """A very preliminary example of acting as a TileStache tile provider."""
@@ -36,10 +37,4 @@ class NodeProvider(object):
         envelope = Envelope(xmin, xmax, ymax, ymin, spatial_reference)
         type_, raster = self.node.outputs['raster'](envelope, (width, height))
         assert type_ == ContentType.RASTER
-
-        ds = raster.dataset
-        channels = [min(ds.RasterCount, i) for i in (1,2,3)]
-        r, g, b = [ds.GetRasterBand(i).ReadRaster(0, 0, width, height) for i in channels]
-        data = ''.join([''.join(pixel) for pixel in zip(r, g, b)])
-        area = Image.fromstring('RGB', (width, height), data)
-        return area
+        return Image.fromarray(np.uint8(raster.array))
