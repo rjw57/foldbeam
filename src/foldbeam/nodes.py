@@ -4,10 +4,79 @@ import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
+import numpy as np
 import StringIO
 import TileStache
 
 from graph import *
+
+class LayerRasterNode(Node):
+    def __init__(self, pads):
+        super(LayerRasterNode, self).__init__()
+        self.outputs['raster'] = CallableOutputPad(self._render)
+        self.pads = pads
+
+    def _render(self, envelope, size=None):
+        if len(self.pads) == 0:
+            return None
+
+        if size is None:
+            size = map(int, envelope.size())
+
+        responses = [pad(envelope, size) for pad in self.pads]
+        responses = [x for x in responses if x is not None]
+        if len(responses) == 0:
+            return None
+
+        def deepen_to(array, bands):
+            if bands <= 1:
+                return array
+            array = np.atleast_3d(array)
+            if array.shape[2] >= bands:
+                return array
+
+            if array.shape[2] == 1:
+                return np.repeat(array, bands, 2)
+            else:
+                return np.dstack((
+                    array,
+                    np.zeros((array.shape[0], array.shape[1], bands-array.shape[2]))
+                ))
+
+        output = None
+        for type_, raster in responses:
+            if type_ != ContentType.RASTER:
+                raise RuntimeError('Input is not raster')
+            
+            layer = np.float32(np.atleast_3d(raster.array))
+
+            if output is None:
+                output = layer
+                continue
+            
+            bands = max(layer.shape[2], output.shape[2])
+
+            mask = np.isfinite(layer)
+            if raster.mask is not None:
+                mask = np.logical_and(np.repeat(np.atleast_3d(raster.mask), layer.shape[2], 2), mask)
+
+            if bands > output.shape[2]:
+                output = deepen_to(output, bands)
+
+            if bands > layer.shape[2]:
+                layer = deepen_to(layer, bands)
+                mask = deepen_to(mask, bands)
+
+            valid_indices = np.flatnonzero(mask)
+            if len(valid_indices) > 0:
+                valid_out = output.flat[valid_indices]
+                valid_layer = layer.flat[valid_indices]
+                blended = 0.5 * (valid_out + valid_layer)
+                np.put(output, valid_indices, blended)
+
+        if output is None:
+            return None
+        return ContentType.RASTER, core.Raster(output, envelope)
 
 class GDALDatasetRasterNode(Node):
     def __init__(self, dataset):
@@ -22,7 +91,14 @@ class GDALDatasetRasterNode(Node):
         # Get the destination raster
         raster = _gdal.create_render_dataset(
                 envelope, size,
-                self.dataset.RasterCount)
+                self.dataset.RasterCount, gdal.GDT_Float32)
+        ds = raster.dataset
+        [ds.GetRasterBand(i).SetNoDataValue(float('nan')) for i in xrange(1, ds.RasterCount+1)]
+
+        for i in xrange(1, ds.RasterCount+1):
+            no_data = self.dataset.GetRasterBand(i).GetNoDataValue()
+            if no_data is not None:
+                ds.GetRasterBand(i).SetNoDataValue(no_data)
 
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
         gdal.ReprojectImage(

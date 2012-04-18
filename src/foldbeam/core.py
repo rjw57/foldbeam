@@ -225,10 +225,16 @@ class Raster(object):
         srs.ImportFromWkt(ds.GetProjection())
         envelope = Envelope(left, right, top, bottom, srs)
 
-        return Raster(ds_array, envelope)
+        mask = None
+        mask_band = ds.GetRasterBand(1).GetMaskBand()
+        if mask_band is not None:
+            mask = mask_band.ReadAsArray()
 
-    def __init__(self, array, envelope):
+        return Raster(ds_array, envelope, mask)
+
+    def __init__(self, array, envelope, mask=None):
         self.array = array
+        self.mask = mask
         self.envelope = envelope
 
     def as_dataset(self):
@@ -241,6 +247,10 @@ class Raster(object):
         xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
         ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
         return ds
+
+    def to_rgba(self):
+        src = self.array
+        rgba = np.empty((src.shape[0], src.shape[1], 4), dtype=np.float32)
 
     def write_tiff(self, filename):
         driver = gdal.GetDriverByName('GTiff')
