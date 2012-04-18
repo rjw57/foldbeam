@@ -221,17 +221,19 @@ class Raster(object):
     UNKNOWN     = 6
 
     _gdal_interp_map = {
+        gdal.GCI_Undefined      :   UNKNOWN,
         gdal.GCI_RedBand        :   RED,
         gdal.GCI_GreenBand      :   GREEN,
         gdal.GCI_BlueBand       :   BLUE,
         gdal.GCI_AlphaBand      :   ALPHA,
         gdal.GCI_GrayIndex      :   GRAY,
         gdal.GCI_PaletteIndex   :   PALETTE,
+        # FIXME: Remaining
     }
 
     @classmethod
     def from_dataset(cls, ds, mask_band=None, **kwargs):
-        ds_array = ds.ReadAsArray()
+        ds_array = np.float32(ds.ReadAsArray())
         if len(ds_array.shape) > 2:
             ds_array = ds_array.transpose((1,2,0))
         else:
@@ -251,12 +253,19 @@ class Raster(object):
                 for i in xrange(1, ds.RasterCount+1)
         ]
 
-        return Raster(ds_array, envelope, band_colors, **kwargs)
+        palette = None
+        if Raster.PALETTE in band_colors:
+            palette_idx = band_colors.index(Raster.PALETTE)
+            color_table = ds.GetRasterBand(palette_idx+1).GetColorTable()
+            palette = [tuple(color_table.GetColorEntry(i)) for i in xrange(0, color_table.GetCount())]
 
-    def __init__(self, array, envelope, band_colors=None, rgb_scale=1.0):
+        return Raster(ds_array, envelope, band_colors=band_colors, palette=palette, **kwargs)
+
+    def __init__(self, array, envelope, band_colors=None, rgb_scale=1.0, palette=None):
         self.array = array
         self.envelope = envelope
         self.rgb_scale = rgb_scale
+        self.palette = palette
 
         expected_len = np.atleast_3d(self.array).shape[2]
         if band_colors is not None:
@@ -300,12 +309,21 @@ class Raster(object):
         if Raster.GRAY in self.band_colors:
             rgba[:,:,:3] = np.repeat(np.atleast_3d(scale * src[:,:,0]), 3, 2)
             premultiply()
+        elif Raster.PALETTE in self.band_colors:
+            if self.palette is None:
+                print('Cannot render palettised raster to RGBA if palette is not set')
+                return None
+
+            image = np.array(self.palette)[np.int32(src[:,:,0])] / 255.0
+            rgba[:,:,:3] = image[:,:,:3]
+            #rgba[:,:,3] *= image[:,:,3]
+            premultiply()
         elif all([x in self.band_colors for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]):
             indices = [self.band_colors.index(x) for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]
             rgba[:,:,:3] = scale * src[:,:,indices]
             premultiply()
         else:
-            print('Skipping unknown band colors')
+            print('Skipping unknown band colors: %s' % (self.band_colors,))
             return None
 
         return rgba

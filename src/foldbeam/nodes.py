@@ -28,21 +28,6 @@ class LayerRasterNode(Node):
         if len(responses) == 0:
             return None
 
-        def deepen_to(array, bands):
-            if bands <= 1:
-                return array
-            array = np.atleast_3d(array)
-            if array.shape[2] >= bands:
-                return array
-
-            if array.shape[2] == 1:
-                return np.repeat(array, bands, 2)
-            else:
-                return np.dstack((
-                    array,
-                    np.zeros((array.shape[0], array.shape[1], bands-array.shape[2]))
-                ))
-
         output = None
         for type_, raster in responses:
             if type_ == ContentType.NONE:
@@ -52,6 +37,10 @@ class LayerRasterNode(Node):
                 raise RuntimeError('Input is not raster')
             
             layer = raster.to_rgba()
+            if layer is None:
+                print('layer failed to convert')
+                continue
+
             if output is None:
                 output = layer
                 continue
@@ -82,6 +71,10 @@ class GDALDatasetRasterNode(Node):
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
 
+        self.is_palette = any([
+            self.dataset.GetRasterBand(i).GetColorInterpretation() == gdal.GCI_PaletteIndex
+            for i in xrange(1, self.dataset.RasterCount+1)])
+
     def _render(self, envelope, size=None):
         if size is None:
             size = map(int, envelope.size())
@@ -99,26 +92,23 @@ class GDALDatasetRasterNode(Node):
 
         # Get the destination raster
         raster = _gdal.create_render_dataset(
-                envelope, size,
-                self.dataset.RasterCount, gdal.GDT_Float32)
+                envelope, size, prototype_ds=self.dataset)
         ds = raster.dataset
-
-        for i in xrange(1, ds.RasterCount+1):
-            no_data = self.dataset.GetRasterBand(i).GetNoDataValue()
-            if no_data is not None:
-                ds.GetRasterBand(i).SetNoDataValue(no_data)
 
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
         gdal.ReprojectImage(
-                self.dataset, raster.dataset,
+                self.dataset, ds,
                 self.dataset.GetProjection(),
                 desired_srs_wkt,
-                gdal.GRA_Bilinear)
+                gdal.GRA_NearestNeighbour if self.is_palette else gdal.GRA_Bilinear)
 
         # Create a mask raster
         mask_raster = _gdal.create_render_dataset(envelope, size, data_type=gdal.GDT_Float32)
         mask_ds = mask_raster.dataset
-        mask_ds.GetRasterBand(1).SetNoDataValue(float('nan'))
+        band = mask_ds.GetRasterBand(1)
+        band.SetColorInterpretation(gdal.GCI_Undefined)
+        band.SetNoDataValue(float('nan'))
+        band.Fill(float('nan'))
         gdal.ReprojectImage(
                 self.dataset, mask_ds,
                 self.dataset.GetProjection(),
@@ -126,7 +116,7 @@ class GDALDatasetRasterNode(Node):
                 gdal.GRA_NearestNeighbour)
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, mask_band=mask_band, rgb_scale=1.0/255.0)
+        return ContentType.RASTER, core.Raster.from_dataset(ds, mask_band=mask_band, rgb_scale=1.0/255.0)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
@@ -285,7 +275,6 @@ class TileStacheRasterNode(Node):
                     continue
 
                 gdal.FileFromMemBuffer('/vsimem/tmptile.png', png_data)
-
                 tile_raster = gdal.Open('/vsimem/tmptile.png')
                 tile_raster.SetProjection(self.preferred_srs_wkt)
 
@@ -300,6 +289,7 @@ class TileStacheRasterNode(Node):
                         tile_raster, raster.dataset,
                         self.preferred_srs_wkt, desired_srs_wkt, gdal.GRA_Bilinear)
 
+                tile_raster = None
                 gdal.Unlink('/vsimem/tmptile.png')
 
         return raster
