@@ -102,7 +102,6 @@ class GDALDatasetRasterNode(Node):
                 envelope, size,
                 self.dataset.RasterCount, gdal.GDT_Float32)
         ds = raster.dataset
-        [ds.GetRasterBand(i).SetNoDataValue(float('nan')) for i in xrange(1, ds.RasterCount+1)]
 
         for i in xrange(1, ds.RasterCount+1):
             no_data = self.dataset.GetRasterBand(i).GetNoDataValue()
@@ -116,7 +115,18 @@ class GDALDatasetRasterNode(Node):
                 desired_srs_wkt,
                 gdal.GRA_Bilinear)
 
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
+        # Create a mask raster
+        mask_raster = _gdal.create_render_dataset(envelope, size, data_type=gdal.GDT_Float32)
+        mask_ds = mask_raster.dataset
+        mask_ds.GetRasterBand(1).SetNoDataValue(float('nan'))
+        gdal.ReprojectImage(
+                self.dataset, mask_ds,
+                self.dataset.GetProjection(),
+                desired_srs_wkt,
+                gdal.GRA_NearestNeighbour)
+        mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
+
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, mask_band=mask_band, rgb_scale=1.0/255.0)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):

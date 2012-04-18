@@ -230,10 +230,17 @@ class Raster(object):
     }
 
     @classmethod
-    def from_dataset(cls, ds, **kwargs):
-        ds_array = np.float32(ds.ReadAsArray())
+    def from_dataset(cls, ds, mask_band=None, **kwargs):
+        ds_array = ds.ReadAsArray()
         if len(ds_array.shape) > 2:
             ds_array = ds_array.transpose((1,2,0))
+        else:
+            ds_array = np.atleast_3d(ds_array)
+
+        if mask_band is not None:
+            mask = np.atleast_3d(mask_band.ReadAsArray()) == 0
+            if np.any(mask):
+                ds_array = np.ma.masked_where(np.repeat(mask, ds_array.shape[2], 2), ds_array)
 
         srs = osr.SpatialReference()
         srs.ImportFromWkt(ds.GetProjection())
@@ -278,7 +285,13 @@ class Raster(object):
         scale = self.rgb_scale
 
         rgba = np.empty((src.shape[0], src.shape[1], 4), dtype=np.float32)
-        rgba[:,:,3] = 1
+
+        # Handle masked arrays properly
+        mask = np.ma.getmask(src)
+        if mask is np.ma.nomask:
+            rgba[:,:,3] = 1
+        else:
+            rgba[:,:,3] = 1 - np.any(mask, 2)
 
         def premultiply():
             for i in xrange(3):
