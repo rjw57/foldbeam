@@ -1,8 +1,31 @@
-from core import Boundary
+from core import Boundary, Envelope
 from osgeo import gdal, ogr
+import numpy as np
 
 _counter = 0
 _driver = gdal.GetDriverByName('GTiff')
+
+def dataset_envelope(dataset, spatial_reference):
+    gt = dataset.GetGeoTransform()
+    geo_trans = np.matrix([
+        [ gt[1], gt[2], gt[0] ],
+        [ gt[4], gt[5], gt[3] ],
+    ])
+
+    bounds = geo_trans * np.matrix([
+        [ 0, 0, 1],
+        [ 0, dataset.RasterYSize, 1 ],
+        [ dataset.RasterXSize, 0, 1],
+        [ dataset.RasterXSize, dataset.RasterYSize, 1 ],
+    ]).transpose()
+
+    min_bound = bounds.min(1)
+    max_bound = bounds.max(1)
+
+    return Envelope(
+        bounds[0,0], bounds[0,3],
+        bounds[1,0], bounds[1,3],
+        spatial_reference)
 
 class _DatasetWrapper(object):
     def __init__(self, dataset, filename):

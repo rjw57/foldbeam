@@ -45,48 +45,57 @@ class LayerRasterNode(Node):
 
         output = None
         for type_, raster in responses:
+            if type_ == ContentType.NONE:
+                continue
+
             if type_ != ContentType.RASTER:
                 raise RuntimeError('Input is not raster')
             
-            layer = np.float32(np.atleast_3d(raster.array))
-
+            layer = raster.to_rgba()
             if output is None:
                 output = layer
                 continue
+
+            one_minus_alpha = np.atleast_3d(1.0 - layer[:,:,3])
             
-            bands = max(layer.shape[2], output.shape[2])
+            output[:,:,:3] *= np.repeat(one_minus_alpha, 3, 2) 
+            output[:,:,:3] += layer[:,:,:3]
 
-            mask = np.isfinite(layer)
-            if raster.mask is not None:
-                mask = np.logical_and(np.repeat(np.atleast_3d(raster.mask), layer.shape[2], 2), mask)
-
-            if bands > output.shape[2]:
-                output = deepen_to(output, bands)
-
-            if bands > layer.shape[2]:
-                layer = deepen_to(layer, bands)
-                mask = deepen_to(mask, bands)
-
-            valid_indices = np.flatnonzero(mask)
-            if len(valid_indices) > 0:
-                valid_out = output.flat[valid_indices]
-                valid_layer = layer.flat[valid_indices]
-                blended = 0.5 * (valid_out + valid_layer)
-                np.put(output, valid_indices, blended)
+            output[:,:,3] *= one_minus_alpha[:,:,0]
+            output[:,:,3] += layer[:,:,3]
 
         if output is None:
-            return None
-        return ContentType.RASTER, core.Raster(output, envelope)
+            return ContentType.NONE, None
+
+        return ContentType.RASTER, core.Raster(output, envelope,
+                band_colors=(core.Raster.RED, core.Raster.GREEN, core.Raster.BLUE, core.Raster.ALPHA),
+                rgb_scale=1.0)
 
 class GDALDatasetRasterNode(Node):
     def __init__(self, dataset):
         super(GDALDatasetRasterNode, self).__init__()
         self.outputs['raster'] = CallableOutputPad(self._render)
         self.dataset = dataset
+        self.spatial_reference = SpatialReference()
+        self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
+
+        self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
+        self.boundary = core.boundary_from_envelope(self.envelope)
 
     def _render(self, envelope, size=None):
         if size is None:
             size = map(int, envelope.size())
+
+        # check if the requested area is contained within the dataset bounds
+        ds_boundary = self.boundary.transform_to(
+                envelope.spatial_reference,
+                min(self.envelope.size()) / max(size),
+                min(envelope.size()) / max(size),
+        )
+        requested_boundary = core.boundary_from_envelope(envelope)
+        if not ds_boundary.geometry.Intersects(requested_boundary.geometry):
+            # early out if the dataset is nowhere near the requested envelope
+            return ContentType.NONE, None
 
         # Get the destination raster
         raster = _gdal.create_render_dataset(
@@ -107,7 +116,7 @@ class GDALDatasetRasterNode(Node):
                 desired_srs_wkt,
                 gdal.GRA_Bilinear)
 
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
 
 class TileStacheRasterNode(Node):
     def __init__(self, layer):
@@ -169,7 +178,7 @@ class TileStacheRasterNode(Node):
                     min(envelope.size()) / float(max(size)))
             zoom = self._zoom_for_envelope(pref_envelope, size)
             raster = self._render_tile(envelope, size, zoom)
-            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
+            return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
 
         raster = _gdal.create_render_dataset(envelope, size)
         assert(raster.dataset.RasterXSize == size[0])
@@ -209,7 +218,7 @@ class TileStacheRasterNode(Node):
             tile_data = tile_raster.dataset.ReadRaster(0, 0, tile_size[0], tile_size[1])
             raster.dataset.WriteRaster(tile_pos[0], tile_pos[1], tile_size[0], tile_size[1], tile_data)
         
-        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset)
+        return ContentType.RASTER, core.Raster.from_dataset(raster.dataset, rgb_scale=1.0/255.0)
 
     def _render_tile(self, envelope, size, zoom):
         # Get the destination raster

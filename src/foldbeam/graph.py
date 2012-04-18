@@ -1,6 +1,7 @@
 from notify.all import Signal
 
 class ContentType(object):
+    NONE = 'application/octet-stream; application=vnd.null'
     PNG = 'image/png'
     JPG = 'image/jpeg'
     GEOJSON = 'application/json; application=geojson'   # This is cooked up!

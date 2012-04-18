@@ -8,6 +8,7 @@ represented by tiles between spatial references.
 
 """
 
+import _gdal
 import json
 from TileStache.Geography import Point
 from osgeo import osr, ogr, gdal, gdal_array
@@ -209,33 +210,54 @@ class Envelope(object):
         return '(%f => %f, %f => %f)' % (self.left, self.right, self.top, self.bottom)
 
 class Raster(object):
+    # Band interpretations
+
+    RED         = 0
+    GREEN       = 1
+    BLUE        = 2
+    ALPHA       = 3
+    GRAY        = 4
+    PALETTE     = 5
+    UNKNOWN     = 6
+
+    _gdal_interp_map = {
+        gdal.GCI_RedBand        :   RED,
+        gdal.GCI_GreenBand      :   GREEN,
+        gdal.GCI_BlueBand       :   BLUE,
+        gdal.GCI_AlphaBand      :   ALPHA,
+        gdal.GCI_GrayIndex      :   GRAY,
+        gdal.GCI_PaletteIndex   :   PALETTE,
+    }
+
     @classmethod
-    def from_dataset(cls, ds):
-        ds_array = ds.ReadAsArray()
+    def from_dataset(cls, ds, **kwargs):
+        ds_array = np.float32(ds.ReadAsArray())
         if len(ds_array.shape) > 2:
             ds_array = ds_array.transpose((1,2,0))
-        
-        geo_transform = ds.GetGeoTransform()
-        left = geo_transform[0]
-        right = left + geo_transform[1] * ds.RasterXSize
-        top = geo_transform[3]
-        bottom = top + geo_transform[5] * ds.RasterYSize
 
         srs = osr.SpatialReference()
         srs.ImportFromWkt(ds.GetProjection())
-        envelope = Envelope(left, right, top, bottom, srs)
+        envelope = _gdal.dataset_envelope(ds, srs)
 
-        mask = None
-        mask_band = ds.GetRasterBand(1).GetMaskBand()
-        if mask_band is not None:
-            mask = mask_band.ReadAsArray()
+        band_colors = [
+                Raster._gdal_interp_map[ds.GetRasterBand(i).GetColorInterpretation()]
+                for i in xrange(1, ds.RasterCount+1)
+        ]
 
-        return Raster(ds_array, envelope, mask)
+        return Raster(ds_array, envelope, band_colors, **kwargs)
 
-    def __init__(self, array, envelope, mask=None):
+    def __init__(self, array, envelope, band_colors=None, rgb_scale=1.0):
         self.array = array
-        self.mask = mask
         self.envelope = envelope
+        self.rgb_scale = rgb_scale
+
+        expected_len = np.atleast_3d(self.array).shape[2]
+        if band_colors is not None:
+            if len(band_colors) != expected_len:
+                raise ValueError('band_colours: expected a sequence with %i entries for this array' % (expected_len,))
+            self.band_colors = band_colors
+        else:
+            self.band_colors = (Raster.UNKNOWN,) * expected_len
 
     def as_dataset(self):
         arr = self.array
@@ -246,11 +268,34 @@ class Raster(object):
         size = [self.array.shape[i] for i in (1,0)]
         xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
         ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
+
+        # FIXME: Set band colour interpretation
+
         return ds
 
     def to_rgba(self):
-        src = self.array
+        src = np.atleast_3d(self.array)
+        scale = self.rgb_scale
+
         rgba = np.empty((src.shape[0], src.shape[1], 4), dtype=np.float32)
+        rgba[:,:,3] = 1
+
+        def premultiply():
+            for i in xrange(3):
+                rgba[:,:,i] *= rgba[:,:,3]
+
+        if Raster.GRAY in self.band_colors:
+            rgba[:,:,:3] = np.repeat(np.atleast_3d(scale * src[:,:,0]), 3, 2)
+            premultiply()
+        elif all([x in self.band_colors for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]):
+            indices = [self.band_colors.index(x) for x in (Raster.RED, Raster.GREEN, Raster.BLUE)]
+            rgba[:,:,:3] = scale * src[:,:,indices]
+            premultiply()
+        else:
+            print('Skipping unknown band colors')
+            return None
+
+        return rgba
 
     def write_tiff(self, filename):
         driver = gdal.GetDriverByName('GTiff')

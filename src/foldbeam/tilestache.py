@@ -28,13 +28,29 @@ class NodeProvider(object):
                 },
             },
         })
-        self.node = TileStacheRasterNode(self.config.layers['osm'])
-        #self.node = GDALDatasetRasterNode(gdal.Open(os.path.join(os.path.dirname(__file__), '..', '..', 'dtm21.tif')))
+        tiff_path = os.path.join(os.path.dirname(__file__), '..', '..')
+        nodes = [
+                TileStacheRasterNode(self.config.layers['osm']),
+#                GDALDatasetRasterNode(gdal.Open(os.path.join(tiff_path, 'dtm21.tif'))),
+#                GDALDatasetRasterNode(gdal.Open(os.path.join(tiff_path, 'ASTGTM2_N51W002_dem.tif'))),
+#                GDALDatasetRasterNode(gdal.Open(os.path.join(tiff_path, 'sp30se.tif'))),
+#                GDALDatasetRasterNode(gdal.Open(os.path.join(tiff_path, 'sp30sw.tif'))),
+        ]
+        self.node = LayerRasterNode([node.outputs['raster'] for node in nodes])
 
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
         spatial_reference = osr.SpatialReference()
         spatial_reference.ImportFromProj4(srs)
         envelope = Envelope(xmin, xmax, ymax, ymin, spatial_reference)
+
         type_, raster = self.node.outputs['raster'](envelope, (width, height))
+        if type_ == ContentType.NONE:
+            return Image.new('RGBA', (width, height))
+
         assert type_ == ContentType.RASTER
-        return Image.fromarray(np.uint8(raster.array))
+        rgba = raster.to_rgba()
+        if rgba is not None:
+            return Image.fromarray(np.uint8(255.0 * np.clip(rgba, 0.0, 1.0)))
+
+        return Image.new('L', (width, height))
+
