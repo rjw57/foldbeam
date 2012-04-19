@@ -127,13 +127,8 @@ class GDALDatasetRasterNode(graph.Node):
         assert envelope.spatial_reference.IsSame(self.spatial_reference)
 
         # check if the requested area is contained within the dataset bounds
-        ds_boundary = self.boundary.transform_to(
-                envelope.spatial_reference,
-                min(self.envelope.size()) / max(size),
-                min(envelope.size()) / max(size),
-        )
         requested_boundary = core.boundary_from_envelope(envelope)
-        if not ds_boundary.geometry.Intersects(requested_boundary.geometry):
+        if not self.boundary.geometry.Intersects(requested_boundary.geometry):
             # early out if the dataset is nowhere near the requested envelope
             return None
 
