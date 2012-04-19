@@ -1,0 +1,38 @@
+{
+    "nodes": {
+        "composite": {
+            "type": "foldbeam.nodes:LayerRasterNode",
+            "parameters": {
+                "opacities": [ 1, 1, 0.5 ]
+            }
+        },
+        "aerial": {
+            "type": "foldbeam.nodes:TileStacheRasterNode",
+            "parameters": {
+                "config": "base-layers-cfg.json",
+                "layer": "yahoo-aerial"
+            }
+        },
+        "road": {
+            "type": "foldbeam.nodes:TileStacheRasterNode",
+            "parameters": {
+                "config": "base-layers-cfg.json",
+                "layer": "yahoo-road"
+            }
+        },
+        "dem": {
+            "type": "foldbeam.nodes:GDALDatasetRasterNode",
+            "parameters": {
+                "dataset": "dtm21.tif"
+            }
+        }
+    },
+    "edges": [
+        [ "aerial:output", "composite:layers@0" ],
+        [ "dem:output", "composite:layers@1" ],
+        [ "road:output", "composite:layers@2" ]
+    ],
+    "outputs": {
+        "output": "composite:output"
+    }
+}

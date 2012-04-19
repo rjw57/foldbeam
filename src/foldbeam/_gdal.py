@@ -1,4 +1,4 @@
-from core import Boundary, Envelope
+import core
 from osgeo import gdal, ogr
 import numpy as np
 
@@ -19,7 +19,7 @@ def dataset_envelope(dataset, spatial_reference):
     min_bound = bounds.min(1)
     max_bound = bounds.max(1)
 
-    return Envelope(
+    return core.Envelope(
         bounds[0,0], bounds[0,3],
         bounds[1,0], bounds[1,3],
         spatial_reference)

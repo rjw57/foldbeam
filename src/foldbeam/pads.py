@@ -63,7 +63,7 @@ class TiledRasterOutputPad(CallableOutputPad):
 
         if self.tile_size is None:
             raster = self._render_cb(((envelope, size),))
-            if raster is None:
+            if raster is None or len(raster) == 0 or raster[0] is None:
                 return ContentType.NONE, None
             return ContentType.RASTER, raster[0]
 
@@ -113,7 +113,7 @@ class TiledRasterOutputPad(CallableOutputPad):
 
 class ReprojectingOutputPad(OutputPad):
     def __init__(self, native_spatial_reference, source_pad, **kwargs):
-        super(OutputPad, self).__init__(type=ContentType.RASTER, **kwargs)
+        super(ReprojectingOutputPad, self).__init__(type=ContentType.RASTER, **kwargs)
         assert self.type is ContentType.RASTER
         self.native_spatial_reference = native_spatial_reference
         self.native_spatial_reference_wkt = self.native_spatial_reference.ExportToWkt()

@@ -1,0 +1,20 @@
+{
+    "cache": {
+        "name": "Disk",
+        "path": "test-tile-cache"
+    },
+    "layers": {
+        "yahoo-aerial": {
+            "provider": {
+                "name": "Proxy",
+                "provider": "YAHOO_AERIAL"
+            }
+        },
+        "yahoo-road": {
+            "provider": {
+                "name": "Proxy",
+                "provider": "YAHOO_ROAD"
+            }
+        }
+    }
+}

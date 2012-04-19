@@ -5,7 +5,7 @@ import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
-import pads
+import pads as pads_
 import numpy as np
 import StringIO
 import TileStache
@@ -13,7 +13,7 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.output = pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
+        self.output = pads_.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
         self.input_pad = input_pad
 
     def _render(self, envelope, size):
@@ -22,29 +22,34 @@ class ToRgbaRasterNode(graph.Node):
 
         resp = self.input_pad.pull(envelope, size)
         if resp is None:
-            return pads.ContentType.NONE, None
+            return pads_.ContentType.NONE, None
 
         type_, raster = resp
-        if type_ is pads.ContentType.NONE:
-            return pads.ContentType.NONE, None
+        if type_ is pads_.ContentType.NONE:
+            return pads_.ContentType.NONE, None
 
-        if type_ is not pads.ContentType.RASTER:
+        if type_ is not pads_.ContentType.RASTER:
             print('Skipping invalid raster')
-            return pads.ContentType.NONE, None
+            return pads_.ContentType.NONE, None
 
-        return pads.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
+        return pads_.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
 class LayerRasterNode(graph.Node):
-    def __init__(self, pads_, opacities=None):
+    class _GrowingList(list):
+        def __setitem__(self, index, value):
+            if index >= len(self):
+                self.extend([None]*(index + 1 - len(self)))
+                list.__setitem__(self, index, value)
+
+    def __init__(self, layers=None, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.output = pads.TiledRasterOutputPad(self._render)
-        self.pads = pads_
-        if opacities is None:
-            self.opacities = (1,) * len(self.pads)
-        else:
-            self.opacities = opacities
-            if len(self.opacities) != len(self.pads):
-                raise ValueError('opacities: expected sequence of length %s' % (len(self.pads),))
+        self.output = pads_.TiledRasterOutputPad(self._render)
+        self.layers = LayerRasterNode._GrowingList()
+
+        if layers is not None:
+            self.layers.extend(layers)
+
+        self.opacities = opacities
 
     def _render(self, tiles):
         rv = []
@@ -53,20 +58,28 @@ class LayerRasterNode(graph.Node):
         return rv
 
     def _render_tile(self, envelope, size):
-        if len(self.pads) == 0:
+        if len(self.layers) == 0:
             return None
 
+        if self.opacities is None:
+            opacities = (1,) * len(self.layers)
+        else:
+            opacities = self.opacities
+
+        if len(opacities) != len(self.layers):
+            raise ValueError('opacities: expected sequence of length %s' % (len(self.layers),))
+
         output = None
-        for response, opacity in zip([pad(envelope, size) for pad in self.pads], self.opacities):
+        for response, opacity in zip([pad(envelope, size) for pad in self.layers], opacities):
             if response is None:
                 continue
 
             type_, raster = response
 
-            if type_ == pads.ContentType.NONE:
+            if type_ == pads_.ContentType.NONE:
                 continue
 
-            if type_ is not pads.ContentType.RASTER:
+            if type_ is not pads_.ContentType.RASTER:
                 raise RuntimeError('Input is not raster')
             
             layer = raster.to_rgba()
@@ -94,12 +107,17 @@ class LayerRasterNode(graph.Node):
 class GDALDatasetRasterNode(graph.Node):
     def __init__(self, dataset):
         super(GDALDatasetRasterNode, self).__init__()
-        self.dataset = dataset
+
+        if isinstance(dataset, basestring):
+            self.dataset = gdal.Open(dataset)
+        else:
+            self.dataset = dataset
+
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
 
-        source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
-        self.output = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
+        source_pad = pads_.TiledRasterOutputPad(self._render, tile_size=256)
+        self.output = pads_.ReprojectingOutputPad(self.spatial_reference, source_pad)
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -181,13 +199,21 @@ class GDALDatasetRasterNode(graph.Node):
         return core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
 class TileStacheRasterNode(graph.Node):
-    def __init__(self, layer):
+    def __init__(self, layer=None, config=None):
         super(TileStacheRasterNode, self).__init__()
-        self.output = pads.TiledRasterOutputPad(self._render, tile_size=256)
+        self.output = pads_.TiledRasterOutputPad(self._render, tile_size=256)
 
-        self.layer = layer
+        if isinstance(layer, basestring):
+            if config is None:
+                raise ValueError('config must not be None')
+            self.config = TileStache.parseConfigfile(config)
+            self.layer = self.config.layers[layer]
+        else:
+            self.layer = layer
+            self.config = layer.config
+
         self.preferred_srs = SpatialReference()
-        self.preferred_srs.ImportFromProj4(layer.projection.srs)
+        self.preferred_srs.ImportFromProj4(self.layer.projection.srs)
         self.preferred_srs_wkt = self.preferred_srs.ExportToWkt()
 
         # Calculate the bounds of the zoom level 0 tile
