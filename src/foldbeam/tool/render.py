@@ -1,6 +1,6 @@
 import argparse
 import TileStache
-from foldbeam import nodes, core, graph
+from foldbeam import nodes, core, graph, pads
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 import sys
@@ -82,7 +82,7 @@ def main():
     node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
     type_, raster = node.outputs['raster'](envelope, size)
-    if type_ != graph.ContentType.RASTER:
+    if type_ != pads.ContentType.RASTER:
         raise RuntimeError('render node did not yield raster')
     raster.write_tiff(args.output)
 

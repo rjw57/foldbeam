@@ -296,11 +296,22 @@ class Raster(object):
         arr = self.array
         if len(arr.shape) > 2:
             arr = arr.transpose((2,0,1))
+
         ds = gdal_array.OpenArray(arr)
+
         ds.SetProjection(self.envelope.spatial_reference.ExportToWkt())
         size = [ds.RasterXSize, ds.RasterYSize]
         xscale, yscale = [float(x[0])/float(x[1]) for x in zip(self.envelope.offset(), size)]
         ds.SetGeoTransform((self.envelope.left, xscale, 0, self.envelope.top, 0, yscale))
+
+        mask = np.ma.getmask(self.array)
+        mask_ds = None
+        if mask is not np.ma.nomask:
+            # There is some mask we need to overlay onto the dataset
+            for i in xrange(1, ds.RasterCount+1):
+                band = ds.GetRasterBand(i)
+                band.SetNoDataValue(float('nan'))
+                band.WriteArray(np.where(mask[:,:,i-1], float('nan'), self.array[:,:,i-1]))
 
         return ds
 

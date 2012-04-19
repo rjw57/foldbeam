@@ -1,20 +1,20 @@
 import _gdal
 import core
+import graph
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
+import pads
 import numpy as np
 import StringIO
 import TileStache
 
-from graph import *
-
-class LayerRasterNode(Node):
-    def __init__(self, pads, opacities=None):
+class LayerRasterNode(graph.Node):
+    def __init__(self, pads_, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.outputs['raster'] = RasterOutputPad(self._render)
-        self.pads = pads
+        self.outputs['raster'] = pads.TiledRasterOutputPad(self._render)
+        self.pads = pads_
         if opacities is None:
             self.opacities = (1,) * len(self.pads)
         else:
@@ -39,10 +39,10 @@ class LayerRasterNode(Node):
 
             type_, raster = response
 
-            if type_ == ContentType.NONE:
+            if type_ == pads.ContentType.NONE:
                 continue
 
-            if type_ is not ContentType.RASTER:
+            if type_ is not pads.ContentType.RASTER:
                 raise RuntimeError('Input is not raster')
             
             layer = raster.to_rgba()
@@ -67,13 +67,15 @@ class LayerRasterNode(Node):
 
         return core.Raster(output, envelope, to_rgba=lambda x: x)
 
-class GDALDatasetRasterNode(Node):
+class GDALDatasetRasterNode(graph.Node):
     def __init__(self, dataset):
         super(GDALDatasetRasterNode, self).__init__()
-        self.outputs['raster'] = RasterOutputPad(self._render, tile_size=256)
         self.dataset = dataset
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
+
+        source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
+        self.outputs['raster'] = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -122,6 +124,8 @@ class GDALDatasetRasterNode(Node):
         return rv
 
     def _render_tile(self, envelope, size):
+        assert envelope.spatial_reference.IsSame(self.spatial_reference)
+
         # check if the requested area is contained within the dataset bounds
         ds_boundary = self.boundary.transform_to(
                 envelope.spatial_reference,
@@ -161,10 +165,10 @@ class GDALDatasetRasterNode(Node):
 
         return core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
-class TileStacheRasterNode(Node):
+class TileStacheRasterNode(graph.Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
-        self.outputs['raster'] = RasterOutputPad(self._render, tile_size=256)
+        self.outputs['raster'] = pads.TiledRasterOutputPad(self._render, tile_size=256)
 
         self.layer = layer
         self.preferred_srs = SpatialReference()

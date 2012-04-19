@@ -65,6 +65,11 @@ def create_render_dataset(envelope, size=None, band_count=3, data_type=gdal.GDT_
             src_band = prototype_ds.GetRasterBand(idx)
             dst_band.SetColorTable(src_band.GetColorTable())
             dst_band.SetColorInterpretation(src_band.GetColorInterpretation())
+    elif band_count == 4:
+        raster.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+        raster.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+        raster.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+        raster.GetRasterBand(3).SetColorInterpretation(gdal.GCI_AlphaBand)
     elif band_count == 3:
         raster.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
         raster.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
