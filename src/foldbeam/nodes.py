@@ -10,6 +10,30 @@ import numpy as np
 import StringIO
 import TileStache
 
+class ToRgbaRasterNode(graph.Node):
+    def __init__(self, input_pad):
+        super(ToRgbaRasterNode, self).__init__()
+        self.outputs['raster'] = pads.CallableOutputPad(self._render)
+        self.input_pad = input_pad
+
+    def _render(self, envelope, size):
+        if size is None:
+            size = map(int, envelope.size())
+
+        resp = self.input_pad.pull(envelope, size)
+        if resp is None:
+            return pads.ContentType.NONE, None
+
+        type_, raster = resp
+        if type_ is pads.ContentType.NONE:
+            return pads.ContentType.NONE, None
+
+        if type_ is not pads.ContentType.RASTER:
+            print('Skipping invalid raster')
+            return pads.ContentType.NONE, None
+
+        return pads.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
+
 class LayerRasterNode(graph.Node):
     def __init__(self, pads_, opacities=None):
         super(LayerRasterNode, self).__init__()
@@ -79,10 +103,7 @@ class GDALDatasetRasterNode(graph.Node):
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
-
-        self.is_palette = any([
-            self.dataset.GetRasterBand(i).GetColorInterpretation() == gdal.GCI_PaletteIndex
-            for i in xrange(1, self.dataset.RasterCount+1)])
+        self.is_palette = self.dataset.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_PaletteIndex
 
     def _to_rgba(self, array):
         rgba = core.to_rgba_unknown(array)
