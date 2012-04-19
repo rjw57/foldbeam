@@ -5,38 +5,40 @@ from osgeo import gdal
 from osgeo.osr import SpatialReference
 import sys
 
-def main():
-    parser = argparse.ArgumentParser(description='Generate maps of the world from OpenStreetMaps data')
-    parser.add_argument('-o', '--output', metavar='FILENAME', type=str, nargs='?',
-            required=True, dest='output',
-            help='the filename to write the output map in GeoTIFF format')
-    parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
-            dest='epsg', help='the target projection\'s number in the EPSG database')
-    parser.add_argument('--proj', metavar='PROJ-INITIALISER', type=str, nargs='?',
-            help='the target projection\'s proj4-style initialiser')
-    parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
-            required=True, dest='left',
-            help='the left-most envelope of the map in projection co-ordinates')
-    parser.add_argument('-r', '--right', metavar='NUMBER', type=float, nargs='?',
-            required=True, dest='right',
-            help='the right-most envelope of the map in projection co-ordinates')
-    parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
-            required=True, dest='top',
-            help='the top envelope of the map in projection co-ordinates')
-    parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
-            required=True, dest='bottom',
-            help='the bottom envelope of the map in projection co-ordinates')
-    parser.add_argument('-u', '--units', metavar='NUMBER', type=float, nargs='?',
-            default=1.0, help='scale left, right, top and bottom by NUMBER (default: 1)')
-    parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
-            dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
-    parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
-            dest='height', help='the height of the map in pixels (default: use width and projection aspect)')
-    parser.add_argument('--cache-dir', metavar='DIRECTORY', type=str, nargs='?',
-            dest='cache_dir', help='cache downloaded tiles into this directory')
-    parser.add_argument('--aerial', action='store_true', default=False, help='use aerial imagery')
-    args = parser.parse_args()
+parser = argparse.ArgumentParser(description='Generate maps of the world from OpenStreetMaps data')
+parser.add_argument('-o', '--output', metavar='FILENAME', type=str, nargs='?',
+        required=True, dest='output',
+        help='the filename to write the output map in GeoTIFF format')
+parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
+        dest='epsg', help='the target projection\'s number in the EPSG database')
+parser.add_argument('--proj', metavar='PROJ-INITIALISER', type=str, nargs='?',
+        help='the target projection\'s proj4-style initialiser')
+parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
+        required=True, dest='left',
+        help='the left-most envelope of the map in projection co-ordinates')
+parser.add_argument('-r', '--right', metavar='NUMBER', type=float, nargs='?',
+        required=True, dest='right',
+        help='the right-most envelope of the map in projection co-ordinates')
+parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
+        required=True, dest='top',
+        help='the top envelope of the map in projection co-ordinates')
+parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
+        required=True, dest='bottom',
+        help='the bottom envelope of the map in projection co-ordinates')
+parser.add_argument('-u', '--units', metavar='NUMBER', type=float, nargs='?',
+        default=1.0, help='scale left, right, top and bottom by NUMBER (default: 1)')
+parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
+        dest='width', help='the width of the map in pixels (default: use height and projection aspect)')
+parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
+        dest='height', help='the height of the map in pixels (default: use width and projection aspect)')
+parser.add_argument('--cache-dir', metavar='DIRECTORY', type=str, nargs='?',
+        dest='cache_dir', help='cache downloaded tiles into this directory')
+parser.add_argument('--aerial', action='store_true', default=False, help='use aerial imagery')
+    
+def main(argv=None):
+    run(parser.parse_args(argv))
 
+def run(args):
     if args.cache_dir is None:
         cache_config = { 'name': 'Test' }
     else:
@@ -81,7 +83,7 @@ def main():
 
     node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
-    type_, raster = node.outputs['raster'](envelope, size)
+    type_, raster = node.output(envelope, size)
     if type_ != pads.ContentType.RASTER:
         raise RuntimeError('render node did not yield raster')
     raster.write_tiff(args.output)

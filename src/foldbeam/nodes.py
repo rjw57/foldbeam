@@ -13,7 +13,7 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.outputs['raster'] = pads.CallableOutputPad(self._render)
+        self.output = pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
         self.input_pad = input_pad
 
     def _render(self, envelope, size):
@@ -37,7 +37,7 @@ class ToRgbaRasterNode(graph.Node):
 class LayerRasterNode(graph.Node):
     def __init__(self, pads_, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.outputs['raster'] = pads.TiledRasterOutputPad(self._render)
+        self.output = pads.TiledRasterOutputPad(self._render)
         self.pads = pads_
         if opacities is None:
             self.opacities = (1,) * len(self.pads)
@@ -99,7 +99,7 @@ class GDALDatasetRasterNode(graph.Node):
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
 
         source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
-        self.outputs['raster'] = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
+        self.output = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -183,7 +183,7 @@ class GDALDatasetRasterNode(graph.Node):
 class TileStacheRasterNode(graph.Node):
     def __init__(self, layer):
         super(TileStacheRasterNode, self).__init__()
-        self.outputs['raster'] = pads.TiledRasterOutputPad(self._render, tile_size=256)
+        self.output = pads.TiledRasterOutputPad(self._render, tile_size=256)
 
         self.layer = layer
         self.preferred_srs = SpatialReference()
@@ -254,7 +254,7 @@ class TileStacheRasterNode(graph.Node):
 
     def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
-        raster = _gdal.create_render_dataset(envelope, size)
+        raster = _gdal.create_render_dataset(envelope, size, 4)
         assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)
 
         # Convert the envelope into the preferred spatial reference
@@ -329,5 +329,6 @@ class TileStacheRasterNode(graph.Node):
                 (core.RgbaFromBands.RED,    1.0/255.0),
                 (core.RgbaFromBands.GREEN,  1.0/255.0),
                 (core.RgbaFromBands.BLUE,   1.0/255.0),
+                (core.RgbaFromBands.ALPHA,  1.0/255.0),
             ),
-            True))
+            False))

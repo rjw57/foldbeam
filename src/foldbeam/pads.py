@@ -4,6 +4,13 @@ import numpy as np
 import core
 from osgeo import osr, gdal
 
+class Pad(object):
+    IN = 'IN'
+    OUT = 'OUT'
+
+    def __init__(self, direction):
+        self.direction = direction
+
 class ContentType(object):
     NONE = 'application/octet-stream; application=vnd.null'
     PNG = 'image/png'
@@ -11,9 +18,11 @@ class ContentType(object):
     GEOJSON = 'application/json; application=geojson'   # This is cooked up!
     RASTER = 'application/vnd.python.reference; application=datasetwrapper'
 
-class OutputPad(object):
-    def __init__(self):
+class OutputPad(Pad):
+    def __init__(self, type):
+        super(OutputPad, self).__init__(Pad.OUT)
         self.damaged = Signal()
+        self.type = type
 
     def __call__(self, envelope, size=None):
         return self.pull(envelope, size)
@@ -27,8 +36,8 @@ class OutputPad(object):
         self.damaged(envelope)
 
 class CallableOutputPad(OutputPad):
-    def __init__(self, cb):
-        super(CallableOutputPad, self).__init__()
+    def __init__(self, cb, **kwargs):
+        super(CallableOutputPad, self).__init__(**kwargs)
         self._cb = cb
 
     def pull(self, envelope, size=None):
@@ -42,8 +51,9 @@ class TiledRasterOutputPad(CallableOutputPad):
 
     """
 
-    def __init__(self, render_cb, tile_size=None):
-        super(TiledRasterOutputPad, self).__init__(self._render_raster)
+    def __init__(self, render_cb, tile_size=None, **kwargs):
+        super(TiledRasterOutputPad, self).__init__(self._render_raster, type=ContentType.RASTER, **kwargs)
+        assert self.type is ContentType.RASTER
         self._render_cb = render_cb
         self.tile_size = tile_size
 
@@ -102,8 +112,9 @@ class TiledRasterOutputPad(CallableOutputPad):
         return ContentType.RASTER, core.Raster(data, envelope, prototype=prototype)
 
 class ReprojectingOutputPad(OutputPad):
-    def __init__(self, native_spatial_reference, source_pad):
-        super(OutputPad, self).__init__()
+    def __init__(self, native_spatial_reference, source_pad, **kwargs):
+        super(OutputPad, self).__init__(type=ContentType.RASTER, **kwargs)
+        assert self.type is ContentType.RASTER
         self.native_spatial_reference = native_spatial_reference
         self.native_spatial_reference_wkt = self.native_spatial_reference.ExportToWkt()
         self.source_pad = source_pad

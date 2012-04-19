@@ -54,7 +54,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1024, 512)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -71,7 +71,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1200, 800)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -89,12 +89,12 @@ class TestTileStacheRasterNode(unittest.TestCase):
         roads_node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         aerial_node = nodes.TileStacheRasterNode(self.config.layers['aerial'])
         node = nodes.LayerRasterNode(
-            [x.outputs['raster'] for x in (aerial_node, roads_node)],
+            [x.output for x in (aerial_node, roads_node)],
             (1, 0.5),
         )
 
         size = (700, 1300)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -111,7 +111,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (700, 1300)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -128,7 +128,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (800, 1200)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -151,7 +151,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -174,7 +174,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        t, raster = node.outputs['raster'](envelope, size)
+        t, raster = node.output(envelope, size)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], size[0])
         self.assertEqual(raster.array.shape[0], size[1])
@@ -198,7 +198,7 @@ class TestTileStacheRasterNode(unittest.TestCase):
                 envelope_srs)
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
-        t, raster = node.outputs['raster'](envelope)
+        t, raster = node.output(envelope)
         self.assertEqual(t, pads.ContentType.RASTER)
         self.assertEqual(raster.array.shape[1], skirt[0])
         self.assertEqual(raster.array.shape[0], skirt[1])
@@ -237,7 +237,7 @@ class TestOutputPad(unittest.TestCase):
         def damage_cb(d):
             damages.append(d)
 
-        e = pads.OutputPad()
+        e = pads.OutputPad(type=pads.ContentType.NONE)
         e.damaged.connect(damage_cb)
 
         self.assertEqual(len(damages), 0)

@@ -1,6 +1,8 @@
+import pads
+
 class Node(object):
     def __init__(self):
-        self.outputs = { }
+        pass
 
     def set_input(self, key, value):
         raise KeyError('no such input: ' + key)
