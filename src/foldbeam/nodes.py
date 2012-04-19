@@ -133,8 +133,7 @@ class GDALDatasetRasterNode(graph.Node):
             return None
 
         # Get the destination raster
-        raster = _gdal.create_render_dataset(
-                envelope, size, prototype_ds=self.dataset)
+        raster = _gdal.create_render_dataset(envelope, size, prototype_ds=self.dataset)
         ds = raster.dataset
 
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()

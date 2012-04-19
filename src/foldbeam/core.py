@@ -270,12 +270,17 @@ class RgbaFromBands(object):
         return rgba
 
 class Raster(object):
-    def __init__(self, array, envelope, to_rgba=None):
+    def __init__(self, array, envelope, to_rgba=None, can_interpolate=True, prototype=None):
         self.array = np.atleast_3d(np.float32(array))
         self.envelope = envelope
         if to_rgba is None:
             to_rgba = to_rgba_unknown
         self.to_rgba_cb = to_rgba
+        self.can_interpolate = can_interpolate
+
+        if prototype is not None:
+            self.to_rgba_cb = prototype.to_rgba_cb
+            self.can_interpolate = prototype.can_interpolate
 
     def to_rgba(self):
         return self.to_rgba_cb(self.array)
@@ -335,16 +340,13 @@ class Raster(object):
         srs = osr.SpatialReference()
         srs.ImportFromWkt(ds.GetProjection())
         envelope = _gdal.dataset_envelope(ds, srs)
+        
+        can_interpolate = gdal.GCI_PaletteIndex not in [
+            ds.GetRasterBand(i).GetColorInterpretation()
+            for i in xrange(1, ds.RasterCount+1)
+        ]
+        if 'can_interpolate' in kwargs:
+            can_interpolate = can_interpolate and kwargs['can_interpolate']
+            del kwargs['can_interpolate']
 
-        #band_colors = [
-        #        Raster._gdal_interp_map[ds.GetRasterBand(i).GetColorInterpretation()]
-        #        for i in xrange(1, ds.RasterCount+1)
-        #]
-#
-        #palette = None
-        #if Raster.PALETTE in band_colors:
-        #    palette_idx = band_colors.index(Raster.PALETTE)
-        #    color_table = ds.GetRasterBand(palette_idx+1).GetColorTable()
-        #    palette = [tuple(color_table.GetColorEntry(i)) for i in xrange(0, color_table.GetCount())]
-
-        return Raster(ds_array, envelope, **kwargs)
+        return Raster(ds_array, envelope, can_interpolate=can_interpolate, **kwargs)
