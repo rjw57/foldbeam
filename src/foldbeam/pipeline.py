@@ -45,9 +45,9 @@ class Pipeline(object):
     def _get_output(self, node, name):
         index, name = Pipeline._parse_name(name)
         if index is None:
-            return getattr(self.nodes[node], name)
+            return self.nodes[node].pads[name]
         else:
-            return getattr(self.nodes[node], name)[index]
+            return self.nodes[node].pads[name][index]
 
     def _set_input(self, node, name, value):
         index, name = Pipeline._parse_name(name)

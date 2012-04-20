@@ -83,7 +83,7 @@ def run(args):
 
     node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
-    raster = node.output(envelope=envelope, size=size)
+    raster = node.pads['output'](envelope=envelope, size=size)
     raster.write_tiff(args.output)
 
 if __name__ == '__main__':

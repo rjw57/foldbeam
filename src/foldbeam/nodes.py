@@ -13,7 +13,7 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.output = pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
+        self.add_pad('output', pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER))
         self.input_pad = input_pad
 
     def _render(self, envelope, size):
@@ -43,7 +43,7 @@ class LayerRasterNode(graph.Node):
 
     def __init__(self, layers=None, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.output = pads.TiledRasterOutputPad(self._render)
+        self.add_pad('output', pads.TiledRasterOutputPad(self._render))
         self.layers = LayerRasterNode._GrowingList()
 
         if layers is not None:
@@ -109,7 +109,7 @@ class GDALDatasetRasterNode(graph.Node):
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
 
         source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
-        self.output = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
+        self.add_pad('output', pads.ReprojectingOutputPad(self.spatial_reference, source_pad))
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -207,7 +207,7 @@ class TileStacheRasterNode(graph.Node):
         self.preferred_srs.ImportFromProj4(self.layer.projection.srs)
         self.preferred_srs_wkt = self.preferred_srs.ExportToWkt()
 
-        self.output = pads.TiledRasterOutputPad(self._render, tile_size=256)
+        self.add_pad('output', pads.TiledRasterOutputPad(self._render, tile_size=256))
 
         # Calculate the bounds of the zoom level 0 tile
         bounds = [

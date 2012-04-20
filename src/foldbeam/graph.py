@@ -2,10 +2,8 @@ import pads
 
 class Node(object):
     def __init__(self):
-        pass
+        self.pads = { }
 
-    def set_input(self, key, value):
-        raise KeyError('no such input: ' + key)
-
-    def __setitem__(self, key, value):
-        self.set_input(key, value)
+    def add_pad(self, name, pad):
+        assert name not in self.pads
+        self.pads[name] = pad
