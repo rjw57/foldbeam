@@ -5,29 +5,39 @@ import core
 from osgeo import osr, gdal
 
 class Pad(object):
-    IN = 'IN'
-    OUT = 'OUT'
+    IN      = 'IN'
+    OUT     = 'OUT'
 
-    def __init__(self, direction):
+    RASTER  = 'RASTER'
+
+    def __init__(self, direction, type):
         self.direction = direction
-
-class ContentType(object):
-    NONE = 'application/octet-stream; application=vnd.null'
-    PNG = 'image/png'
-    JPG = 'image/jpeg'
-    GEOJSON = 'application/json; application=geojson'   # This is cooked up!
-    RASTER = 'application/vnd.python.reference; application=datasetwrapper'
+        self.type = type
 
 class OutputPad(Pad):
     def __init__(self, type):
-        super(OutputPad, self).__init__(Pad.OUT)
+        super(OutputPad, self).__init__(Pad.OUT, type)
+
+    def __call__(self, **kwargs):
+        return self.pull(**kwargs)
+
+    def pull(self, **kwargs):
+        return None
+
+class CallableOutputPad(OutputPad):
+    def __init__(self, type, cb):
+        super(CallableOutputPad, self).__init__(type)
+        self._cb = cb
+
+    def pull(self, **kwargs):
+        return self._cb(**kwargs)
+
+class RasterOutputPad(OutputPad):
+    def __init__(self):
+        super(RasterOutputPad, self).__init__(Pad.RASTER)
         self.damaged = Signal()
-        self.type = type
 
-    def __call__(self, envelope, size=None):
-        return self.pull(envelope, size)
-
-    def pull(self, envelope, size=None):
+    def pull(self, envelope=None, size=None):
         return None
 
     def notify_damage(self, envelope):
@@ -35,15 +45,7 @@ class OutputPad(Pad):
 
         self.damaged(envelope)
 
-class CallableOutputPad(OutputPad):
-    def __init__(self, cb, **kwargs):
-        super(CallableOutputPad, self).__init__(**kwargs)
-        self._cb = cb
-
-    def pull(self, envelope, size=None):
-        return self._cb(envelope, size)
-
-class TiledRasterOutputPad(CallableOutputPad):
+class TiledRasterOutputPad(RasterOutputPad):
     """
 
     *render_cb* should take a sequence of (envelope, size) pairs and return a sequence of core.Raster instances (or
@@ -52,12 +54,14 @@ class TiledRasterOutputPad(CallableOutputPad):
     """
 
     def __init__(self, render_cb, tile_size=None, **kwargs):
-        super(TiledRasterOutputPad, self).__init__(self._render_raster, type=ContentType.RASTER, **kwargs)
-        assert self.type is ContentType.RASTER
+        super(TiledRasterOutputPad, self).__init__()
         self._render_cb = render_cb
         self.tile_size = tile_size
 
-    def _render_raster(self, envelope, size=None):
+    def pull(self, envelope=None, size=None):
+        if envelope is None:
+            return None
+
         if size is None:
             size = map(int, envelope.size())
 
@@ -65,7 +69,7 @@ class TiledRasterOutputPad(CallableOutputPad):
             raster = self._render_cb(((envelope, size),))
             if raster is None or len(raster) == 0 or raster[0] is None:
                 return ContentType.NONE, None
-            return ContentType.RASTER, raster[0]
+            return raster[0]
 
         tiles = []
         tile_offsets = []
@@ -86,7 +90,7 @@ class TiledRasterOutputPad(CallableOutputPad):
 
         results = [x for x in zip(tile_offsets, self._render_cb(tiles)) if x[1] is not None]
         if len(results) == 0:
-            return ContentType.NONE, None
+            return None
 
         # FIXME: This assumes that to_rgba_cb is the same for each tile
         prototype = results[0][1]
@@ -109,19 +113,24 @@ class TiledRasterOutputPad(CallableOutputPad):
         if np.any(mask):
             data = np.ma.array(data, mask=mask)
 
-        return ContentType.RASTER, core.Raster(data, envelope, prototype=prototype)
+        return core.Raster(data, envelope, prototype=prototype)
 
-class ReprojectingOutputPad(OutputPad):
-    def __init__(self, native_spatial_reference, source_pad, **kwargs):
-        super(ReprojectingOutputPad, self).__init__(type=ContentType.RASTER, **kwargs)
-        assert self.type is ContentType.RASTER
+class ReprojectingOutputPad(RasterOutputPad):
+    def __init__(self, native_spatial_reference, source_pad):
+        super(ReprojectingOutputPad, self).__init__()
         self.native_spatial_reference = native_spatial_reference
         self.native_spatial_reference_wkt = self.native_spatial_reference.ExportToWkt()
         self.source_pad = source_pad
 
-    def pull(self, envelope, size=None):
+    def pull(self, envelope=None, size=None):
+        if envelope is None:
+            return None
+
+        if size is None:
+            size = map(int, envelope.size())
+
         if envelope.spatial_reference.IsSame(self.native_spatial_reference):
-            return self.source_pad.pull(envelope, size)
+            return self.source_pad(envelope, size)
 
         # We need to reproject this data. Convert the envelope into the native spatial reference
         try:
@@ -130,15 +139,12 @@ class ReprojectingOutputPad(OutputPad):
                     min(envelope.size()) / float(max(size)))
         except core.ProjectionError:
             # If we fail to reproject, return a null tile
-            return ContentType.NONE, None
+            return None
 
         # Get the native tile
-        resp = self.source_pad.pull(native_envelope, size)
-        if resp is None or resp[0] is ContentType.NONE:
-            return ContentType.NONE, None
-
-        type_, raster = resp
-        assert type_ is ContentType.RASTER
+        raster = self.source_pad.pull(envelope=native_envelope, size=size)
+        if raster is None:
+            return None
 
         raster_ds = raster.as_dataset()
 
@@ -166,4 +172,4 @@ class ReprojectingOutputPad(OutputPad):
                 gdal.GRA_NearestNeighbour)
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
-        return ContentType.RASTER, core.Raster.from_dataset(ds, mask_band=mask_band, prototype=raster)
+        return core.Raster.from_dataset(ds, mask_band=mask_band, prototype=raster)

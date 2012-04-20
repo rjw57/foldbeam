@@ -83,9 +83,7 @@ def run(args):
 
     node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
     size = (args.width, args.height)
-    type_, raster = node.output(envelope, size)
-    if type_ != pads.ContentType.RASTER:
-        raise RuntimeError('render node did not yield raster')
+    raster = node.output(envelope=envelope, size=size)
     raster.write_tiff(args.output)
 
 if __name__ == '__main__':

@@ -1,7 +1,6 @@
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.pads import ContentType
 from osgeo import osr
 
 def config_to_dot(config):
@@ -70,13 +69,11 @@ def main():
 
     w = 852
     size = map(int, (w, w/proj_aspect))
-    output = pipeline.output(envelope, size)
-
-    assert output is not None
-    type_, raster = output
-
-    assert type_ is ContentType.RASTER
-    raster.write_tiff('output.tiff')
+    output = pipeline.output(envelope=envelope, size=size)
+    if output is None:
+        print('No output generated')
+        return
+    output.write_tiff('output.tiff')
 
 if __name__ == '__main__':
     main()

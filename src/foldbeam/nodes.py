@@ -5,7 +5,7 @@ import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
-import pads as pads_
+import pads
 import numpy as np
 import StringIO
 import TileStache
@@ -13,7 +13,7 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.output = pads_.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
+        self.output = pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER)
         self.input_pad = input_pad
 
     def _render(self, envelope, size):
@@ -22,17 +22,17 @@ class ToRgbaRasterNode(graph.Node):
 
         resp = self.input_pad.pull(envelope, size)
         if resp is None:
-            return pads_.ContentType.NONE, None
+            return pads.ContentType.NONE, None
 
         type_, raster = resp
-        if type_ is pads_.ContentType.NONE:
-            return pads_.ContentType.NONE, None
+        if type_ is pads.ContentType.NONE:
+            return pads.ContentType.NONE, None
 
-        if type_ is not pads_.ContentType.RASTER:
+        if type_ is not pads.ContentType.RASTER:
             print('Skipping invalid raster')
-            return pads_.ContentType.NONE, None
+            return pads.ContentType.NONE, None
 
-        return pads_.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
+        return pads.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
 class LayerRasterNode(graph.Node):
     class _GrowingList(list):
@@ -43,7 +43,7 @@ class LayerRasterNode(graph.Node):
 
     def __init__(self, layers=None, opacities=None):
         super(LayerRasterNode, self).__init__()
-        self.output = pads_.TiledRasterOutputPad(self._render)
+        self.output = pads.TiledRasterOutputPad(self._render)
         self.layers = LayerRasterNode._GrowingList()
 
         if layers is not None:
@@ -70,17 +70,9 @@ class LayerRasterNode(graph.Node):
             raise ValueError('opacities: expected sequence of length %s' % (len(self.layers),))
 
         output = None
-        for response, opacity in zip([pad(envelope, size) for pad in self.layers], opacities):
-            if response is None:
+        for raster, opacity in zip([pad(envelope=envelope, size=size) for pad in self.layers], opacities):
+            if raster is None:
                 continue
-
-            type_, raster = response
-
-            if type_ == pads_.ContentType.NONE:
-                continue
-
-            if type_ is not pads_.ContentType.RASTER:
-                raise RuntimeError('Input is not raster')
             
             layer = raster.to_rgba()
             if layer is None:
@@ -116,8 +108,8 @@ class GDALDatasetRasterNode(graph.Node):
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
 
-        source_pad = pads_.TiledRasterOutputPad(self._render, tile_size=256)
-        self.output = pads_.ReprojectingOutputPad(self.spatial_reference, source_pad)
+        source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
+        self.output = pads.ReprojectingOutputPad(self.spatial_reference, source_pad)
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -201,7 +193,6 @@ class GDALDatasetRasterNode(graph.Node):
 class TileStacheRasterNode(graph.Node):
     def __init__(self, layer=None, config=None):
         super(TileStacheRasterNode, self).__init__()
-        self.output = pads_.TiledRasterOutputPad(self._render, tile_size=256)
 
         if isinstance(layer, basestring):
             if config is None:
@@ -215,6 +206,8 @@ class TileStacheRasterNode(graph.Node):
         self.preferred_srs = SpatialReference()
         self.preferred_srs.ImportFromProj4(self.layer.projection.srs)
         self.preferred_srs_wkt = self.preferred_srs.ExportToWkt()
+
+        self.output = pads.TiledRasterOutputPad(self._render, tile_size=256)
 
         # Calculate the bounds of the zoom level 0 tile
         bounds = [
