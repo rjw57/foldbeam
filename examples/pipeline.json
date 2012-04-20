@@ -1,24 +1,25 @@
 {
     "nodes": {
-        "composite": {
+        "tilestache": {
+            "type": "foldbeam.nodes:TileStacheNode",
+            "parameters": {
+                "config_file": "base-layers-cfg.json"
+            }
+        },
+        "composite1": {
+            "type": "foldbeam.nodes:LayerRasterNode"
+        },
+        "composite2": {
             "type": "foldbeam.nodes:LayerRasterNode",
             "parameters": {
-                "opacities": [ 1, 1, 0.5 ]
+                "top_opacity": 0.5
             }
         },
         "aerial": {
-            "type": "foldbeam.nodes:TileStacheRasterNode",
-            "parameters": {
-                "config": "base-layers-cfg.json",
-                "layer": "yahoo-aerial"
-            }
+            "type": "foldbeam.nodes:TileStacheRasterNode"
         },
         "road": {
-            "type": "foldbeam.nodes:TileStacheRasterNode",
-            "parameters": {
-                "config": "base-layers-cfg.json",
-                "layer": "yahoo-road"
-            }
+            "type": "foldbeam.nodes:TileStacheRasterNode"
         },
         "dem": {
             "type": "foldbeam.nodes:GDALDatasetRasterNode",
@@ -28,11 +29,14 @@
         }
     },
     "edges": [
-        [ "aerial:output", "composite:layers@0" ],
-        [ "dem:output", "composite:layers@1" ],
-        [ "road:output", "composite:layers@2" ]
+        [ "tilestache:yahoo_aerial", "aerial:layer" ],
+        [ "tilestache:yahoo_road", "road:layer" ],
+        [ "aerial:output", "composite1:bottom" ],
+        [ "dem:output", "composite1:top" ],
+        [ "composite1:output", "composite2:bottom" ],
+        [ "road:output", "composite2:top" ]
     ],
     "outputs": {
-        "output": "composite:output"
+        "output": "composite2:output"
     }
 }

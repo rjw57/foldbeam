@@ -9,10 +9,34 @@ class Pad(object):
     OUT     = 'OUT'
 
     RASTER  = 'RASTER'
+    NUMBER  = 'NUMBER'
 
     def __init__(self, direction, type):
         self.direction = direction
         self.type = type
+
+class InputPad(Pad):
+    def __init__(self, type, default=None):
+        super(InputPad, self).__init__(Pad.IN, type)
+        self._default = ConstantOutputPad(type, default)
+        self._source = None
+
+    @property
+    def source(self):
+        return self._source if self._source is not None else self._default
+
+    @source.setter
+    def source(self, value):
+        self._source = value
+
+    def __call__(self, **kwargs):
+        return self.pull(**kwargs)
+
+    def connect(self, pad=None):
+        self.source = pad
+
+    def pull(self, **kwargs):
+        return self.source(**kwargs)
 
 class OutputPad(Pad):
     def __init__(self, type):
@@ -23,6 +47,17 @@ class OutputPad(Pad):
 
     def pull(self, **kwargs):
         return None
+
+class ConstantOutputPad(Pad):
+    def __init__(self, type, value=None):
+        super(ConstantOutputPad, self).__init__(Pad.OUT, type)
+        self.value = value
+
+    def __call__(self, **kwargs):
+        return self.pull(**kwargs)
+
+    def pull(self, **kwargs):
+        return self.value
 
 class CallableOutputPad(OutputPad):
     def __init__(self, type, cb):
@@ -68,7 +103,7 @@ class TiledRasterOutputPad(RasterOutputPad):
         if self.tile_size is None:
             raster = self._render_cb(((envelope, size),))
             if raster is None or len(raster) == 0 or raster[0] is None:
-                return ContentType.NONE, None
+                return None
             return raster[0]
 
         tiles = []

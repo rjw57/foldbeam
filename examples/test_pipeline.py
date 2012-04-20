@@ -1,64 +1,150 @@
+from cgi import escape
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
+from foldbeam.graph import Node
+from foldbeam.pads import Pad, ConstantOutputPad
 from osgeo import osr
 
-def config_to_dot(config):
-    output = ''
-    output += '''
+def pipeline_to_dot(nodes, output_pad, output):
+    output.write('''
 digraph g {
+#    ranksep = 1;
+#    clusterrank = "none";
 graph [
-rankdir = "LR"
+    rankdir = "LR"
 ];
 node [
-        fontsize = "16"
-        shape = "ellipse"
-        ];
-edge [
-        ];
-'''
-    
-    nodes = {}
-    for name, spec in config['nodes'].iteritems():
-        assert 'type' in spec
-        fields = { }
-        if 'parameters' in spec:
-            for pname, value in spec['parameters'].iteritems():
-                fields[pname] = str(value)
-        nodes[name] = { 'name': name, 'type': spec['type'], 'fields': fields }
+    fontsize = "16"
+    shape = "plaintext"
+];
+subgraph main {
+''')
 
-    edges = []
-    for src, dst in config['edges']:
-        src_node, src_field = src.split(':')
-        dst_node, dst_field = dst.split(':')
+    to_process = nodes.items()
+    subgraphs = {}
+    while len(to_process) > 0:
+        group, node = to_process[0]
+        to_process = to_process[1:]
+        if group in subgraphs:
+            subgraphs[group].append(node)
+        else:
+            subgraphs[group] = [node]
+        to_process.extend([(group, x) for x in node.subnodes])
 
-        if src_field not in nodes[src_node]['fields']:
-            nodes[src_node]['fields'][src_field] = ''
-        if dst_field not in nodes[dst_node]['fields']:
-            nodes[dst_node]['fields'][dst_field] = ''
+    node_records = {}
+    connections = []
+    pad_containers = {}
 
-        edges.append((src_node, src_field, dst_node, dst_field))
+    for group_name, nodes in subgraphs.iteritems():
+        output.write('subgraph cluster_%s {\n' % (group_name,))
+        output.write('    style = "filled";\n')
+        output.write('    fillcolor = "#eeffee";\n')
+        output.write('    shape = "rectangle";\n')
+        output.write('    label = "%s";\n' % (group_name,))
+#        output.write('subgraph sourcehack_%s {\nrank="min"\n' % (group_name,))
+#        output.write('"source_%s" [\n' % (group_name,))
+#        output.write('margin = "0"\nsep = "0"\nlabel = ""\nstyle = "invis"\n')
+#        output.write('];\n')
+#        output.write('}\n')
+#        output.write('subgraph sinkhack_%s {\nrank="max"\n' % (group_name,))
+#        output.write('"sink_%s" [\n' % (group_name,))
+#        output.write('margin = "0"\nsep = "0"\nlabel = ""\nstyle = "invis"\n')
+#        output.write('];\n')
+#        output.write('}\n')
+        #output.write('"source_%s" -> "sink_%s" [];\n' % (group_name, group_name))
+        for idx, node in enumerate(nodes):
+            node_name = 'node_%s_%i' % (group_name, idx,)
+            node_records[node] = node_name
 
-    for name, node in nodes.iteritems():
-        fields = ' | '.join(['<f%s> %s %s' % (abs(hash(x[0])), x[0], ('= ' + str(x[1]) if x[1] != '' else '')) for x in node['fields'].iteritems()])
-        output += '"%s" [\n' % (name,)
-        output += 'label = "node: %s | type: %s | %s"\n' % (name, node['type'], fields)
-        output += 'shape = "record"\n'
-        output += '];\n'
+            output.write('"%s" [\n' % (node_name,))
 
-    for idx, edge in enumerate(edges):
-        output += '"%s":f%s -> "%s":f%s [\n' % (edge[0], abs(hash(edge[1])), edge[2], abs(hash(edge[3])))
-        output += 'id = %s\n' % (idx,)
-        output += '];\n'
+            inputs = [ ]
+            outputs = [ ]
 
-    output += '}\n'
+            for pad_name in node.pad_names:
+                pad = node.pads[pad_name]
+                if pad.direction is Pad.IN:
+                    source = pad.source
+                    inputs.append((pad_name, source))
+                    connections.append((node, pad_name, source, group_name))
+                else:
+                    outputs.append((pad_name, pad))
+                    pad_containers[pad] = (node_name, pad_name, group_name)
 
-    return output
+            if node.__class__.__module__ != 'foldbeam.nodes':
+                title = '%s:%s' % (node.__class__.__module__, node.__class__.__name__)
+            else:
+                title = node.__class__.__name__
+
+            label = '<TABLE BGCOLOR="white" BORDER="0" CELLBORDER="1" CELLSPACING="0">\n'
+            label += '<TR><TD PORT="node" BGCOLOR="#eeeeee"><B>%s</B></TD></TR>\n' % (escape(title),)
+            for pad_name, pad in outputs:
+                label += '<TR><TD ALIGN="right" PORT="pad_%s">%s</TD></TR>\n' % (pad_name, pad_name)
+            for pad_name, pad in inputs:
+                label += '<TR><TD ALIGN="left" PORT="pad_%s">%s</TD></TR>\n' % (pad_name, pad_name)
+            label += '</TABLE>'
+
+            output.write('    label = <%s>\n' % (label,))
+            output.write('];\n')
+
+        output.write('}\n')
+
+    constant_idx = 0
+    for dst_node, dst_pad_name, src_pad, dst_group in connections:
+        dst_node_name = node_records[dst_node]
+        if src_pad in pad_containers:
+            src_node_name, src_pad_name, src_group = pad_containers[src_pad]
+            src = node_records[subgraphs[src_group][0]]
+            dst = node_records[subgraphs[dst_group][-1]]
+            if src_group != dst_group:
+                output.write('"%s" -> "%s" [style="invis"]\n' % (src, dst))
+        elif isinstance(src_pad, ConstantOutputPad):
+            constant_idx += 1
+            src_node_name = 'constant_%s' % (constant_idx,)
+            subgraphs[dst_group].insert(subgraphs[dst_group].index(dst_node) + 1, src_node_name)
+            node_records[src_node_name] = src_node_name
+            src_pad_name = 'constant'
+            output.write('subgraph cluster_%s {\n' % (dst_group,))
+            output.write('"%s" [\n' % (src_node_name,))
+            output.write('    label = <<TABLE BGCOLOR="#ffeeee" CELLSPACING="0" BORDER="0" CELLBORDER="1">\n')
+            output.write('<TR><TD BGCOLOR="#eeeeee"><B>Constant</B></TD></TR>\n')
+            output.write('<TR><TD PORT="pad_%s">%s</TD></TR>\n' % (src_pad_name, escape(str(src_pad.value))))
+            output.write('</TABLE>>\n')
+            output.write('];\n')
+            output.write('}\n')
+        else:
+            continue
+
+        output.write('"%s":pad_%s -> "%s":pad_%s [\n' % (src_node_name, src_pad_name, dst_node_name, dst_pad_name))
+        output.write('];\n')
+
+    output.write('}\n')
+
+    if output_pad in pad_containers:
+        output.write('''
+        subgraph outputsink {
+            "output" [
+                shape = "rectangle"
+                label = "Output"
+                fillcolor = "#ccccff"
+                style = "filled"
+                root = "true"
+            ];
+        }
+        ''')
+        node_name, pad_name, _ = pad_containers[output_pad]
+        output.write('"%s":pad_%s -> "output" [ ];\n' % (node_name, pad_name))
+
+        #for group in subgraphs.keys():
+        #    output.write('"sink_%s" -> "output" [\nstyle="invis"\n];\n' % (group,))
+
+    output.write('}\n')
 
 def main():
     config = json.load(open('pipeline.json'))
-    open('pipeline.dot', 'w').write(config_to_dot(config))
     pipeline = Pipeline(config)
+    pipeline_to_dot(pipeline.nodes, pipeline.output, open('pipeline.dot', 'w'))
 
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(27700) # British National Grid

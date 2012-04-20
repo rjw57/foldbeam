@@ -13,14 +13,15 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.add_pad('output', pads.CallableOutputPad(cb=self._render, type=pads.ContentType.RASTER))
-        self.input_pad = input_pad
+        self.add_pad('output', pads.CallableOutputPad(cb=self._render, type=pads.Pad.RASTER))
+        self.add_pad('input', pads.InputPad(type=pads.Pad.RASTER))
+        self.pads['input'].connect(input_pad)
 
     def _render(self, envelope, size):
         if size is None:
             size = map(int, envelope.size())
 
-        resp = self.input_pad.pull(envelope, size)
+        resp = self.pads['input'](envelope, size)
         if resp is None:
             return pads.ContentType.NONE, None
 
@@ -35,21 +36,13 @@ class ToRgbaRasterNode(graph.Node):
         return pads.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
 class LayerRasterNode(graph.Node):
-    class _GrowingList(list):
-        def __setitem__(self, index, value):
-            if index >= len(self):
-                self.extend([None]*(index + 1 - len(self)))
-                list.__setitem__(self, index, value)
-
-    def __init__(self, layers=None, opacities=None):
+    def __init__(self, top=None, bottom=None, top_opacity=None, bottom_opacity=None):
         super(LayerRasterNode, self).__init__()
         self.add_pad('output', pads.TiledRasterOutputPad(self._render))
-        self.layers = LayerRasterNode._GrowingList()
-
-        if layers is not None:
-            self.layers.extend(layers)
-
-        self.opacities = opacities
+        self.add_pad('top', pads.InputPad(pads.Pad.RASTER, top))
+        self.add_pad('top_opacity', pads.InputPad(pads.Pad.NUMBER, top_opacity if top_opacity is not None else 1))
+        self.add_pad('bottom', pads.InputPad(pads.Pad.RASTER, top))
+        self.add_pad('bottom_opacity', pads.InputPad(pads.Pad.NUMBER, bottom_opacity if bottom_opacity is not None else 1))
 
     def _render(self, tiles):
         rv = []
@@ -58,22 +51,20 @@ class LayerRasterNode(graph.Node):
         return rv
 
     def _render_tile(self, envelope, size):
-        if len(self.layers) == 0:
-            return None
+        opacities = [
+            self.pads['bottom_opacity'](),
+            self.pads['top_opacity'](),
+        ]
 
-        if self.opacities is None:
-            opacities = (1,) * len(self.layers)
-        else:
-            opacities = self.opacities
-
-        if len(opacities) != len(self.layers):
-            raise ValueError('opacities: expected sequence of length %s' % (len(self.layers),))
+        layers = [
+            self.pads['bottom'](envelope=envelope, size=size),
+            self.pads['top'](envelope=envelope, size=size),
+        ]
 
         output = None
-        for raster, opacity in zip([pad(envelope=envelope, size=size) for pad in self.layers], opacities):
+        for raster, opacity in zip(layers, opacities):
             if raster is None:
                 continue
-            
             layer = raster.to_rgba()
             if layer is None:
                 print('layer failed to convert')
@@ -81,6 +72,7 @@ class LayerRasterNode(graph.Node):
 
             if output is None:
                 output = layer
+                output *= opacity
                 continue
 
             one_minus_alpha = np.atleast_3d(1.0 - opacity * layer[:,:,3])
@@ -96,14 +88,55 @@ class LayerRasterNode(graph.Node):
 
         return core.Raster(output, envelope, to_rgba=lambda x: x)
 
+class FileReaderNode(graph.Node):
+    def __init__(self, filename=None):
+        super(FileReaderNode, self).__init__()
+        self.add_pad('filename', pads.InputPad(str, filename))
+        self.contents = None
+        self.add_pad('contents', pads.CallableOutputPad(gdal.Dataset, self._load))
+
+    def _load(self):
+        if self.contents is not None:
+            return self.contents
+
+        filename = self.pads['filename']()
+        if filename is None:
+            return None
+
+        self.contents = open(filename).read()
+        return self.contents
+
+class GDALDatasetSourceNode(graph.Node):
+    def __init__(self, filename=None):
+        super(GDALDatasetSourceNode, self).__init__()
+        self.add_pad('filename', pads.InputPad(str, filename))
+        self.dataset = None
+        self.add_pad('dataset', pads.CallableOutputPad(gdal.Dataset, self._load))
+
+    def _load(self):
+        if self.dataset is not None:
+            return self.dataset
+
+        filename = self.pads['filename']()
+        if filename is None:
+            return None
+
+        self.dataset = gdal.Open(filename)
+        return self.dataset
+
 class GDALDatasetRasterNode(graph.Node):
-    def __init__(self, dataset):
+    def __init__(self, dataset=None):
         super(GDALDatasetRasterNode, self).__init__()
 
+        self.add_pad('dataset', pads.InputPad(gdal.Dataset))
         if isinstance(dataset, basestring):
-            self.dataset = gdal.Open(dataset)
-        else:
-            self.dataset = dataset
+            ds_node = GDALDatasetSourceNode(dataset)
+            self.add_subnode(ds_node)
+            source = ds_node.pads['dataset']
+            self.pads['dataset'].connect(source)
+        elif dataset is not None:
+            source = pads.ConstantOutputPad(gdal.Dataset, dataset)
+            self.pads['dataset'].connect(source)
 
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
@@ -114,6 +147,10 @@ class GDALDatasetRasterNode(graph.Node):
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
         self.is_palette = self.dataset.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_PaletteIndex
+
+    @property
+    def dataset(self):
+        return self.pads['dataset']()
 
     def _to_rgba(self, array):
         rgba = core.to_rgba_unknown(array)
@@ -190,24 +227,40 @@ class GDALDatasetRasterNode(graph.Node):
 
         return core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
+class TileStacheNode(graph.Node):
+    def __init__(self, config_file=None):
+        super(TileStacheNode, self).__init__()
+
+        self.add_pad('config_file', pads.InputPad(str))
+        if config_file is not None:
+            self.pads['config_file'].connect(pads.ConstantOutputPad(str, config_file))
+
+        filename = self.pads['config_file']()
+        self.config = None
+        if filename is not None:
+            self.config = TileStache.parseConfigfile(filename)
+            for name in sorted(self.config.layers.keys()):
+                layer = self.config.layers[name]
+                self.add_pad(name, pads.ConstantOutputPad(TileStache.Core.Layer, layer))
+
 class TileStacheRasterNode(graph.Node):
-    def __init__(self, layer=None, config=None):
+    @property
+    def layer(self):
+        return self.pads['layer']()
+
+    def __init__(self, layer=None):
         super(TileStacheRasterNode, self).__init__()
 
-        if isinstance(layer, basestring):
-            if config is None:
-                raise ValueError('config must not be None')
-            self.config = TileStache.parseConfigfile(config)
-            self.layer = self.config.layers[layer]
-        else:
-            self.layer = layer
-            self.config = layer.config
+        self.add_pad('layer', pads.InputPad(TileStache.Core.Layer))
+        if layer is not None:
+            self.pads['layer'].connect(pads.ConstantOutputPad(TileStache.Core.Layer, layer))
 
+        self.add_pad('output', pads.TiledRasterOutputPad(self._render, tile_size=256))
+
+    def _update(self):
         self.preferred_srs = SpatialReference()
         self.preferred_srs.ImportFromProj4(self.layer.projection.srs)
         self.preferred_srs_wkt = self.preferred_srs.ExportToWkt()
-
-        self.add_pad('output', pads.TiledRasterOutputPad(self._render, tile_size=256))
 
         # Calculate the bounds of the zoom level 0 tile
         bounds = [
@@ -250,8 +303,9 @@ class TileStacheRasterNode(graph.Node):
         return max(0, min(18, int_zoom))
 
     def _render(self, tiles):
-        rv = []
+        self._update()
 
+        rv = []
         zooms = []
         for envelope, size in tiles:
             try:

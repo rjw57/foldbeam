@@ -27,32 +27,12 @@ class Pipeline(object):
                 src_name, src_attr = src.split(':')
                 dst_name, dst_attr = dst.split(':')
 
-                self._set_input(dst_name, dst_attr, self._get_output(src_name, src_attr))
+                src = self.nodes[src_name]
+                dst = self.nodes[dst_name]
+
+                dst.pads[dst_attr].connect(src.pads[src_attr])
 
         if 'outputs' in configuration:
             for name, output in configuration['outputs'].iteritems():
                 node, attr = output.split(':')
-                setattr(self, name, self._get_output(node, attr))
-
-    @classmethod
-    def _parse_name(cls, name):
-        index = None
-        if '@' in name:
-            name, index = name.split('@')
-            index = int(index)
-        return index, name
-
-    def _get_output(self, node, name):
-        index, name = Pipeline._parse_name(name)
-        if index is None:
-            return self.nodes[node].pads[name]
-        else:
-            return self.nodes[node].pads[name][index]
-
-    def _set_input(self, node, name, value):
-        index, name = Pipeline._parse_name(name)
-        if index is None:
-            setattr(self.nodes[node], name, value)
-        else:
-            getattr(self.nodes[node], name)[index] = value
-
+                setattr(self, name, self.nodes[node].pads[attr])
