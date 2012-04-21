@@ -1,11 +1,8 @@
-import _gdal
-import core
-import graph
-import nodes
+from . import core, graph, nodes, transform, pads, _gdal
 import math
+import numpy as np
 from osgeo import gdal
 from osgeo.osr import SpatialReference
-import pads
 from TileStache.Config import buildConfiguration
 import os
 import unittest
@@ -277,10 +274,105 @@ class TestOutputPad(unittest.TestCase):
         self.assertEqual(damages[-1], env2)
         self.assertNotEqual(damages[-1], env1)
 
+class TestTransform(unittest.TestCase):
+    def setUp(self):
+        bng_srs = SpatialReference()
+        bng_srs.ImportFromEPSG(27700)
+        self.bng_env = core.Envelope(
+                500000, 600000, 400000, 300000,
+                bng_srs)
+
+        lnglat_srs = SpatialReference()
+        lnglat_srs.ImportFromEPSG(4326)
+        self.lnglat_env = core.Envelope(
+                -2.0, 2.0, 50.0, 54.0,
+                lnglat_srs)
+
+    def test_compute_warp(self):
+        ll_x, ll_y = transform.compute_warp(
+                self.bng_env, (256, 256),
+                self.lnglat_env.spatial_reference)
+        self.assertTrue(np.all(ll_x > -2))
+        self.assertTrue(np.all(ll_x < 2))
+        self.assertTrue(np.all(ll_y > 50))
+        self.assertTrue(np.all(ll_x < 54))
+
+    def test_proj_to_pixels(self):
+        x = np.array([[-1.4, 0.1], [-2, 2], [-3, 8]])
+        y = np.array([[50.2, 50.4], [54, 50], [59, 49]])
+        px, py = transform.proj_to_pixels(x, y, self.lnglat_env, (128, 64))
+
+        self.assertGreaterEqual(px[0,0], 0)
+        self.assertLessEqual(px[0,0], 128)
+        self.assertGreaterEqual(px[0,0], 0)
+        self.assertLessEqual(px[0,1], 128)
+        self.assertGreaterEqual(px[1,1], 0)
+        self.assertLessEqual(px[1,1], 128)
+        self.assertGreaterEqual(px[1,1], 0)
+        self.assertLessEqual(px[1,1], 128)
+
+        self.assertGreaterEqual(py[0,0], 0)
+        self.assertLessEqual(py[0,0], 64)
+        self.assertGreaterEqual(py[0,0], 0)
+        self.assertLessEqual(py[0,1], 64)
+        self.assertGreaterEqual(py[1,1], 0)
+        self.assertLessEqual(py[1,1], 64)
+        self.assertGreaterEqual(py[1,1], 0)
+        self.assertLessEqual(py[1,1], 64)
+
+        self.assertLess(px[2,0], 0)
+        self.assertGreater(px[2,1], 128)
+        self.assertGreater(py[2,0], 64)
+        self.assertLess(py[2,1], 0)
+
+        ll_x, ll_y = transform.compute_warp(
+                self.bng_env, (256, 256),
+                self.lnglat_env.spatial_reference)
+        self.assertTrue(np.all(ll_x > -2))
+        self.assertTrue(np.all(ll_x < 2))
+        self.assertTrue(np.all(ll_y > 50))
+        self.assertTrue(np.all(ll_x < 54))
+
+    def test_sample_raster(self):
+        src_data = np.atleast_3d(np.array([[1,2,3,4], [5,6,7,8], [9,10,11,12]]))
+        src_data = np.dstack((src_data, 2*src_data))
+        src = core.Raster(src_data, self.bng_env)
+        src_x = np.array([
+            [-1.2, -0.2, 0.8, 1.8, 2.8, 3.2, 4.2],
+            [-1.3, -0.3, 0.7, 1.7, 2.7, 3.2, 4.2],
+            [-1.2, -0.2, 0.8, 1.8, 2.8, 3.2, 4.2],
+            [-1.3, -0.3, 0.7, 1.7, 2.7, 3.2, 4.2],
+        ])
+        src_y = np.array([
+            [-1.2, -0.2, 0.8, 1.8, 2.8, 3.2, 4.2],
+            [-1.3, -0.3, 0.7, 1.7, 2.7, 3.2, 4.2],
+            [0, 1, 2, 2, 2.3, 1.2, 0.2],
+            [0, 1, 2, 2, 2.3, 1.2, 0.2],
+        ])
+        dst = transform.sample_raster(src_x, src_y, src)
+
+        self.assertEqual(dst.shape[:2], src_x.shape[:2])
+        self.assertEqual(dst.shape[2], src_data.shape[2])
+        self.assertFalse(np.any(np.isnan(dst)))
+        self.assertTrue(np.all(np.isfinite(dst)))
+        self.assertTrue(np.all(np.abs(2*dst[:,:,0] - dst[:,:,1]) < 1e-4))
+        self.assertIsNot(np.ma.getmask(dst), np.ma.nomask)
+        self.assertTrue(np.any(np.ma.getmask(dst)))
+        self.assertTrue(np.any(np.logical_not(np.ma.getmask(dst))))
+
+    def test_reproject_raster(self):
+        src_data = np.atleast_3d(np.array([[1,2,3,4], [5,6,7,8], [9,10,11,12]]))
+        src_data = np.dstack((src_data, 2*src_data))
+        src = core.Raster(src_data, self.bng_env)
+
+        dst = core.Raster(np.ones((10,5)), self.lnglat_env)
+        transform.reproject_raster(dst, src)
+
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(TestUtility),
         unittest.makeSuite(TestTileStacheRasterNode),
         unittest.makeSuite(TestBoundary),
         unittest.makeSuite(TestOutputPad),
+        unittest.makeSuite(TestTransform),
     ])
