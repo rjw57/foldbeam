@@ -1,16 +1,15 @@
 #include "constants.h"
 #include "pj_mlfn.h"
 
-const float TMERC_EPS10 = 1.e-10f;
-
-const float TMERC_FC1 = 1.f;
-const float TMERC_FC2 = .5f;
-const float TMERC_FC3 = .16666666666666666666f;
-const float TMERC_FC4 = .08333333333333333333f;
-const float TMERC_FC5 = .05f;
-const float TMERC_FC6 = .03333333333333333333f;
-const float TMERC_FC7 = .02380952380952380952f;
-const float TMERC_FC8 = .01785714285714285714f;
+__constant const float TMERC_EPS10 = 1.e-10f;
+__constant const float TMERC_FC1 = 1.f;
+__constant const float TMERC_FC2 = .5f;
+__constant const float TMERC_FC3 = .16666666666666666666f;
+__constant const float TMERC_FC4 = .08333333333333333333f;
+__constant const float TMERC_FC5 = .05f;
+__constant const float TMERC_FC6 = .03333333333333333333f;
+__constant const float TMERC_FC7 = .02380952380952380952f;
+__constant const float TMERC_FC8 = .01785714285714285714f;
 
 /* ellipsoid */
 float2 tmerc_e_forward(float2 lp, float k0, float es, float esp, float en[5], float ml0, int* err)
