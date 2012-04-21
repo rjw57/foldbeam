@@ -54,37 +54,48 @@ class TestSupport(unittest.TestCase):
             return
 
         merc = load_projection_kernels(self.context, 'merc')['merc']
-        k0 = np.float32(1.0)
-        es = np.float32(0.006694379990)
-        e = np.sqrt(es)
-        tlat_ts = np.int32(0)
-        rlat_ts = np.float32(0.0)
+        params = {
+            'k0': np.float32(1.0),
+            'es': np.float32(0.006694379990),
+            'e': np.float32(np.sqrt(0.006694379990)),
+            'tlat_ts': np.int32(0),
+            'rlat_ts': np.float32(0.0),
+        }
         x1, y1 = np.random.rand(256,256).ravel(), np.random.rand(256,256).ravel()
         def doit():
-            x2, y2 = merc(self.queue, x1, y1, k0=k0, e=e, es=es, tlat_ts=tlat_ts, rlat_ts=rlat_ts)
+            x2, y2 = merc(self.queue, x1, y1, **params)
             return x2, y2
         t = timeit.Timer(stmt=doit)
-        print "%.2f usec/pass" % (1000000 * t.timeit(number=10)/10)
+        print "merc forward %.2f usec/pass" % (1000000 * t.timeit(number=10)/10)
         x2, y2 = doit()
         for a, b in zip(x1, x2):
             self.assertAlmostEqual(a, b)
-
-        x1, y1 = np.random.randn(256,256), np.random.randn(256,256)
-        x2, y2 = merc(self.queue, x1, y1,
-                k0=k0, e=e, es=es, tlat_ts=tlat_ts, rlat_ts=rlat_ts)
+        x1, y1 = np.random.rand(256,256).ravel(), np.random.rand(256,256).ravel()
+        def doit():
+            x2, y2 = merc(self.queue, x1, y1, inverse=True, **params)
+            return x2, y2
+        t = timeit.Timer(stmt=doit)
+        print "merc inverse %.2f usec/pass" % (1000000 * t.timeit(number=10)/10)
+        x2, y2 = doit()
 
     def test_project_tmerc(self):
         if self.context is None:
             return
 
         tmerc = load_projection_kernels(self.context, 'tmerc')['tmerc']
-        k0 = np.float32(1.0)
-        es = np.float32(0.006694379990)
-        e = np.sqrt(es)
-        phi0 = np.float32((49.0 / 360.0) * math.pi * 2.0)
-        rlat_ts = np.float32(0.0)
-        x2, y2 = tmerc(self.queue, [0.3,0.5], [-0.1,1.2], k0=k0, e=e, es=es, phi0=phi0)
-        print(zip(x2, y2))
+        params = {
+            'k0': np.float32(1.0),
+            'es': np.float32(0.006694379990),
+            'e': np.float32(np.sqrt(0.006694379990)),
+            'phi0': np.float32((49.0 / 360.0) * math.pi * 2.0),
+        }
+        x1, y1 = np.random.rand(256,256).ravel(), np.random.rand(256,256).ravel()
+        def doit():
+            x2, y2 = tmerc(self.queue, x1, y1, **params)
+            return x2, y2
+        t = timeit.Timer(stmt=doit)
+        print "tmerc forward %.2f usec/pass" % (1000000 * t.timeit(number=10)/10)
+        x2, y2 = doit()
 
 def test_suite():
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
