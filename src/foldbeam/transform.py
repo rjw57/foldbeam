@@ -1,5 +1,6 @@
 from . import core
 import numpy as np
+import os
 from osgeo import gdal
 import pyproj
 
@@ -115,4 +116,5 @@ def _gdal_reproject_rasters(dst, srcs):
     dst.array = core.Raster.from_dataset(dst_ds).array
 
 reproject_rasters = _py_reproject_rasters
-#reproject_rasters = _gdal_reproject_rasters
+if 'FOLDBEAM_USE_GDAL' in os.environ:
+    reproject_rasters = _gdal_reproject_rasters
