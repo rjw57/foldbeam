@@ -155,7 +155,7 @@ def _gdal_reproject_rasters(dst, srcs):
         gdal.ReprojectImage(
             src.as_dataset(), dst_ds,
             src_wkt, dst_wkt,
-            gdal.GRA_NearestNeighbour)
+            gdal.GRA_Bilinear if src.can_interpolate else gdal.GRA_NearestNeighbour)
 
     dst.array = core.Raster.from_dataset(dst_ds).array
 
