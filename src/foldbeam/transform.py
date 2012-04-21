@@ -159,6 +159,13 @@ def _gdal_reproject_rasters(dst, srcs):
 
     dst.array = core.Raster.from_dataset(dst_ds).array
 
-reproject_rasters = _py_reproject_rasters
-if 'FOLDBEAM_USE_GDAL' in os.environ:
+if 'FOLDBEAM_REPROJECTION_PROVIDER' in os.environ:
+    _provider = os.environ['FOLDBEAM_REPROJECTION_PROVIDER']
+    if _provider == 'GDAL':
+        reproject_rasters = _gdal_reproject_rasters
+    elif _provider == 'PROJ':
+        reproject_rasters = _py_reproject_rasters
+    else:
+        raise ValueError('Unknown projection provider: ' + _provider)
+else:
     reproject_rasters = _gdal_reproject_rasters
