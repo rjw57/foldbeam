@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pyopencl
 import sys
+import timeit
 import unittest
 
 class TestSupport(unittest.TestCase):
@@ -59,7 +60,12 @@ class TestSupport(unittest.TestCase):
         tlat_ts = np.int32(0)
         rlat_ts = np.float32(0.0)
         x1, y1 = np.random.rand(256,256).ravel(), np.random.rand(256,256).ravel()
-        x2, y2 = merc(self.queue, x1, y1, k0=k0, e=e, es=es, tlat_ts=tlat_ts, rlat_ts=rlat_ts)
+        def doit():
+            x2, y2 = merc(self.queue, x1, y1, k0=k0, e=e, es=es, tlat_ts=tlat_ts, rlat_ts=rlat_ts)
+            return x2, y2
+        t = timeit.Timer(stmt=doit)
+        print "%.2f usec/pass" % (1000000 * t.timeit(number=10)/10)
+        x2, y2 = doit()
         for a, b in zip(x1, x2):
             self.assertAlmostEqual(a, b)
 
