@@ -1,11 +1,8 @@
-import _gdal
-import core
-import graph
+from . import _gdal, core, graph, pads, transform
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
-import pads
 import numpy as np
 import StringIO
 import TileStache
@@ -354,6 +351,8 @@ class TileStacheRasterNode(graph.Node):
         corner_rows = [int(math.floor(x.row)) for x in corners]
         corner_columns = [int(math.floor(x.column)) for x in corners]
 
+        tile_rasters = []
+
         # Get each tile image
         png_driver = gdal.GetDriverByName('PNG')
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
@@ -390,18 +389,21 @@ class TileStacheRasterNode(graph.Node):
                     tile_tl_point.y, 0.0, yscale,
                 ))
 
-                gdal.ReprojectImage(
-                        tile_raster, raster.dataset,
-                        self.preferred_srs_wkt, desired_srs_wkt, gdal.GRA_Bilinear)
+                tile_rasters.append(core.Raster.from_dataset(tile_raster))
 
                 tile_raster = None
                 gdal.Unlink('/vsimem/tmptile.png')
 
-        return core.Raster.from_dataset(raster.dataset, to_rgba=core.RgbaFromBands(
+        output = core.Raster(
+            np.ma.masked_all((size[1], size[0], 4), dtype=np.float32),
+            envelope,
+            to_rgba=core.RgbaFromBands(
             (
                 (core.RgbaFromBands.RED,    1.0/255.0),
                 (core.RgbaFromBands.GREEN,  1.0/255.0),
                 (core.RgbaFromBands.BLUE,   1.0/255.0),
                 (core.RgbaFromBands.ALPHA,  1.0/255.0),
-            ),
-            False))
+            ), False)
+        )
+        transform.reproject_rasters(output, tile_rasters)
+        return output
