@@ -18,6 +18,7 @@ install_requires = [
     'tilestache',
     'numpy',
     'pyproj',
+    'pyopencl',
 ]
 
 
