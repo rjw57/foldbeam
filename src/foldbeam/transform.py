@@ -1,5 +1,6 @@
 from . import core
 import numpy as np
+from osgeo import gdal
 import pyproj
 
 def compute_warp(dst_envelope, dst_size, src_spatial_reference):
@@ -75,14 +76,14 @@ def sample_raster(src_pixel_x, src_pixel_y, src_raster):
 def reproject_raster(dst, src):
     reproject_rasters(dst, (src,))
 
-def reproject_rasters(dst, srcs):
+def _py_reproject_rasters(dst, srcs):
     if len(srcs) == 0:
         return
 
-    dst_height, dst_width = dst.array.shape[:2]
     src_srs = srcs[0].envelope.spatial_reference
     assert all([x.envelope.spatial_reference.IsSame(src_srs) for x in srcs[1:]])
 
+    dst_height, dst_width = dst.array.shape[:2]
     src_x, src_y = compute_warp(dst.envelope, (dst_width, dst_height), src_srs)
     for src in srcs:
         src_height, src_width = src.array.shape[:2]
@@ -93,3 +94,25 @@ def reproject_rasters(dst, srcs):
 
         bands = min(sample.shape[2], dst.array.shape[2])
         dst.array[:,:,:bands] = np.ma.filled(sample[:,:,:bands], dst.array[:,:,:bands])
+
+def _gdal_reproject_rasters(dst, srcs):
+    if len(srcs) == 0:
+        return
+
+    src_srs = srcs[0].envelope.spatial_reference
+    assert all([x.envelope.spatial_reference.IsSame(src_srs) for x in srcs[1:]])
+
+    mem_driver = gdal.GetDriverByName('MEM')
+    dst_ds = mem_driver.CreateCopy('', dst.as_dataset())
+    src_wkt = src_srs.ExportToWkt()
+    dst_wkt = dst.envelope.spatial_reference.ExportToWkt()
+    for src in srcs:
+        gdal.ReprojectImage(
+            src.as_dataset(), dst_ds,
+            src_wkt, dst_wkt,
+            gdal.GRA_NearestNeighbour)
+
+    dst.array = core.Raster.from_dataset(dst_ds).array
+
+reproject_rasters = _py_reproject_rasters
+#reproject_rasters = _gdal_reproject_rasters
