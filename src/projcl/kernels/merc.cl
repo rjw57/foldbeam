@@ -107,6 +107,13 @@ float2 merc_inverse(float2 lp, float k0, float e, float es, int tlat_ts, float r
 }
 
 #ifdef USE_KERNEL
+/* BEGIN_ENTRY: merc
+ * KERNELS: merc_forward_kernel, merc_inverse_kernel
+ * STANDARD_PARAMS: k0, e, es
+ * CUSTOM_PARAMS: tlat_ts, rlat_ts
+ * END_ENTRY
+ */
+
 __kernel void merc_forward_kernel(
         __global float2* in_lps, __global float2* out_xys, __global int* errors,
         float k0, float e, float es, int tlat_ts, float rlat_ts)
