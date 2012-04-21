@@ -1,3 +1,11 @@
+"""
+Geographic co-ordinate transformation
+=====================================
+
+This module contains support functions for transforming between different geographic co-ordinate systems.
+
+"""
+
 from . import core
 import numpy as np
 import os
@@ -5,7 +13,23 @@ from osgeo import gdal
 import pyproj
 
 def compute_warp(dst_envelope, dst_size, src_spatial_reference):
-    """Compute warp to projection co-ords in src_spatial_reference for dst_envelope with size dst_size."""
+    """Compute the projection co-ordinates in a source spatial projection for pixels in a destination image.
+
+    :param dst_envelope: the envelope of the destination raster
+    :type dst_envelope: :py:class:`core.Envelope`
+    :param dst_size: the width and height of the destination raster
+    :type dst_size: pair of integer
+    :param src_spatial_reference: co-ordinate system of the source raster
+    :type src_spatial_reference: :py:class:`osgeo.osr.SpatialReference`
+    :rtype: pair of arrays
+
+    Compute the projection co-ordinates of each pixel in a destination raster when projected into the source spatial
+    reference. This is necessary to re-project images correctly.
+
+    The return value is a pair of array-like objects giving the x and y co-ordinates. The returned arrays are the width
+    and height specified in dst_size.
+
+    """
 
     # Compute x- and y-co-ordinates in dst from the envelope
     dst_cols, dst_rows = dst_size
@@ -47,6 +71,21 @@ def pixels_to_proj(x, y, envelope, size):
     return x,y
 
 def sample_raster(src_pixel_x, src_pixel_y, src_raster):
+    """Sample pixels from a raster.
+
+    :param src_pixel_x: array of pixel x-co-ordinates
+    :param src_pixel_y: array of pixel y-co-ordinates
+    :param src_raster: source raster
+    :type src_raster: :py:class:`core.Raster`
+    :rtype: :py:class:`numpy.array` or :py:class:`numpy.ma.array`
+
+    The returned array has the same shape as src_raster with each value corresponding to the sampled value. The arrays
+    src_pixel_x and src_pixel_y must have the same width and height as src_raster. If pixel co-ordinates outside of the
+    range of those present in src_raster are specified, the values will be masked out of the resulting array and a numpy
+    masked array will be returned.
+
+    """
+
     px = np.int32(np.round(src_pixel_x))
     py = np.int32(np.round(src_pixel_y))
 
@@ -75,6 +114,11 @@ def sample_raster(src_pixel_x, src_pixel_y, src_raster):
     return dst
 
 def reproject_raster(dst, src):
+    """Re-project a source raster into a destination raster.
+
+    See :py:func:`reproject_rasters`.
+
+    """
     reproject_rasters(dst, (src,))
 
 def _py_reproject_rasters(dst, srcs):
