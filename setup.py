@@ -17,6 +17,7 @@ install_requires = [
     'py-notify',
     'tilestache',
     'numpy',
+    'pyproj',
 ]
 
 
