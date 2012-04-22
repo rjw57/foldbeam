@@ -1,4 +1,17 @@
-import pads
+class EdgeType(object):
+    def useable_as(self, other_type):
+        return other_type is self
+
+class NamedType(object):
+    @classmethod
+    def get_description(cls):
+        return cls.__name__
+
+class RasterType(NamedType):
+    pass
+
+class FloatType(NamedType):
+    pass
 
 class Node(object):
     def __init__(self):

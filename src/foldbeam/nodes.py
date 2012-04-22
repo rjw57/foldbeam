@@ -10,36 +10,28 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.add_pad('output', pads.CallableOutputPad(cb=self._render, type=pads.Pad.RASTER))
-        self.add_pad('input', pads.InputPad(type=pads.Pad.RASTER))
+        self.add_pad('output', pads.CallableOutputPad(cb=self._render, type=graph.RasterType))
+        self.add_pad('input', pads.InputPad(type=graph.RasterType))
         self.pads['input'].connect(input_pad)
 
     def _render(self, envelope, size):
         if size is None:
             size = map(int, envelope.size())
 
-        resp = self.pads['input'](envelope, size)
-        if resp is None:
-            return pads.ContentType.NONE, None
+        raster = self.pads['input'](envelope, size)
+        if raster is None:
+            return None
 
-        type_, raster = resp
-        if type_ is pads.ContentType.NONE:
-            return pads.ContentType.NONE, None
-
-        if type_ is not pads.ContentType.RASTER:
-            print('Skipping invalid raster')
-            return pads.ContentType.NONE, None
-
-        return pads.ContentType.RASTER, core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
+        return core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
 class LayerRasterNode(graph.Node):
     def __init__(self, top=None, bottom=None, top_opacity=None, bottom_opacity=None):
         super(LayerRasterNode, self).__init__()
         self.add_pad('output', pads.TiledRasterOutputPad(self._render))
-        self.add_pad('top', pads.InputPad(pads.Pad.RASTER, top))
-        self.add_pad('top_opacity', pads.InputPad(pads.Pad.NUMBER, top_opacity if top_opacity is not None else 1))
-        self.add_pad('bottom', pads.InputPad(pads.Pad.RASTER, top))
-        self.add_pad('bottom_opacity', pads.InputPad(pads.Pad.NUMBER, bottom_opacity if bottom_opacity is not None else 1))
+        self.add_pad('top', pads.InputPad(graph.RasterType, top))
+        self.add_pad('top_opacity', pads.InputPad(graph.FloatType, top_opacity if top_opacity is not None else 1))
+        self.add_pad('bottom', pads.InputPad(graph.RasterType, top))
+        self.add_pad('bottom_opacity', pads.InputPad(graph.FloatType, bottom_opacity if bottom_opacity is not None else 1))
 
     def _render(self, tiles):
         rv = []

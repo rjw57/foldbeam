@@ -145,7 +145,10 @@ node [
         output.write('label = <<TABLE CELLSPACING="0" CELLBORDER="1" BORDER="0">\n')
         output.write('<TR><TD BGCOLOR="#eeeeee"><B>Type Key</B></TD></TR>\n')
         for type_, color in type_colors.iteritems():
-            label = escape(str(type_))
+            if hasattr(type_, 'get_description'):
+                label = escape(type_.get_description())
+            else:
+                label = escape(str(type_))
             output.write('<TR><TD BGCOLOR="%(color)s">%(label)s</TD></TR>\n' % dict(color=color, label=label))
         output.write('</TABLE>>\n')
         output.write(']\n')

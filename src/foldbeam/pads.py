@@ -1,15 +1,11 @@
-import _gdal
+from . import _gdal, core, graph
 from notify.all import Signal
 import numpy as np
-import core
 from osgeo import osr, gdal
 
 class Pad(object):
     IN      = 'IN'
     OUT     = 'OUT'
-
-    RASTER  = 'RASTER'
-    NUMBER  = 'NUMBER'
 
     def __init__(self, direction, type):
         self.direction = direction
@@ -69,7 +65,7 @@ class CallableOutputPad(OutputPad):
 
 class RasterOutputPad(OutputPad):
     def __init__(self):
-        super(RasterOutputPad, self).__init__(Pad.RASTER)
+        super(RasterOutputPad, self).__init__(graph.RasterType)
         self.damaged = Signal()
 
     def pull(self, envelope=None, size=None):
