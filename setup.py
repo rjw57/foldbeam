@@ -18,6 +18,7 @@ install_requires = [
     'tilestache',
     'numpy',
     'pyproj',
+    # 'pycairo', # pycairo does not build properly via pip/easy_install :(
 ]
 
 
