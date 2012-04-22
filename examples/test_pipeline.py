@@ -1,16 +1,31 @@
 from cgi import escape
+import colorsys
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.graph import Node
-from foldbeam.pads import Pad, ConstantOutputPad
+from foldbeam.graph import Node, Pad
+from foldbeam.pads import ConstantOutputPad
 from osgeo import osr
+import os
+import sys
 
-def pipeline_to_dot(nodes, output_pad, output):
+sys.path.append(os.path.dirname(__file__))
+import sobol_seq
+
+_n_colors = 0
+def random_color():
+    global _n_colors
+
+    _n_colors += 1
+    h = sobol_seq.i4_sobol_generate(1, 1, _n_colors)
+    s = 0.9
+    l = 0.95
+    r, g, b = colorsys.hls_to_rgb(h,l,s)
+    return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
+
+def pipeline_to_dot(seed_nodes, output_pad, output):
     output.write('''
 digraph g {
-#    ranksep = 1;
-#    clusterrank = "none";
 graph [
     rankdir = "LR"
 ];
@@ -18,126 +33,120 @@ node [
     fontsize = "16"
     shape = "plaintext"
 ];
-subgraph main {
 ''')
 
-    to_process = nodes.items()
-    subgraphs = {}
-    while len(to_process) > 0:
-        group, node = to_process[0]
-        to_process = to_process[1:]
-        if group in subgraphs:
-            subgraphs[group].append(node)
-        else:
-            subgraphs[group] = [node]
-        to_process.extend([(group, x) for x in node.subnodes])
+    nodes = { }
+    pads = { }
+    type_colors = { }
 
-    node_records = {}
-    connections = []
-    pad_containers = {}
-
-    for group_name, nodes in subgraphs.iteritems():
-        output.write('subgraph cluster_%s {\n' % (group_name,))
+    # A function to output a node (or subnode)
+    def output_node(node, name, nodes, pads):
+        node_name = 'node_%i' % (len(nodes),)
+        output.write('subgraph cluster_node_%s {\n' % (node_name,))
         output.write('    style = "filled";\n')
-        output.write('    fillcolor = "#eeffee";\n')
+        output.write('    fillcolor = "#f8f8f8";\n')
         output.write('    shape = "rectangle";\n')
-        output.write('    label = "%s";\n' % (group_name,))
-#        output.write('subgraph sourcehack_%s {\nrank="min"\n' % (group_name,))
-#        output.write('"source_%s" [\n' % (group_name,))
-#        output.write('margin = "0"\nsep = "0"\nlabel = ""\nstyle = "invis"\n')
-#        output.write('];\n')
-#        output.write('}\n')
-#        output.write('subgraph sinkhack_%s {\nrank="max"\n' % (group_name,))
-#        output.write('"sink_%s" [\n' % (group_name,))
-#        output.write('margin = "0"\nsep = "0"\nlabel = ""\nstyle = "invis"\n')
-#        output.write('];\n')
-#        output.write('}\n')
-        #output.write('"source_%s" -> "sink_%s" [];\n' % (group_name, group_name))
-        for idx, node in enumerate(nodes):
-            node_name = 'node_%s_%i' % (group_name, idx,)
-            node_records[node] = node_name
+        output.write('label = "%s"\n' % (name,))
 
-            output.write('"%s" [\n' % (node_name,))
+        output.write('"%s" [\n' % (node_name,))
+        output.write('''label = <
+<TABLE BGCOLOR="white" CELLSPACING="0" CELLBORDER="1" BORDER="0">
+    <TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>
+        ''' % dict(name=escape(name), type=escape(node.__class__.__name__)))
 
-            inputs = [ ]
-            outputs = [ ]
+        outputs = node.outputs.items()
+        inputs = node.inputs.items()
 
-            for pad_name in node.pad_names:
-                pad = node.pads[pad_name]
-                if pad.direction is Pad.IN:
-                    source = pad.source
-                    inputs.append((pad_name, source))
-                    connections.append((node, pad_name, source, group_name))
-                else:
-                    outputs.append((pad_name, pad))
-                    pad_containers[pad] = (node_name, pad_name, group_name)
+        for pad_name, pad in inputs + outputs:
+            if pad.type not in type_colors:
+                color = random_color()
+                type_colors[pad.type] = color
 
-            if node.__class__.__module__ != 'foldbeam.nodes':
-                title = '%s:%s' % (node.__class__.__module__, node.__class__.__name__)
-            else:
-                title = node.__class__.__name__
+            output.write('''
+    <TR><TD PORT="pad_%(pad_name)s" BGCOLOR="%(type_color)s" ALIGN="%(align)s">%(pad_name)s</TD></TR>
+            ''' % dict(
+                type_color=type_colors[pad.type],
+                pad_name=pad_name,
+                align='LEFT' if pad.direction is Pad.IN else 'RIGHT'))
+            pads[pad] = ('"%s":%s' % (node_name, 'pad_' + pad_name), node_name)
 
-            label = '<TABLE BGCOLOR="white" BORDER="0" CELLBORDER="1" CELLSPACING="0">\n'
-            label += '<TR><TD PORT="node" BGCOLOR="#eeeeee"><B>%s</B></TD></TR>\n' % (escape(title),)
-            for pad_name, pad in outputs:
-                label += '<TR><TD ALIGN="right" PORT="pad_%s">%s</TD></TR>\n' % (pad_name, pad_name)
-            for pad_name, pad in inputs:
-                label += '<TR><TD ALIGN="left" PORT="pad_%s">%s</TD></TR>\n' % (pad_name, pad_name)
-            label += '</TABLE>'
+        output.write('</TABLE>\n>\n')
 
-            output.write('    label = <%s>\n' % (label,))
-            output.write('];\n')
+        output.write(']\n')
+        nodes[node] = dict(name=node_name)
 
+        [output_node(x[1], name + '_%i' % x[0], nodes, pads) for x in enumerate(node.subnodes)]
         output.write('}\n')
 
-    constant_idx = 0
-    for dst_node, dst_pad_name, src_pad, dst_group in connections:
-        dst_node_name = node_records[dst_node]
-        if src_pad in pad_containers:
-            src_node_name, src_pad_name, src_group = pad_containers[src_pad]
-            src = node_records[subgraphs[src_group][0]]
-            dst = node_records[subgraphs[dst_group][-1]]
-            if src_group != dst_group:
-                output.write('"%s" -> "%s" [style="invis"]\n' % (src, dst))
-        elif isinstance(src_pad, ConstantOutputPad):
-            constant_idx += 1
-            src_node_name = 'constant_%s' % (constant_idx,)
-            subgraphs[dst_group].insert(subgraphs[dst_group].index(dst_node) + 1, src_node_name)
-            node_records[src_node_name] = src_node_name
-            src_pad_name = 'constant'
-            output.write('subgraph cluster_%s {\n' % (dst_group,))
-            output.write('"%s" [\n' % (src_node_name,))
-            output.write('    label = <<TABLE BGCOLOR="#ffeeee" CELLSPACING="0" BORDER="0" CELLBORDER="1">\n')
-            output.write('<TR><TD BGCOLOR="#eeeeee"><B>Constant</B></TD></TR>\n')
-            output.write('<TR><TD PORT="pad_%s">%s</TD></TR>\n' % (src_pad_name, escape(str(src_pad.value))))
-            output.write('</TABLE>>\n')
-            output.write('];\n')
-            output.write('}\n')
-        else:
-            continue
+    # Output all nodes
+    [output_node(x[1], x[0], nodes, pads) for x in seed_nodes.iteritems()]
 
-        output.write('"%s":pad_%s -> "%s":pad_%s [\n' % (src_node_name, src_pad_name, dst_node_name, dst_pad_name))
-        output.write('];\n')
+    for node, record in nodes.iteritems():
+        for dst_pad in node.inputs.values():
+            src_pad = dst_pad.source
+            dst_pad_name, dst_node_name = pads[dst_pad]
 
-    output.write('}\n')
+            if src_pad not in pads and isinstance(src_pad, ConstantOutputPad):
+                const_node_name = 'constant_%i' % len(pads)
+                output.write('''subgraph cluster_node_%(node_name)s {
+                "%(name)s" [
+                    label = <<TABLE BGCOLOR="%(color)s" CELLSPACING="0" CELLBORDER="1" BORDER="0">
+                    <TR><TD PORT="_value">%(value)s</TD></TR>
+                    </TABLE>>
+                ]
+                }\n''' % dict(
+                    color=type_colors[src_pad.type],
+                    node_name=record['name'],
+                    name=const_node_name,
+                    value=escape(str(src_pad.value))))
 
-    if output_pad in pad_containers:
+                pads[src_pad] = ('"%s":_value' % (const_node_name,), record['name'])
+            elif src_pad not in pads:
+                continue
+
+            src_pad_name, src_node_name = pads[src_pad]
+            output.write('%(src)s -> %(dst)s [ ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
+
+    # Add implicit edges to separate out constant nodes
+    for node, record in nodes.iteritems():
+        for dst_pad in node.inputs.values():
+            src_pad = dst_pad.source
+            dst_pad_name, dst_node_name = pads[dst_pad]
+            src_pad_name, src_node_name = pads[src_pad]
+
+            for dst_pad_name, dst_node_name in [x for x in pads.itervalues() if x[1] == dst_node_name]:
+                if src_node_name == dst_node_name:
+                    continue
+                if dst_pad_name == src_pad_name:
+                    continue
+                if not dst_pad_name.startswith('"constant'):
+                    continue
+                output.write('%(src)s -> %(dst)s [ style="invis" ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
+
+
+    if output_pad in pads:
         output.write('''
-        subgraph outputsink {
             "output" [
                 shape = "rectangle"
                 label = "Output"
-                fillcolor = "#ccccff"
+                fillcolor = "%(color)s"
                 style = "filled"
-                root = "true"
             ];
-        }
-        ''')
-        node_name, pad_name, _ = pad_containers[output_pad]
-        output.write('"%s":pad_%s -> "output" [ ];\n' % (node_name, pad_name))
+        ''' % dict(color=type_colors[output_pad.type]))
+        output.write('%s -> "output" [ ];\n' % (pads[output_pad][0],))
 
-        #for group in subgraphs.keys():
-        #    output.write('"sink_%s" -> "output" [\nstyle="invis"\n];\n' % (group,))
+    if len(type_colors) > 0:
+        output.write('"legend" [\n')
+        output.write('label = <<TABLE CELLSPACING="0" CELLBORDER="1" BORDER="0">\n')
+        output.write('<TR><TD BGCOLOR="#eeeeee"><B>Type Key</B></TD></TR>\n')
+        for type_, color in type_colors.iteritems():
+            if hasattr(type_, 'get_description'):
+                label = escape(type_.get_description())
+            else:
+                label = escape(str(type_))
+            output.write('<TR><TD BGCOLOR="%(color)s">%(label)s</TD></TR>\n' % dict(color=color, label=label))
+        output.write('</TABLE>>\n')
+        output.write(']\n')
 
     output.write('}\n')
 

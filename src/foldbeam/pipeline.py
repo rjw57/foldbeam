@@ -30,9 +30,9 @@ class Pipeline(object):
                 src = self.nodes[src_name]
                 dst = self.nodes[dst_name]
 
-                dst.pads[dst_attr].connect(src.pads[src_attr])
+                dst.inputs[dst_attr].connect(src.outputs[src_attr])
 
         if 'outputs' in configuration:
             for name, output in configuration['outputs'].iteritems():
                 node, attr = output.split(':')
-                setattr(self, name, self.nodes[node].pads[attr])
+                setattr(self, name, self.nodes[node].outputs[attr])
