@@ -7,16 +7,16 @@ from osgeo import ogr
 class OgrDataSourceNode(graph.Node):
     def __init__(self, filename=None):
         super(OgrDataSourceNode, self).__init__()
-        self.add_pad('data_source', pads.CallableOutputPad(ogr.DataSource, lambda: self.data_source))
-        self.add_pad('filename', pads.InputPad(str))
+        self.add_output('data_source', pads.CallableOutputPad(ogr.DataSource, lambda: self.data_source))
+        self.add_input('filename', pads.InputPad(str))
         self._data_source = None
 
         if filename is not None:
-            self.pads['filename'].connect(pads.ConstantOutputPad(str, str(filename)))
+            self.inputs.filename.connect(pads.ConstantOutputPad(str, str(filename)))
 
     @property
     def filename(self):
-        return self.pads['filename']()
+        return self.inputs.filename()
 
     @property
     def data_source(self):
@@ -32,25 +32,25 @@ class OgrDataSourceNode(graph.Node):
 class VectorRendererNode(graph.Node):
     def __init__(self, sql=None, filename=None, pen_rgba=None):
         super(VectorRendererNode, self).__init__()
-        self.add_pad('output', pads.CallableOutputPad(graph.RasterType, self._render))
-        self.add_pad('sql', pads.InputPad(str))
-        self.add_pad('data_source', pads.InputPad(ogr.DataSource))
-        self.add_pad('pen_rgba', pads.InputPad(list))
+        self.add_output('output', pads.CallableOutputPad(graph.RasterType, self._render))
+        self.add_input('sql', pads.InputPad(str))
+        self.add_input('data_source', pads.InputPad(ogr.DataSource))
+        self.add_input('pen_rgba', pads.InputPad(list))
 
         if sql is not None:
-            self.pads['sql'].connect(pads.ConstantOutputPad(str, str(sql)))
+            self.inputs.sql.connect(pads.ConstantOutputPad(str, str(sql)))
 
         if pen_rgba is not None:
-            self.pads['pen_rgba'].connect(pads.ConstantOutputPad(list, list(pen_rgba)))
+            self.inputs.pen_rgba.connect(pads.ConstantOutputPad(list, list(pen_rgba)))
 
         if filename is not None:
             source = OgrDataSourceNode(filename)
             self.add_subnode(source)
-            self.pads['data_source'].connect(source.pads['data_source'])
+            self.inputs.data_source.connect(source.outputs.data_source)
 
     @property
     def pen_rgba(self):
-        c = self.pads['pen_rgba']()
+        c = self.inputs.pen_rgba()
         if len(c) == 3:
             return c + [1,]
         elif len(c) == 4:
@@ -60,11 +60,11 @@ class VectorRendererNode(graph.Node):
 
     @property
     def sql(self):
-        return self.pads['sql']()
+        return self.inputs.sql()
 
     @property
     def data_source(self):
-        return self.pads['data_source']()
+        return self.inputs.data_source()
 
     def _render(self, envelope, size):
         if self.sql is None or self.data_source is None:

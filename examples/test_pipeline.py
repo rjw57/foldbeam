@@ -3,8 +3,8 @@ import colorsys
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.graph import Node
-from foldbeam.pads import Pad, ConstantOutputPad
+from foldbeam.graph import Node, Pad
+from foldbeam.pads import ConstantOutputPad
 from osgeo import osr
 import os
 import sys
@@ -54,8 +54,8 @@ node [
     <TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>
         ''' % dict(name=escape(name), type=escape(node.__class__.__name__)))
 
-        outputs = [(x, node.pads[x]) for x in node.pad_names if node.pads[x].direction is Pad.OUT]
-        inputs = [(x, node.pads[x]) for x in node.pad_names if node.pads[x].direction is Pad.IN]
+        outputs = node.outputs.items()
+        inputs = node.inputs.items()
 
         for pad_name, pad in inputs + outputs:
             if pad.type not in type_colors:
@@ -82,10 +82,7 @@ node [
     [output_node(x[1], x[0], nodes, pads) for x in seed_nodes.iteritems()]
 
     for node, record in nodes.iteritems():
-        for dst_pad in node.pads.values():
-            if dst_pad.direction is Pad.OUT:
-                continue
-
+        for dst_pad in node.inputs.values():
             src_pad = dst_pad.source
             dst_pad_name, dst_node_name = pads[dst_pad]
 
@@ -112,9 +109,7 @@ node [
 
     # Add implicit edges to separate out constant nodes
     for node, record in nodes.iteritems():
-        for dst_pad in node.pads.values():
-            if dst_pad.direction is Pad.OUT:
-                continue
+        for dst_pad in node.inputs.values():
             src_pad = dst_pad.source
             dst_pad_name, dst_node_name = pads[dst_pad]
             src_pad_name, src_node_name = pads[src_pad]

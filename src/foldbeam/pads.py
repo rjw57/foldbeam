@@ -3,17 +3,9 @@ from notify.all import Signal
 import numpy as np
 from osgeo import osr, gdal
 
-class Pad(object):
-    IN      = 'IN'
-    OUT     = 'OUT'
-
-    def __init__(self, direction, type):
-        self.direction = direction
-        self.type = type
-
-class InputPad(Pad):
+class InputPad(graph.Pad):
     def __init__(self, type, default=None):
-        super(InputPad, self).__init__(Pad.IN, type)
+        super(InputPad, self).__init__(graph.Pad.IN, type)
         self._default = ConstantOutputPad(type, default)
         self._source = None
 
@@ -34,9 +26,9 @@ class InputPad(Pad):
     def pull(self, **kwargs):
         return self.source(**kwargs)
 
-class OutputPad(Pad):
+class OutputPad(graph.Pad):
     def __init__(self, type):
-        super(OutputPad, self).__init__(Pad.OUT, type)
+        super(OutputPad, self).__init__(graph.Pad.OUT, type)
 
     def __call__(self, **kwargs):
         return self.pull(**kwargs)
@@ -44,9 +36,9 @@ class OutputPad(Pad):
     def pull(self, **kwargs):
         return None
 
-class ConstantOutputPad(Pad):
+class ConstantOutputPad(OutputPad):
     def __init__(self, type, value=None):
-        super(ConstantOutputPad, self).__init__(Pad.OUT, type)
+        super(ConstantOutputPad, self).__init__(type)
         self.value = value
 
     def __call__(self, **kwargs):
