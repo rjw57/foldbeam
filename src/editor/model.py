@@ -1,4 +1,5 @@
 from . import graphcanvas 
+from foldbeam import graph, vector, tilestache
 from foldbeam.graph import InputPad, OutputPad, can_connect
 import pygtk
 import gobject
