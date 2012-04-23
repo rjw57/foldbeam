@@ -1,9 +1,18 @@
 from .core import Envelope
 from .pipeline import Pipeline
+from .graph import Node, node, RasterType
 import json
 import numpy as np
 from osgeo import osr
 from PIL import Image
+import TileStache
+from werkzeug.serving import run_simple
+
+@node
+class TileStacheServerNode(Node):
+    def __init__(self):
+        super(TileStacheServerNode, self).__init__()
+        self.add_input('raster', RasterType)
 
 class NodeProvider(object):
     """A very preliminary example of acting as a TileStache tile provider."""
