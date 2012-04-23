@@ -8,11 +8,13 @@ represented by tiles between spatial references.
 
 """
 
-import _gdal
-import json
+# Hss to be first FSR otherwise there is a segfault :(
 from TileStache.Geography import Point
-from osgeo import osr, ogr, gdal, gdal_array
+
+from ._gdal import dataset_envelope
+import json
 import numpy as np
+from osgeo import osr, ogr, gdal, gdal_array
 import pyproj
 
 def boundary_from_envelope(envelope):
@@ -81,8 +83,8 @@ class Boundary(object):
 
         """
 
-        l,r,b,t = self.geometry.GetEnvelope()
-        return Envelope(l,r,t,b,self.geometry.GetSpatialReference())
+        left, right, bottom, top = self.geometry.GetEnvelope()
+        return Envelope(left, right, top, bottom, self.geometry.GetSpatialReference())
 
     def contains_point(self, x, y):
         """Convenience function to test if a point is contained within this boundary.
@@ -95,9 +97,9 @@ class Boundary(object):
 
         """
 
-        pt = ogr.Geometry(ogr.wkbPoint)
-        pt.AddPoint_2D(x,y)
-        return self.geometry.Contains(pt)
+        point = ogr.Geometry(ogr.wkbPoint)
+        point.AddPoint_2D(x, y)
+        return self.geometry.Contains(point)
 
     def transform_to(self, other_spatial_reference, src_seg_len=None, dst_seg_len=None):
         """Transform this boundary into another spatial reference.
@@ -176,7 +178,7 @@ class Envelope(object):
         :rtype: :py:class:`TileStache.Geography.Point`
 
         """
-        return Point(self.right, self.botom)
+        return Point(self.right, self.bottom)
 
     def offset(self):
         """Return a tuple giving the offset from the top-left corner to the bottom right."""
@@ -184,7 +186,7 @@ class Envelope(object):
 
     def size(self):
         """Return a tuple giving the *absolute* offset from the top-left corner to the bottom right."""
-        return map(abs, self.offset())
+        return [abs(x) for x in self.offset()]
 
     def transform_to(self, other_spatial_reference, src_seg_len=None, dst_seg_len=None):
         """Return a envelope which contains this envelope in a target spatial reference.
@@ -211,6 +213,11 @@ class Envelope(object):
         return '(%f => %f, %f => %f)' % (self.left, self.right, self.top, self.bottom)
 
 def to_rgba_unknown(array):
+    """Default conversion from an array of unknown type to an RGBA array. This simply fills the array with a default
+    pattern.
+
+    """
+
     array = np.atleast_2d(array)
     rgba = np.empty(array.shape[:2] + (4,))
     red = np.reshape(np.arange(array.shape[1], dtype=np.float32) / array.shape[1], (1, array.shape[1]))
@@ -219,10 +226,10 @@ def to_rgba_unknown(array):
     mask = np.ma.getmask(array)
     if mask is not np.ma.nomask:
         alpha = np.where(np.any(mask, 2), 0.0, 1.0)
-    rgba[:,:,0] = np.repeat(red, array.shape[0], 0) * alpha
-    rgba[:,:,1] = np.repeat(green, array.shape[1], 1) * alpha
-    rgba[:,:,2] = 0
-    rgba[:,:,3] = alpha
+    rgba[:, :, 0] = np.repeat(red, array.shape[0], 0) * alpha
+    rgba[:, :, 1] = np.repeat(green, array.shape[1], 1) * alpha
+    rgba[:, :, 2] = 0
+    rgba[:, :, 3] = alpha
     return rgba
 
 class RgbaFromBands(object):
@@ -250,23 +257,23 @@ class RgbaFromBands(object):
             interp = band[0]
 
             if interp is RgbaFromBands.GRAY:
-                rgba[:,:,:3] = np.repeat(array[:,:,idx], 3, 2) * scale
+                rgba[:, :, :3] = np.repeat(array[:,:,idx], 3, 2) * scale
             elif interp is RgbaFromBands.RED:
-                rgba[:,:,0] = array[:,:,idx]
-                rgba[:,:,0] *= scale
+                rgba[:, :, 0] = array[:,:,idx]
+                rgba[:, :, 0] *= scale
             elif interp is RgbaFromBands.GREEN:
-                rgba[:,:,1] = array[:,:,idx]
-                rgba[:,:,1] *= scale
+                rgba[:, :, 1] = array[:,:,idx]
+                rgba[:, :, 1] *= scale
             elif interp is RgbaFromBands.BLUE:
-                rgba[:,:,2] = array[:,:,idx]
-                rgba[:,:,2] *= scale
+                rgba[:, :, 2] = array[:,:,idx]
+                rgba[:, :, 2] *= scale
             elif interp is RgbaFromBands.ALPHA:
-                rgba[:,:,3] = array[:,:,idx]
-                rgba[:,:,3] *= scale
+                rgba[:, :, 3] = array[:,:,idx]
+                rgba[:, :, 3] *= scale
 
         if not self.is_premultiplied:
             for i in xrange(3):
-                rgba[:,:,i] *= rgba[:,:,3]
+                rgba[:, :, i] *= rgba[:,:,3]
 
         return rgba
 
@@ -340,7 +347,7 @@ class Raster(object):
 
         srs = osr.SpatialReference()
         srs.ImportFromWkt(ds.GetProjection())
-        envelope = _gdal.dataset_envelope(ds, srs)
+        envelope = dataset_envelope(ds, srs)
         
         can_interpolate = gdal.GCI_PaletteIndex not in [
             ds.GetRasterBand(i).GetColorInterpretation()
