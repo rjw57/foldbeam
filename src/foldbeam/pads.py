@@ -1,51 +1,8 @@
 from . import _gdal, core, graph
+from .graph import InputPad, OutputPad
 from notify.all import Signal
 import numpy as np
 from osgeo import osr, gdal
-
-class InputPad(graph.Pad):
-    def __init__(self, type, default=None):
-        super(InputPad, self).__init__(graph.Pad.IN, type)
-        self._default = ConstantOutputPad(type, default)
-        self._source = None
-
-    @property
-    def source(self):
-        return self._source if self._source is not None else self._default
-
-    @source.setter
-    def source(self, value):
-        self._source = value
-
-    def __call__(self, **kwargs):
-        return self.pull(**kwargs)
-
-    def connect(self, pad=None):
-        self.source = pad
-
-    def pull(self, **kwargs):
-        return self.source(**kwargs)
-
-class OutputPad(graph.Pad):
-    def __init__(self, type):
-        super(OutputPad, self).__init__(graph.Pad.OUT, type)
-
-    def __call__(self, **kwargs):
-        return self.pull(**kwargs)
-
-    def pull(self, **kwargs):
-        return None
-
-class ConstantOutputPad(OutputPad):
-    def __init__(self, type, value=None):
-        super(ConstantOutputPad, self).__init__(type)
-        self.value = value
-
-    def __call__(self, **kwargs):
-        return self.pull(**kwargs)
-
-    def pull(self, **kwargs):
-        return self.value
 
 class CallableOutputPad(OutputPad):
     def __init__(self, type, cb):

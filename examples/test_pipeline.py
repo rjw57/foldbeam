@@ -3,8 +3,7 @@ import colorsys
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.graph import Node, Pad
-from foldbeam.pads import ConstantOutputPad
+from foldbeam.graph import Node, Pad, ConstantOutputPad
 from osgeo import osr
 import os
 import sys

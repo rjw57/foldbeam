@@ -11,7 +11,7 @@ class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
         self.add_output('output', pads.CallableOutputPad(cb=self._render, type=graph.RasterType))
-        self.add_input('input', pads.InputPad(type=graph.RasterType))
+        self.add_input('input', graph.RasterType)
 
     def _render(self, envelope, size):
         if size is None:
@@ -27,10 +27,10 @@ class LayerRasterNode(graph.Node):
     def __init__(self, top=None, bottom=None, top_opacity=None, bottom_opacity=None):
         super(LayerRasterNode, self).__init__()
         self.add_output('output', pads.TiledRasterOutputPad(self._render))
-        self.add_input('top', pads.InputPad(graph.RasterType, top))
-        self.add_input('top_opacity', pads.InputPad(graph.FloatType, top_opacity if top_opacity is not None else 1))
-        self.add_input('bottom', pads.InputPad(graph.RasterType, top))
-        self.add_input('bottom_opacity', pads.InputPad(graph.FloatType, bottom_opacity if bottom_opacity is not None else 1))
+        self.add_input('top', graph.RasterType, top)
+        self.add_input('top_opacity', graph.FloatType, top_opacity if top_opacity is not None else 1)
+        self.add_input('bottom', graph.RasterType, top)
+        self.add_input('bottom_opacity', graph.FloatType, bottom_opacity if bottom_opacity is not None else 1)
 
     def _render(self, tiles):
         rv = []
@@ -80,7 +80,7 @@ class FileReaderNode(graph.Node):
     def __init__(self, filename=None):
         super(FileReaderNode, self).__init__()
         self.contents = None
-        self.add_input('filename', pads.InputPad(str, filename))
+        self.add_input('filename', str, filename)
         self.add_output('contents', pads.CallableOutputPad(gdal.Dataset, self._load))
 
     def _load(self):
@@ -97,7 +97,7 @@ class FileReaderNode(graph.Node):
 class GDALDatasetSourceNode(graph.Node):
     def __init__(self, filename=None):
         super(GDALDatasetSourceNode, self).__init__()
-        self.add_input('filename', pads.InputPad(str, filename))
+        self.add_input('filename', str, filename)
         self.dataset = None
         self.add_output('dataset', pads.CallableOutputPad(gdal.Dataset, self._load))
 
@@ -116,13 +116,13 @@ class GDALDatasetRasterNode(graph.Node):
     def __init__(self, dataset=None):
         super(GDALDatasetRasterNode, self).__init__()
 
-        self.add_input('dataset', pads.InputPad(gdal.Dataset))
+        self.add_input('dataset', gdal.Dataset)
         if isinstance(dataset, basestring):
             ds_node = GDALDatasetSourceNode(dataset)
             self.add_subnode(ds_node)
             self.inputs.dataset.connect(ds_node.outputs.dataset)
         elif dataset is not None:
-            source = pads.ConstantOutputPad(gdal.Dataset, dataset)
+            source = graph.ConstantOutputPad(gdal.Dataset, dataset)
             self.inputs.dataset.connect(source)
 
         self.spatial_reference = SpatialReference()
@@ -218,9 +218,7 @@ class TileStacheNode(graph.Node):
     def __init__(self, config_file=None):
         super(TileStacheNode, self).__init__()
 
-        self.add_input('config_file', pads.InputPad(str))
-        if config_file is not None:
-            self.inputs.config_file.connect(pads.ConstantOutputPad(str, config_file))
+        self.add_input('config_file', str, config_file)
 
         filename = self.inputs.config_file()
         self.config = None
@@ -228,7 +226,7 @@ class TileStacheNode(graph.Node):
             self.config = TileStache.parseConfigfile(filename)
             for name in sorted(self.config.layers.keys()):
                 layer = self.config.layers[name]
-                self.add_output(name, pads.ConstantOutputPad(TileStache.Core.Layer, layer))
+                self.add_output(name, graph.ConstantOutputPad(TileStache.Core.Layer, layer))
 
 class TileStacheRasterNode(graph.Node):
     @property
@@ -238,10 +236,7 @@ class TileStacheRasterNode(graph.Node):
     def __init__(self, layer=None):
         super(TileStacheRasterNode, self).__init__()
 
-        self.add_input('layer', pads.InputPad(TileStache.Core.Layer))
-        if layer is not None:
-            self.inputs.layer.connect(pads.ConstantOutputPad(TileStache.Core.Layer, layer))
-
+        self.add_input('layer', TileStache.Core.Layer, layer)
         self.add_output('output', pads.TiledRasterOutputPad(self._render, tile_size=256))
 
     def _update(self):
