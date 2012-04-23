@@ -52,7 +52,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1024, 512)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -71,7 +70,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (1200, 800)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -95,7 +93,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
         connect(aerial_node, 'output', node, 'bottom')
 
         size = (700, 1300)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -114,7 +111,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (700, 1300)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -133,7 +129,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (800, 1200)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -158,7 +153,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -183,7 +177,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         size = (512, 512)
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope, size=size)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -209,7 +202,6 @@ class TestTileStacheRasterNode(unittest.TestCase):
                 envelope_srs)
 
         node = nodes.TileStacheRasterNode(self.config.layers['osm'])
-        self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
         raster = node.outputs.output(envelope=envelope)
         self.assertIsNotNone(raster)
         self.assertIsInstance(raster, core.Raster)
@@ -250,7 +242,7 @@ class TestOutputPad(unittest.TestCase):
         def damage_cb(d):
             damages.append(d)
 
-        e = pads.RasterOutputPad()
+        e = graph.OutputPad(graph.RasterType, self, 'foo', lambda: None)
         e.damaged.connect(damage_cb)
 
         self.assertEqual(len(damages), 0)

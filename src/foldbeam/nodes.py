@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 from . import _gdal, core, graph, pads, transform
 from .graph import connect, ConstantNode
+import copy
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
@@ -11,7 +14,7 @@ import TileStache
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
-        self.add_output('output', pads.CallableOutputPad(cb=self._render, type=graph.RasterType))
+        self.add_output('output', graph.RasterType, self._render)
         self.add_input('input', graph.RasterType)
 
     def _render(self, envelope, size):
@@ -27,19 +30,13 @@ class ToRgbaRasterNode(graph.Node):
 class LayerRasterNode(graph.Node):
     def __init__(self, top=None, bottom=None, top_opacity=None, bottom_opacity=None):
         super(LayerRasterNode, self).__init__()
-        self.add_output('output', pads.TiledRasterOutputPad(self._render))
+        self.add_output('output', graph.RasterType, self._render)
         self.add_input('top', graph.RasterType, top)
         self.add_input('top_opacity', graph.FloatType, top_opacity if top_opacity is not None else 1)
         self.add_input('bottom', graph.RasterType, top)
         self.add_input('bottom_opacity', graph.FloatType, bottom_opacity if bottom_opacity is not None else 1)
 
-    def _render(self, tiles):
-        rv = []
-        for envelope, size in tiles:
-            rv.append(self._render_tile(envelope, size))
-        return rv
-
-    def _render_tile(self, envelope, size):
+    def _render(self, envelope, size):
         opacities = [
             self.inputs.bottom_opacity(),
             self.inputs.top_opacity(),
@@ -82,7 +79,7 @@ class FileReaderNode(graph.Node):
         super(FileReaderNode, self).__init__()
         self.contents = None
         self.add_input('filename', str, filename)
-        self.add_output('contents', pads.CallableOutputPad(gdal.Dataset, self._load))
+        self.add_output('contents', gdal.Dataset, self._load)
 
     def _load(self):
         if self.contents is not None:
@@ -100,7 +97,7 @@ class GDALDatasetSourceNode(graph.Node):
         super(GDALDatasetSourceNode, self).__init__()
         self.add_input('filename', str, filename)
         self.dataset = None
-        self.add_output('dataset', pads.CallableOutputPad(gdal.Dataset, self._load))
+        self.add_output('dataset', gdal.Dataset, self._load)
 
     def _load(self):
         if self.dataset is not None:
@@ -128,8 +125,10 @@ class GDALDatasetRasterNode(graph.Node):
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
 
-        source_pad = pads.TiledRasterOutputPad(self._render, tile_size=256)
-        self.add_output('output', pads.ReprojectingOutputPad(self.spatial_reference, source_pad))
+        self.add_output('output', graph.RasterType,
+                pads.ReprojectingRasterFilter(
+                    self.spatial_reference,
+                    pads.TiledRasterFilter(self._render, tile_size=256)))
 
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
         self.boundary = core.boundary_from_envelope(self.envelope)
@@ -172,13 +171,7 @@ class GDALDatasetRasterNode(graph.Node):
 
         return rgba
 
-    def _render(self, tiles):
-        rv = []
-        for envelope, size in tiles:
-            rv.append(self._render_tile(envelope, size))
-        return rv
-
-    def _render_tile(self, envelope, size):
+    def _render(self, envelope, size):
         assert envelope.spatial_reference.IsSame(self.spatial_reference)
 
         # check if the requested area is contained within the dataset bounds
@@ -225,8 +218,10 @@ class TileStacheNode(graph.Node):
         if filename is not None:
             self.config = TileStache.parseConfigfile(filename)
             for name in sorted(self.config.layers.keys()):
-                layer = self.config.layers[name]
-                self.add_output(name, graph.ConstantOutputPad(TileStache.Core.Layer, layer))
+                self.add_output(name, TileStache.Core.Layer, self._layer_function(name))
+
+    def _layer_function(self, name):
+        return lambda: self.config.layers[name]
 
 class TileStacheRasterNode(graph.Node):
     @property
@@ -237,7 +232,7 @@ class TileStacheRasterNode(graph.Node):
         super(TileStacheRasterNode, self).__init__()
 
         self.add_input('layer', TileStache.Core.Layer, layer)
-        self.add_output('output', pads.TiledRasterOutputPad(self._render, tile_size=256))
+        self.add_output('output', graph.RasterType, pads.TiledRasterFilter(self._render, tile_size=256))
 
     def _update(self):
         self.preferred_srs = SpatialReference()
@@ -284,30 +279,25 @@ class TileStacheRasterNode(graph.Node):
         int_zoom = int(math.ceil(zoom)) if ceil_diff < floor_diff else int(math.floor(zoom))
         return max(0, min(18, int_zoom))
 
-    def _render(self, tiles):
+    def _render(self, envelope, size):
+        if self.layer is None:
+            return None
+
+        if size is None:
+            size = [int(x) for x in envelope.size()]
+
+        # FIXME: Once output hints are enabled, they should be used here
         self._update()
+        try:
+            pref_envelope = envelope.transform_to(
+                    self.preferred_srs,
+                    min(envelope.size()) / float(max(size)))
+        except core.ProjectionError:
+            # Skip projection errors
+            return None
 
-        rv = []
-        zooms = []
-        for envelope, size in tiles:
-            try:
-                pref_envelope = envelope.transform_to(
-                        self.preferred_srs,
-                        min(envelope.size()) / float(max(size)))
-            except core.ProjectionError:
-                # Skip projection errors
-                continue
-            zooms.append(self._zoom_for_envelope(pref_envelope, size))
-        
-        # Choose the 75th percentile zoom
-        zooms.sort()
-        zoom = zooms[(len(zooms)>>1) + (len(zooms)>>2)]
+        zoom = self._zoom_for_envelope(pref_envelope, size)
 
-        for envelope, size in tiles:
-            rv.append(self._render_tile(envelope, size, zoom))
-        return rv
-
-    def _render_tile(self, envelope, size, zoom):
         # Get the destination raster
         raster = _gdal.create_render_dataset(envelope, size, 4)
         assert size == (raster.dataset.RasterXSize, raster.dataset.RasterYSize)

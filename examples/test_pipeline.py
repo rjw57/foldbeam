@@ -3,7 +3,7 @@ import colorsys
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.graph import Node, Pad, ConstantOutputPad, ConstantNode
+from foldbeam.graph import Node, Pad, ConstantNode
 from osgeo import osr
 import os
 import sys
@@ -40,9 +40,6 @@ node [
 
     # A function to output a node (or subnode)
     def output_node(node, name, nodes, pads):
-        if isinstance(node, ConstantNode):
-            return
-
         node_name = 'node_%i' % (len(nodes),)
         output.write('subgraph cluster_node_%s {\n' % (node_name,))
         output.write('    style = "filled";\n')
@@ -64,12 +61,17 @@ node [
                 color = random_color()
                 type_colors[pad.type] = color
 
+            pad_title = escape(pad_name)
+            if isinstance(node, ConstantNode):
+                pad_title = escape(str(node.outputs.value()))
+
             output.write('''
-    <TR><TD PORT="pad_%(pad_name)s" BGCOLOR="%(type_color)s" ALIGN="%(align)s">%(pad_name)s</TD></TR>
+    <TR><TD PORT="pad_%(pad_name)s" BGCOLOR="%(type_color)s" ALIGN="%(align)s">%(pad_title)s</TD></TR>
             ''' % dict(
                 type_color=type_colors[pad.type],
                 pad_name=pad_name,
-                align='LEFT' if pad.direction is Pad.IN else 'RIGHT'))
+                pad_title=pad_title,
+                align='LEFT' if pad in inputs else 'RIGHT'))
             pads[pad] = ('"%s":%s' % (node_name, 'pad_' + pad_name), node_name)
 
         output.write('</TABLE>\n>\n')
@@ -88,22 +90,7 @@ node [
             src_pad = dst_pad.source
             dst_pad_name, dst_node_name = pads[dst_pad]
 
-            if src_pad not in pads and isinstance(src_pad, ConstantOutputPad):
-                const_node_name = 'constant_%i' % len(pads)
-                output.write('''subgraph cluster_node_%(node_name)s {
-                "%(name)s" [
-                    label = <<TABLE BGCOLOR="%(color)s" CELLSPACING="0" CELLBORDER="1" BORDER="0">
-                    <TR><TD PORT="_value">%(value)s</TD></TR>
-                    </TABLE>>
-                ]
-                }\n''' % dict(
-                    color=type_colors[src_pad.type],
-                    node_name=record['name'],
-                    name=const_node_name,
-                    value=escape(str(src_pad.value))))
-
-                pads[src_pad] = ('"%s":_value' % (const_node_name,), record['name'])
-            elif src_pad not in pads:
+            if src_pad not in pads:
                 continue
 
             src_pad_name, src_node_name = pads[src_pad]
@@ -113,6 +100,10 @@ node [
     for node, record in nodes.iteritems():
         for dst_pad in node.inputs.values():
             src_pad = dst_pad.source
+
+            if dst_pad not in pads or src_pad not in pads:
+                continue
+
             dst_pad_name, dst_node_name = pads[dst_pad]
             src_pad_name, src_node_name = pads[src_pad]
 
@@ -123,7 +114,7 @@ node [
                     continue
                 if not dst_pad_name.startswith('"constant'):
                     continue
-                output.write('%(src)s -> %(dst)s [ style="invis" ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
+                output.write('%(src)s -> %(dst)s [ color="red" ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
 
 
     if output_pad in pads:

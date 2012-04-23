@@ -1,16 +1,23 @@
+"""
+The nodal compositing model
+===========================
+
+"""
+
 import collections
+from notify.all import Signal
+import weakref
 
 class Pad(object):
-    IN      = 'IN'
-    OUT     = 'OUT'
-
-    def __init__(self, direction, type):
-        self.direction = direction
-        self.type = type
+    def __init__(self, type_, container, name):
+        super(Pad, self).__init__()
+        self.type = type_
+        self.name = name
+        self.container = weakref.ref(container)
 
 class InputPad(Pad):
-    def __init__(self, type):
-        super(InputPad, self).__init__(Pad.IN, type)
+    def __init__(self, type_, container, name):
+        super(InputPad, self).__init__(type_, container, name)
         self.source = None
 
     def __call__(self, **kwargs):
@@ -25,25 +32,18 @@ class InputPad(Pad):
         return self.source(**kwargs)
 
 class OutputPad(Pad):
-    def __init__(self, type):
-        super(OutputPad, self).__init__(Pad.OUT, type)
+    def __init__(self, type_, container, name, pull):
+        super(OutputPad, self).__init__(type_, container, name)
+        self.damaged = Signal()
+        self.pull = pull
 
     def __call__(self, **kwargs):
         return self.pull(**kwargs)
 
-    def pull(self, **kwargs):
-        return None
+    def notify_damage(self, envelope):
+        """Push a region which has been invalidated."""
 
-class ConstantOutputPad(OutputPad):
-    def __init__(self, type, value=None):
-        super(ConstantOutputPad, self).__init__(type)
-        self.value = value
-
-    def __call__(self, **kwargs):
-        return self.pull(**kwargs)
-
-    def pull(self, **kwargs):
-        return self.value
+        self.damaged(envelope)
 
 class PadCollection(collections.OrderedDict):
     def __init__(self, *args, **kwargs):
@@ -69,15 +69,14 @@ class Node(object):
 
     def add_input(self, name, type_, default=None):
         assert name not in self.inputs
-        self.inputs[name] = InputPad(type_)
+        self.inputs[name] = InputPad(type_, self, name)
         if default is not None:
             const_node = self.add_subnode(ConstantNode(type_, default))
             connect(const_node, 'value', self, name)
 
-    def add_output(self, name, pad):
+    def add_output(self, name, type_, pad_cb):
         assert name not in self.outputs
-        assert pad.direction is Pad.OUT
-        self.outputs[name] = pad
+        self.outputs[name] = OutputPad(type_, self, name, pad_cb)
 
 def connect(src_node, src_pad, dst_node, dst_pad):
     dst_node.inputs[dst_pad].connect(src_node.outputs[src_pad])
@@ -85,7 +84,7 @@ def connect(src_node, src_pad, dst_node, dst_pad):
 class ConstantNode(Node):
     def __init__(self, type_, value):
         super(ConstantNode, self).__init__()
-        self.add_output('value', ConstantOutputPad(type_, value))
+        self.add_output('value', type_, lambda: value)
 
 class EdgeType(object):
     def useable_as(self, other_type):
