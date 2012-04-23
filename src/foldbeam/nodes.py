@@ -117,10 +117,10 @@ class GDALDatasetRasterNode(graph.Node):
         self.add_input('dataset', gdal.Dataset)
         if isinstance(dataset, basestring):
             ds_node = self.add_subnode(GDALDatasetSourceNode(dataset))
-            connect(ds_node, 'dataset', self, 'dataset')
+            connect(ds_node.outputs.dataset, self.inputs.dataset)
         elif dataset is not None:
             ds_node = self.add_subnode(ConstantNode(gdal.Dataset, dataset))
-            connect(ds_node, 'dataset', self, 'dataset')
+            connect(ds_node.outputs.dataset, self.inputs.dataset)
 
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())

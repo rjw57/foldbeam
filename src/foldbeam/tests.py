@@ -89,8 +89,8 @@ class TestTileStacheRasterNode(unittest.TestCase):
         roads_node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         aerial_node = nodes.TileStacheRasterNode(self.config.layers['aerial'])
         node = nodes.LayerRasterNode(top_opacity=0.5)
-        connect(roads_node, 'output', node, 'top')
-        connect(aerial_node, 'output', node, 'bottom')
+        connect(roads_node.outputs.output, node.inputs.top)
+        connect(aerial_node.outputs.output, node.inputs.bottom)
 
         size = (700, 1300)
         raster = node.outputs.output(envelope=envelope, size=size)

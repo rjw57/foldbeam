@@ -37,7 +37,7 @@ class VectorRendererNode(graph.Node):
 
         if filename is not None:
             source = self.add_subnode(OgrDataSourceNode(filename))
-            connect(source, 'data_source', self, 'data_source')
+            connect(source.outputs.data_source, self.inputs.data_source)
 
     @property
     def pen_rgba(self):

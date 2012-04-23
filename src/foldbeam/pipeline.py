@@ -33,7 +33,7 @@ class Pipeline(Node):
                 src = self.nodes[src_name]
                 dst = self.nodes[dst_name]
 
-                connect(src, src_attr, dst, dst_attr)
+                connect(src.outputs[src_attr], dst.inputs[dst_attr])
 
         if 'outputs' in configuration:
             for name, output in configuration['outputs'].iteritems():
