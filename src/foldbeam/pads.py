@@ -3,22 +3,20 @@ from .graph import InputPad, OutputPad
 import numpy as np
 from osgeo import osr, gdal
 
-def TiledRasterFilter(render_cb, tile_size=None):
-    """
+class TiledRasterFilter(object):
+    def __init__(self, render_cb, tile_size=None):
+        self.render_cb = render_cb
+        self.tile_size = tile_size
 
-    *render_cb* should take a sequence of (envelope, size) pairs and return a sequence of core.Raster instances (or
-    None) for each tile.
-
-    """
-    def pull(envelope=None, size=None, **kwargs):
+    def __call__(self, envelope=None, size=None, **kwargs):
         if envelope is None:
             return None
 
         if size is None:
             size = map(int, envelope.size())
 
-        if tile_size is None:
-            raster = render_cb(envelope=envelope, size=size, **kwargs)
+        if self.tile_size is None:
+            raster = self.render_cb(envelope=envelope, size=size, **kwargs)
             if raster is None or len(raster) == 0 or raster[0] is None:
                 return None
             return raster[0]
@@ -26,10 +24,10 @@ def TiledRasterFilter(render_cb, tile_size=None):
         tiles = []
         tile_offsets = []
         xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
-        for x in xrange(0, size[0], tile_size):
-            width = min(x + tile_size, size[0]) - x
-            for y in xrange(0, size[1], tile_size):
-                height = min(y + tile_size, size[1]) - y
+        for x in xrange(0, size[0], self.tile_size):
+            width = min(x + self.tile_size, size[0]) - x
+            for y in xrange(0, size[1], self.tile_size):
+                height = min(y + self.tile_size, size[1]) - y
                 tile_envelope = core.Envelope(
                         envelope.left + xscale * x,
                         envelope.left + xscale * (x + width),
@@ -37,7 +35,7 @@ def TiledRasterFilter(render_cb, tile_size=None):
                         envelope.top + yscale * (y + height),
                         envelope.spatial_reference,
                 )
-                tiles.append(render_cb(envelope=tile_envelope, size=(width, height), **kwargs))
+                tiles.append(self.render_cb(envelope=tile_envelope, size=(width, height), **kwargs))
                 tile_offsets.append((x,y))
 
         results = [x for x in zip(tile_offsets, tiles) if x[1] is not None]
@@ -67,12 +65,13 @@ def TiledRasterFilter(render_cb, tile_size=None):
 
         return core.Raster(data, envelope, prototype=prototype)
 
-    return pull
+class ReprojectingRasterFilter(object):
+    def __init__(self, native_spatial_reference, render_cb):
+        self.native_spatial_reference = native_spatial_reference
+        self.native_spatial_reference_wkt = native_spatial_reference.ExportToWkt()
+        self.render_cb = render_cb
 
-def ReprojectingRasterFilter(native_spatial_reference, render_cb):
-    native_spatial_reference_wkt = native_spatial_reference.ExportToWkt()
-
-    def pull(envelope, size, **kwargs):
+    def __call__(self, envelope=None, size=None, **kwargs):
         if envelope is None:
             return None
 
@@ -80,7 +79,7 @@ def ReprojectingRasterFilter(native_spatial_reference, render_cb):
             size = map(int, envelope.size())
 
         if envelope.spatial_reference.IsSame(native_spatial_reference):
-            return render_cb(envelope, size, **kwargs)
+            return self.render_cb(envelope=envelope, size=size, **kwargs)
 
         # We need to reproject this data. Convert the envelope into the native spatial reference
         try:
@@ -92,7 +91,7 @@ def ReprojectingRasterFilter(native_spatial_reference, render_cb):
             return None
 
         # Get the native tile
-        raster = render_cb(envelope=native_envelope, size=size, **kwargs)
+        raster = self.render_cb(envelope=native_envelope, size=size, **kwargs)
         if raster is None:
             return None
 
@@ -123,5 +122,3 @@ def ReprojectingRasterFilter(native_spatial_reference, render_cb):
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
         return core.Raster.from_dataset(ds, mask_band=mask_band, prototype=raster)
-
-    return pull
