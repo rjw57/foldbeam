@@ -78,13 +78,13 @@ class ReprojectingRasterFilter(object):
         if size is None:
             size = map(int, envelope.size())
 
-        if envelope.spatial_reference.IsSame(native_spatial_reference):
+        if envelope.spatial_reference.IsSame(self.native_spatial_reference):
             return self.render_cb(envelope=envelope, size=size, **kwargs)
 
         # We need to reproject this data. Convert the envelope into the native spatial reference
         try:
             native_envelope = envelope.transform_to(
-                    native_spatial_reference,
+                    self.native_spatial_reference,
                     min(envelope.size()) / float(max(size)))
         except core.ProjectionError:
             # If we fail to reproject, return a null tile
@@ -103,7 +103,7 @@ class ReprojectingRasterFilter(object):
         desired_srs_wkt = envelope.spatial_reference.ExportToWkt()
         gdal.ReprojectImage(
                 raster_ds, ds,
-                native_spatial_reference_wkt,
+                self.native_spatial_reference_wkt,
                 desired_srs_wkt,
                 gdal.GRA_Bilinear if raster.can_interpolate else gdal.GRA_NearestNeighbour)
 
@@ -116,7 +116,7 @@ class ReprojectingRasterFilter(object):
         band.Fill(float('nan'))
         gdal.ReprojectImage(
                 raster_ds, mask_ds,
-                native_spatial_reference_wkt,
+                self.native_spatial_reference_wkt,
                 desired_srs_wkt,
                 gdal.GRA_NearestNeighbour)
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()

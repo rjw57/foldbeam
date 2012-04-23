@@ -1,12 +1,9 @@
+from .core import Envelope
+from .pipeline import Pipeline
 import json
-from nodes import *
-from core import Envelope
-from pipeline import Pipeline
-from PIL import Image
-from TileStache import *
-import os
-from osgeo import osr, gdal
 import numpy as np
+from osgeo import osr
+from PIL import Image
 
 class NodeProvider(object):
     """A very preliminary example of acting as a TileStache tile provider."""
@@ -20,7 +17,7 @@ class NodeProvider(object):
         spatial_reference.ImportFromProj4(srs)
         envelope = Envelope(xmin, xmax, ymax, ymin, spatial_reference)
 
-        raster = self.pipeline.output(envelope=envelope, size=(width, height))
+        raster = self.pipeline.outputs.values()[0](envelope=envelope, size=(width, height))
         if raster is None:
             return Image.new('RGBA', (width, height))
 
