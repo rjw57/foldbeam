@@ -1,4 +1,5 @@
 from . import _gdal, core, graph, pads, transform
+from .graph import connect, ConstantNode
 import math
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
@@ -118,12 +119,11 @@ class GDALDatasetRasterNode(graph.Node):
 
         self.add_input('dataset', gdal.Dataset)
         if isinstance(dataset, basestring):
-            ds_node = GDALDatasetSourceNode(dataset)
-            self.add_subnode(ds_node)
-            self.inputs.dataset.connect(ds_node.outputs.dataset)
+            ds_node = self.add_subnode(GDALDatasetSourceNode(dataset))
+            connect(ds_node, 'dataset', self, 'dataset')
         elif dataset is not None:
-            source = graph.ConstantOutputPad(gdal.Dataset, dataset)
-            self.inputs.dataset.connect(source)
+            ds_node = self.add_subnode(ConstantNode(gdal.Dataset, dataset))
+            connect(ds_node, 'dataset', self, 'dataset')
 
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())

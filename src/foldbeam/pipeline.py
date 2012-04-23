@@ -1,8 +1,11 @@
 from __future__ import print_function
+from .graph import connect, Node
 import traceback
 
-class Pipeline(object):
+class Pipeline(Node):
     def __init__(self, configuration):
+        super(Pipeline, self).__init__()
+
         self.nodes = { }
         for name, spec in configuration['nodes'].iteritems():
             module_name, class_name = spec['type'].split(':')
@@ -30,9 +33,9 @@ class Pipeline(object):
                 src = self.nodes[src_name]
                 dst = self.nodes[dst_name]
 
-                dst.inputs[dst_attr].connect(src.outputs[src_attr])
+                connect(src, src_attr, dst, dst_attr)
 
         if 'outputs' in configuration:
             for name, output in configuration['outputs'].iteritems():
                 node, attr = output.split(':')
-                setattr(self, name, self.nodes[node].outputs[attr])
+                self.add_output(attr, self.nodes[node].outputs[attr])

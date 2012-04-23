@@ -9,18 +9,9 @@ class Pad(object):
         self.type = type
 
 class InputPad(Pad):
-    def __init__(self, type, default=None):
+    def __init__(self, type):
         super(InputPad, self).__init__(Pad.IN, type)
-        self._default = ConstantOutputPad(type, default)
-        self._source = None
-
-    @property
-    def source(self):
-        return self._source if self._source is not None else self._default
-
-    @source.setter
-    def source(self, value):
-        self._source = value
+        self.source = None
 
     def __call__(self, **kwargs):
         return self.pull(**kwargs)
@@ -29,6 +20,8 @@ class InputPad(Pad):
         self.source = pad
 
     def pull(self, **kwargs):
+        if self.source is None:
+            return None
         return self.source(**kwargs)
 
 class OutputPad(Pad):
@@ -72,22 +65,27 @@ class Node(object):
 
     def add_subnode(self, node):
         self.subnodes.append(node)
+        return node
 
     def add_input(self, name, type_, default=None):
         assert name not in self.inputs
         self.inputs[name] = InputPad(type_)
         if default is not None:
-            self.inputs[name].connect(ConstantOutputPad(type_, default))
+            const_node = self.add_subnode(ConstantNode(type_, default))
+            connect(const_node, 'value', self, name)
 
     def add_output(self, name, pad):
         assert name not in self.outputs
         assert pad.direction is Pad.OUT
         self.outputs[name] = pad
 
+def connect(src_node, src_pad, dst_node, dst_pad):
+    dst_node.inputs[dst_pad].connect(src_node.outputs[src_pad])
+
 class ConstantNode(Node):
     def __init__(self, type_, value):
         super(ConstantNode, self).__init__()
-        self.add_output(ConstantOutputPad(type_, value))
+        self.add_output('value', ConstantOutputPad(type_, value))
 
 class EdgeType(object):
     def useable_as(self, other_type):

@@ -1,4 +1,5 @@
 from . import core, graph, nodes, transform, pads, _gdal
+from . graph import connect
 import math
 import numpy as np
 from osgeo import gdal
@@ -90,8 +91,8 @@ class TestTileStacheRasterNode(unittest.TestCase):
         roads_node = nodes.TileStacheRasterNode(self.config.layers['osm'])
         aerial_node = nodes.TileStacheRasterNode(self.config.layers['aerial'])
         node = nodes.LayerRasterNode(top_opacity=0.5)
-        node.inputs.top.connect(roads_node.outputs.output)
-        node.inputs.bottom.connect(aerial_node.outputs.output)
+        connect(roads_node, 'output', node, 'top')
+        connect(aerial_node, 'output', node, 'bottom')
 
         size = (700, 1300)
         self.assertIsInstance(node.outputs.output, pads.RasterOutputPad)
