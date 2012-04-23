@@ -39,4 +39,4 @@ class Pipeline(Node):
             for name, output in configuration['outputs'].iteritems():
                 node, attr = output.split(':')
                 output_pad = self.nodes[node].outputs[attr]
-                self.add_output(output_pad.name, output_pad.type, lambda **kwargs: output_pad(**kwargs))
+                self.outputs[output_pad.name] = output_pad

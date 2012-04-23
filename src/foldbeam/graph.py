@@ -42,11 +42,19 @@ class InputPad(Pad):
         A strong reference to this pad's container or :py:const:`None` if the container was not set or has been garbage
         collected.
 
+    .. py:data:: source
+
+        A strong reference to the pad this pad is connected to or :py:const:`None` if this pad is connected to no other pad.
+
     """
 
     def __init__(self, type_, container, name):
         super(InputPad, self).__init__(type_, container, name)
         self._source = None
+
+    @property
+    def source(self):
+        return self._source()
 
     def __call__(self, **kwargs):
         if self._source is None:

@@ -25,6 +25,7 @@ def random_color():
 def pipeline_to_dot(seed_nodes, output_pad, output):
     output.write('''
 digraph g {
+ranksep = "1"
 graph [
     rankdir = "LR"
 ];
@@ -37,21 +38,30 @@ node [
     nodes = { }
     pads = { }
     type_colors = { }
+    enclosing_nodes = { }
 
     # A function to output a node (or subnode)
-    def output_node(node, name, nodes, pads):
-        node_name = 'node_%i' % (len(nodes),)
-        output.write('subgraph cluster_node_%s {\n' % (node_name,))
-        output.write('    style = "filled";\n')
-        output.write('    fillcolor = "#f8f8f8";\n')
-        output.write('    shape = "rectangle";\n')
-        output.write('label = "%s"\n' % (name,))
+    def output_node(node, name, nodes, pads, enclosing_nodes, current_nodes):
+        node_name = 'node_%i' % (len(nodes)+1,)
+        cluster_name = 'cluster_node_%s' % (node_name,)
+        new_nodes = current_nodes + [node_name,]
+        enclosing_nodes[node_name] = new_nodes
+
+
+        if not isinstance(node, ConstantNode):
+            output.write('subgraph %s {\n' % (cluster_name,))
+            output.write('    style = "filled";\n')
+            output.write('    fillcolor = "#f8f8f8";\n')
+            output.write('    shape = "rectangle";\n')
+            output.write('label = "%s"\n' % (name,))
 
         output.write('"%s" [\n' % (node_name,))
         output.write('''label = <
-<TABLE BGCOLOR="white" CELLSPACING="0" CELLBORDER="1" BORDER="0">
-    <TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>
-        ''' % dict(name=escape(name), type=escape(node.__class__.__name__)))
+<TABLE BGCOLOR="white" CELLSPACING="0" CELLBORDER="1" BORDER="0">''')
+
+        if not isinstance(node, ConstantNode):
+            output.write('''<TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>''' \
+                    % dict(name=escape(name), type=escape(node.__class__.__name__)))
 
         outputs = node.outputs.items()
         inputs = node.inputs.items()
@@ -79,11 +89,12 @@ node [
         output.write(']\n')
         nodes[node] = dict(name=node_name)
 
-        [output_node(x[1], name + '_%i' % x[0], nodes, pads) for x in enumerate(node.subnodes)]
-        output.write('}\n')
+        [output_node(x[1], name + '_sub%i' % (x[0]+1), nodes, pads, enclosing_nodes, new_nodes) for x in enumerate(node.subnodes)]
+        if not isinstance(node, ConstantNode):
+            output.write('}\n')
 
     # Output all nodes
-    [output_node(x[1], x[0], nodes, pads) for x in seed_nodes.iteritems()]
+    [output_node(x[1], x[0], nodes, pads, enclosing_nodes, []) for x in seed_nodes.iteritems()]
 
     for node, record in nodes.iteritems():
         for dst_pad in node.inputs.values():
@@ -95,27 +106,15 @@ node [
 
             src_pad_name, src_node_name = pads[src_pad]
             output.write('%(src)s -> %(dst)s [ ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
-
-    # Add implicit edges to separate out constant nodes
-    for node, record in nodes.iteritems():
-        for dst_pad in node.inputs.values():
-            src_pad = dst_pad.source
-
-            if dst_pad not in pads or src_pad not in pads:
-                continue
-
-            dst_pad_name, dst_node_name = pads[dst_pad]
-            src_pad_name, src_node_name = pads[src_pad]
-
-            for dst_pad_name, dst_node_name in [x for x in pads.itervalues() if x[1] == dst_node_name]:
-                if src_node_name == dst_node_name:
-                    continue
-                if dst_pad_name == src_pad_name:
-                    continue
-                if not dst_pad_name.startswith('"constant'):
-                    continue
-                output.write('%(src)s -> %(dst)s [ color="red" ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
-
+#
+#            # Create implicit edges between clusters
+#            src_enclosing = enclosing_nodes[src_node_name]
+#            for node_name in enclosing_nodes[dst_node_name]:
+#                siblings = [x[0] for x in enclosing_nodes.iteritems() if node_name in x[1]]
+#                for sibling in siblings:
+#                    if src_node_name == sibling:
+#                        continue
+#                    output.write('%(src)s -> %(dst)s [ style="invis" ];\n' % dict(src=src_node_name, dst=sibling))
 
     if output_pad in pads:
         output.write('''
