@@ -11,7 +11,6 @@ represented by tiles between spatial references.
 # Hss to be first FSR otherwise there is a segfault :(
 from TileStache.Geography import Point
 
-from ._gdal import dataset_envelope
 import json
 import numpy as np
 from osgeo import osr, ogr, gdal, gdal_array
@@ -358,3 +357,25 @@ class Raster(object):
             del kwargs['can_interpolate']
 
         return Raster(ds_array, envelope, can_interpolate=can_interpolate, **kwargs)
+
+def dataset_envelope(dataset, spatial_reference):
+    gt = dataset.GetGeoTransform()
+    geo_trans = np.matrix([
+        [ gt[1], gt[2], gt[0] ],
+        [ gt[4], gt[5], gt[3] ],
+    ])
+
+    bounds = geo_trans * np.matrix([
+        [ 0, 0, 1],
+        [ 0, dataset.RasterYSize, 1 ],
+        [ dataset.RasterXSize, 0, 1],
+        [ dataset.RasterXSize, dataset.RasterYSize, 1 ],
+    ]).transpose()
+
+    min_bound = bounds.min(1)
+    max_bound = bounds.max(1)
+
+    return Envelope(
+        bounds[0,0], bounds[0,3],
+        bounds[1,0], bounds[1,3],
+        spatial_reference)

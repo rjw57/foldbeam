@@ -12,6 +12,12 @@ import collections
 from notify.all import Signal
 import weakref
 
+node_classes = []
+def node(cls):
+    global node_classes
+    node_classes.append(cls)
+    return cls
+
 class Pad(object):
     def __init__(self, type_, container, name):
         super(Pad, self).__init__()
@@ -71,7 +77,7 @@ class InputPad(Pad):
         return self(**kwargs)
 
     def connect(self, pad=None):
-        self._source = weakref.ref(pad)
+        self._source = weakref.ref(pad) if pad is not None else None
 
 class OutputPad(Pad):
     """A pad which can act as an output to a node. An :py:class:`InputPad` can be connected to an :py:class:`OutputPad`

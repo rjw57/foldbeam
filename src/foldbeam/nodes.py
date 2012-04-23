@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from . import _gdal, core, graph, pads, transform
-from .graph import connect, ConstantNode
+from .graph import connect, ConstantNode, node
 import copy
 import math
 from ModestMaps.Core import Point, Coordinate
@@ -11,6 +11,7 @@ import numpy as np
 import StringIO
 import TileStache
 
+@node
 class ToRgbaRasterNode(graph.Node):
     def __init__(self, input_pad):
         super(ToRgbaRasterNode, self).__init__()
@@ -27,6 +28,7 @@ class ToRgbaRasterNode(graph.Node):
 
         return core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
+@node
 class LayerRasterNode(graph.Node):
     def __init__(self, top=None, bottom=None, top_opacity=None, bottom_opacity=None):
         super(LayerRasterNode, self).__init__()
@@ -74,6 +76,7 @@ class LayerRasterNode(graph.Node):
 
         return core.Raster(output, envelope, to_rgba=lambda x: x)
 
+@node
 class FileReaderNode(graph.Node):
     def __init__(self, filename=None):
         super(FileReaderNode, self).__init__()
@@ -92,6 +95,7 @@ class FileReaderNode(graph.Node):
         self.contents = open(filename).read()
         return self.contents
 
+@node
 class GDALDatasetSourceNode(graph.Node):
     def __init__(self, filename=None):
         super(GDALDatasetSourceNode, self).__init__()
@@ -110,6 +114,7 @@ class GDALDatasetSourceNode(graph.Node):
         self.dataset = gdal.Open(filename)
         return self.dataset
 
+@node
 class GDALDatasetRasterNode(graph.Node):
     def __init__(self, dataset=None):
         super(GDALDatasetRasterNode, self).__init__()
@@ -122,17 +127,7 @@ class GDALDatasetRasterNode(graph.Node):
             ds_node = self.add_subnode(ConstantNode(gdal.Dataset, dataset))
             connect(ds_node.outputs.dataset, self.inputs.dataset)
 
-        self.spatial_reference = SpatialReference()
-        self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
-
-        self.add_output('output', graph.RasterType,
-                pads.ReprojectingRasterFilter(
-                    self.spatial_reference,
-                    pads.TiledRasterFilter(self._render, tile_size=256)))
-
-        self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
-        self.boundary = core.boundary_from_envelope(self.envelope)
-        self.is_palette = self.dataset.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_PaletteIndex
+        self.add_output('output', graph.RasterType, self._render_reprojected)
 
     @property
     def dataset(self):
@@ -171,7 +166,21 @@ class GDALDatasetRasterNode(graph.Node):
 
         return rgba
 
+    def _render_reprojected(self, **kwargs):
+        self.spatial_reference = SpatialReference()
+        self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
+        self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)
+        self.boundary = core.boundary_from_envelope(self.envelope)
+        self.is_palette = self.dataset.GetRasterBand(1).GetColorInterpretation() == gdal.GCI_PaletteIndex
+
+        return pads.ReprojectingRasterFilter(
+                self.spatial_reference,
+                pads.TiledRasterFilter(self._render, tile_size=256))(**kwargs)
+
     def _render(self, envelope, size):
+        if self.dataset is None:
+            return None
+
         assert envelope.spatial_reference.IsSame(self.spatial_reference)
 
         # check if the requested area is contained within the dataset bounds
@@ -207,6 +216,7 @@ class GDALDatasetRasterNode(graph.Node):
 
         return core.Raster.from_dataset(ds, mask_band=mask_band, to_rgba=self._to_rgba)
 
+@node
 class TileStacheNode(graph.Node):
     def __init__(self, config_file=None):
         super(TileStacheNode, self).__init__()
@@ -223,6 +233,7 @@ class TileStacheNode(graph.Node):
     def _layer_function(self, name):
         return lambda: self.config.layers[name]
 
+@node
 class TileStacheRasterNode(graph.Node):
     @property
     def layer(self):
