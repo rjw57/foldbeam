@@ -1,0 +1,631 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Reference &mdash; The foldbeam manual</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '2012-04-24',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="The foldbeam manual" href="index.html" />
+    <link rel="next" title="Design notes" href="design.html" />
+    <link rel="prev" title="Contents" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="design.html" title="Design notes"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Contents"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">The foldbeam manual</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-foldbeam.core">
+<span id="reference"></span><h1>Reference<a class="headerlink" href="#module-foldbeam.core" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="core-geometric-operations">
+<h2>Core geometric operations<a class="headerlink" href="#core-geometric-operations" title="Permalink to this headline">¶</a></h2>
+<p>Mechanisms for converting axis-aligned bounding boxes (<a class="reference internal" href="#foldbeam.core.Envelope" title="foldbeam.core.Envelope"><tt class="xref py py-class docutils literal"><span class="pre">Envelope</span></tt></a>) and polygonal boundaries
+(<a class="reference internal" href="#foldbeam.core.Boundary" title="foldbeam.core.Boundary"><tt class="xref py py-class docutils literal"><span class="pre">Boundary</span></tt></a>) from one spatial reference system to another. It is used internally to convert the regions
+represented by tiles between spatial references.</p>
+<dl class="class">
+<dt id="foldbeam.core.Boundary">
+<em class="property">class </em><tt class="descclassname">foldbeam.core.</tt><tt class="descname">Boundary</tt><big>(</big><em>geometry</em><big>)</big><a class="headerlink" href="#foldbeam.core.Boundary" title="Permalink to this definition">¶</a></dt>
+<dd><p>A polygon defining an enclosing boundary for a region. A boundary <em>always</em> has an associated spatial reference.</p>
+<p>Generally you&#8217;ll want to use the <a class="reference internal" href="#foldbeam.core.boundary_from_envelope" title="foldbeam.core.boundary_from_envelope"><tt class="xref py py-func docutils literal"><span class="pre">boundary_from_envelope()</span></tt></a> function to construct a boundary unless you have
+specific needs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>geometry</strong> (<tt class="xref py py-class docutils literal"><span class="pre">ogr.Geometry</span></tt> with polygon type) &#8211; boundary geometry</td>
+</tr>
+</tbody>
+</table>
+<dl class="data">
+<dt id="foldbeam.core.Boundary.geometry">
+<tt class="descname">geometry</tt><a class="headerlink" href="#foldbeam.core.Boundary.geometry" title="Permalink to this definition">¶</a></dt>
+<dd><p>An underlying instance of ogr.Geometry which specifies the boundary polygon.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Boundary.contains_point">
+<tt class="descname">contains_point</tt><big>(</big><em>x</em>, <em>y</em><big>)</big><a class="headerlink" href="#foldbeam.core.Boundary.contains_point" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function to test if a point is contained within this boundary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> (<em>float</em>) &#8211; the point&#8217;s x-co-ordinate</li>
+<li><strong>y</strong> (<em>float</em>) &#8211; the point&#8217;s y-co-ordinate</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">bool</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.core.Boundary.envelope">
+<tt class="descname">envelope</tt><a class="headerlink" href="#foldbeam.core.Boundary.envelope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the bounding axis-aligned envelope which entirely contains this boundary.</p>
+<p>Since a boundary is an arbitrary polygon and an envelope is only an axis-aligned bounding box, the returned
+envelope will also contain point not within this boundary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#foldbeam.core.Envelope" title="foldbeam.core.Envelope"><tt class="xref py py-class docutils literal"><span class="pre">Envelope</span></tt></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Boundary.transform_to">
+<tt class="descname">transform_to</tt><big>(</big><em>other_spatial_reference</em>, <em>src_seg_len=None</em>, <em>dst_seg_len=None</em><big>)</big><a class="headerlink" href="#foldbeam.core.Boundary.transform_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform this boundary into another spatial reference.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>other_spatial_reference</strong> (<tt class="xref py py-class docutils literal"><span class="pre">osr.SpatialReference</span></tt>) &#8211; the destination spatial reference</li>
+<li><strong>src_seg_len</strong> (<em>float or None</em>) &#8211; the maximum length of a boundary segment in the source spatial reference</li>
+<li><strong>dst_seg_len</strong> (<em>float or None</em>) &#8211; the maximum length of a boundary segment in the detination spatial reference</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#foldbeam.core.Boundary" title="foldbeam.core.Boundary"><tt class="xref py py-class docutils literal"><span class="pre">Boundary</span></tt></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>This is a subtle function. The boundary is defined as a polygon of linear segments but, of course, lines do not
+necessarily map to lines in a projection. This function may optionally segmentise the boundary before
+transforming and simplify it afterwards.</p>
+<p>If <em>src_seg_len</em> is not None, it specifies the maximum length in the source spatial reference for boundary
+segments. If known, set this to the approximate length of a pixel in the source spatial reference.</p>
+<p>If <em>dst_seg_len</em> is not None, it specifies the maximum length in the destination spatial reference used to
+simplify the transformed boundary. If known, set this to the approximate length of a pixel in the destination
+spatial reference.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.core.Envelope">
+<em class="property">class </em><tt class="descclassname">foldbeam.core.</tt><tt class="descname">Envelope</tt><big>(</big><em>left</em>, <em>right</em>, <em>top</em>, <em>bottom</em>, <em>spatial_reference</em><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope" title="Permalink to this definition">¶</a></dt>
+<dd><p>An axis-aligned bounding box in a particular spatial reference.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>left</strong> &#8211; the left-most x co-ordinate</li>
+<li><strong>right</strong> &#8211; the right-most x co-ordinate</li>
+<li><strong>top</strong> &#8211; the top-most y co-ordinate</li>
+<li><strong>bottom</strong> &#8211; the bottom-most y co-ordinate</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="foldbeam.core.Envelope.bottom_right">
+<tt class="descname">bottom_right</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope.bottom_right" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain the bottom-right point for this envelope.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><tt class="xref py py-class docutils literal"><span class="pre">TileStache.Geography.Point</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Envelope.offset">
+<tt class="descname">offset</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope.offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a tuple giving the offset from the top-left corner to the bottom right.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Envelope.size">
+<tt class="descname">size</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a tuple giving the <em>absolute</em> offset from the top-left corner to the bottom right.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Envelope.top_left">
+<tt class="descname">top_left</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope.top_left" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain the top-left point for this envelope.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><tt class="xref py py-class docutils literal"><span class="pre">TileStache.Geography.Point</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.core.Envelope.transform_to">
+<tt class="descname">transform_to</tt><big>(</big><em>other_spatial_reference</em>, <em>src_seg_len=None</em>, <em>dst_seg_len=None</em><big>)</big><a class="headerlink" href="#foldbeam.core.Envelope.transform_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a envelope which contains this envelope in a target spatial reference.</p>
+<p>This is a convenience function which converts the envelope into a rectangular boundary, transforms it and
+returns the envelope of the resulting boundary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>other_spatial_reference</strong> (<tt class="xref py py-class docutils literal"><span class="pre">osr.SpatialReference</span></tt>) &#8211; the destination spatial reference</li>
+<li><strong>src_seg_len</strong> (<em>float or None</em>) &#8211; the maximum length of a boundary segment in the source spatial reference</li>
+<li><strong>dst_seg_len</strong> (<em>float or None</em>) &#8211; the maximum length of a boundary segment in the detination spatial reference</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#foldbeam.core.Envelope" title="foldbeam.core.Envelope"><tt class="xref py py-class docutils literal"><span class="pre">Envelope</span></tt></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="foldbeam.core.ProjectionError">
+<em class="property">exception </em><tt class="descclassname">foldbeam.core.</tt><tt class="descname">ProjectionError</tt><big>(</big><em>message</em><big>)</big><a class="headerlink" href="#foldbeam.core.ProjectionError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error raised when projection from one spatial reference to another has failed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<em>str</em>) &#8211; a description of the error</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.core.boundary_from_envelope">
+<tt class="descclassname">foldbeam.core.</tt><tt class="descname">boundary_from_envelope</tt><big>(</big><em>envelope</em><big>)</big><a class="headerlink" href="#foldbeam.core.boundary_from_envelope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct a <a class="reference internal" href="#foldbeam.core.Boundary" title="foldbeam.core.Boundary"><tt class="xref py py-class docutils literal"><span class="pre">Boundary</span></tt></a> from an <a class="reference internal" href="#foldbeam.core.Envelope" title="foldbeam.core.Envelope"><tt class="xref py py-class docutils literal"><span class="pre">Envelope</span></tt></a>. The boundary is the bounding box which encloses
+the envelope.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>envelope</strong> (<a class="reference internal" href="#foldbeam.core.Envelope" title="foldbeam.core.Envelope"><tt class="xref py py-class docutils literal"><span class="pre">Envelope</span></tt></a>) &#8211; the envelope to convert into a boundary</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.core.to_rgba_unknown">
+<tt class="descclassname">foldbeam.core.</tt><tt class="descname">to_rgba_unknown</tt><big>(</big><em>array</em><big>)</big><a class="headerlink" href="#foldbeam.core.to_rgba_unknown" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default conversion from an array of unknown type to an RGBA array. This simply fills the array with a default
+pattern.</p>
+</dd></dl>
+
+</div>
+<span class="target" id="module-foldbeam.graph"></span><div class="section" id="the-nodal-compositing-model">
+<h2>The nodal compositing model<a class="headerlink" href="#the-nodal-compositing-model" title="Permalink to this headline">¶</a></h2>
+<p>Foldbeam makes use of a nodal computation model where data flow from source nodes to sink nodes through directed edges.
+Each node may have multiple input or output &#8216;pads&#8217; which edges can be connected to. When a particular node is asked for
+the value of one of it&#8217;s output pads, the node may pull data along from an input node along an input edge.</p>
+<dl class="class">
+<dt id="foldbeam.graph.InputPad">
+<em class="property">class </em><tt class="descclassname">foldbeam.graph.</tt><tt class="descname">InputPad</tt><big>(</big><em>type_</em>, <em>container</em>, <em>name</em><big>)</big><a class="headerlink" href="#foldbeam.graph.InputPad" title="Permalink to this definition">¶</a></dt>
+<dd><p>A pad which can act as an input to a node. An <a class="reference internal" href="#foldbeam.graph.InputPad" title="foldbeam.graph.InputPad"><tt class="xref py py-class docutils literal"><span class="pre">InputPad</span></tt></a> can be connected to an <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>
+to implicitly form an edge along which data can flow. Multiple <a class="reference internal" href="#foldbeam.graph.InputPad" title="foldbeam.graph.InputPad"><tt class="xref py py-class docutils literal"><span class="pre">InputPad</span></tt></a> instances can be connected to
+the same <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>.</p>
+<p>The pad&#8217;s source pad is kept as a weak reference meaning that the implicit edge will go away if the source pad is
+garbage collected. The pad&#8217;s container is also kept as a weak reference in order to break reference cycles.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> &#8211; the &#8216;type&#8217; of this pad (see <a class="reference internal" href="#foldbeam.graph.can_connect" title="foldbeam.graph.can_connect"><tt class="xref py py-func docutils literal"><span class="pre">can_connect()</span></tt></a>).</li>
+<li><strong>container</strong> (usually a <a class="reference internal" href="#foldbeam.graph.Node" title="foldbeam.graph.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a>-derived class) &#8211; the container object of this pad</li>
+<li><strong>name</strong> (<tt class="xref py py-class docutils literal"><span class="pre">str</span></tt>) &#8211; a human-readble name for this pad</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="data">
+<dt id="foldbeam.graph.InputPad.container">
+<tt class="descname">container</tt><a class="headerlink" href="#foldbeam.graph.InputPad.container" title="Permalink to this definition">¶</a></dt>
+<dd><p>A strong reference to this pad&#8217;s container or <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> if the container was not set or has been garbage
+collected.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.InputPad.source">
+<tt class="descname">source</tt><a class="headerlink" href="#foldbeam.graph.InputPad.source" title="Permalink to this definition">¶</a></dt>
+<dd><p>A strong reference to the pad this pad is connected to or <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> if this pad is connected to no other pad.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.graph.Node">
+<em class="property">class </em><tt class="descclassname">foldbeam.graph.</tt><tt class="descname">Node</tt><a class="headerlink" href="#foldbeam.graph.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>A single node in the data flow graph which has inputs and outputs. A node may contain &#8216;sub-nodes&#8217; within it.</p>
+<p>Usually you wont create instances of this class directly. Instead you will create one of its derived classes. This
+class contains functionality common to all nodes.</p>
+<dl class="data">
+<dt id="foldbeam.graph.Node.inputs">
+<tt class="descname">inputs</tt><a class="headerlink" href="#foldbeam.graph.Node.inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <a class="reference internal" href="#foldbeam.graph.PadCollection" title="foldbeam.graph.PadCollection"><tt class="xref py py-class docutils literal"><span class="pre">PadCollection</span></tt></a> instance of input pads.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.Node.outputs">
+<tt class="descname">outputs</tt><a class="headerlink" href="#foldbeam.graph.Node.outputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <a class="reference internal" href="#foldbeam.graph.PadCollection" title="foldbeam.graph.PadCollection"><tt class="xref py py-class docutils literal"><span class="pre">PadCollection</span></tt></a> instance of output pads.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.Node.subnodes">
+<tt class="descname">subnodes</tt><a class="headerlink" href="#foldbeam.graph.Node.subnodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>A sequence of sub-nodes which exist within this node and are used to generate its output.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.graph.Node.add_input">
+<tt class="descname">add_input</tt><big>(</big><em>name</em>, <em>type_</em>, <em>default=None</em><big>)</big><a class="headerlink" href="#foldbeam.graph.Node.add_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an input pad to this node. If <em>default</em> is not <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> then a <tt class="xref py py-class docutils literal"><span class="pre">ConstantNode</span></tt> is
+implicitly created and connected to the input.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.graph.Node.add_output">
+<tt class="descname">add_output</tt><big>(</big><em>name</em>, <em>type_</em>, <em>pad_cb</em><big>)</big><a class="headerlink" href="#foldbeam.graph.Node.add_output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an output pad to this node.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pad_cb</strong> (<em>callable</em>) &#8211; called when the output pad is pulled from</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.graph.Node.add_subnode">
+<tt class="descname">add_subnode</tt><big>(</big><em>node</em><big>)</big><a class="headerlink" href="#foldbeam.graph.Node.add_subnode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a node to the list of sub-nodes for this node. If you create any nodes implicitly within a derived node&#8217;s
+constructor they should be added here. This function returns <em>node</em> meaning it can be used like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">MyNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c"># create inputs...</span>
+
+        <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">default_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">ConstantNode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">))</span>
+            <span class="c"># connect default node to input pad</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.graph.OutputPad">
+<em class="property">class </em><tt class="descclassname">foldbeam.graph.</tt><tt class="descname">OutputPad</tt><big>(</big><em>type_</em>, <em>container</em>, <em>name</em>, <em>pull</em><big>)</big><a class="headerlink" href="#foldbeam.graph.OutputPad" title="Permalink to this definition">¶</a></dt>
+<dd><p>A pad which can act as an output to a node. An <a class="reference internal" href="#foldbeam.graph.InputPad" title="foldbeam.graph.InputPad"><tt class="xref py py-class docutils literal"><span class="pre">InputPad</span></tt></a> can be connected to an <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>
+to implicitly form an edge along which data can flow. Multiple <a class="reference internal" href="#foldbeam.graph.InputPad" title="foldbeam.graph.InputPad"><tt class="xref py py-class docutils literal"><span class="pre">InputPad</span></tt></a> instances can be connected to
+the same <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>.</p>
+<p>An <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a> can be called to pull data out of the pad.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> &#8211; the &#8216;type&#8217; of this pad (see <a class="reference internal" href="#foldbeam.graph.can_connect" title="foldbeam.graph.can_connect"><tt class="xref py py-func docutils literal"><span class="pre">can_connect()</span></tt></a>).</li>
+<li><strong>container</strong> (usually a <a class="reference internal" href="#foldbeam.graph.Node" title="foldbeam.graph.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a>-derived class) &#8211; the container object of this pad</li>
+<li><strong>name</strong> (<tt class="xref py py-class docutils literal"><span class="pre">str</span></tt>) &#8211; a human-readble name for this pad</li>
+<li><strong>pull</strong> (<em>callable</em>) &#8211; a function which is to be called to pull data from this pad</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="data">
+<dt id="foldbeam.graph.OutputPad.container">
+<tt class="descname">container</tt><a class="headerlink" href="#foldbeam.graph.OutputPad.container" title="Permalink to this definition">¶</a></dt>
+<dd><p>A strong reference to this pad&#8217;s container or <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> if the container was not set or has been garbage
+collected.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.OutputPad.damaged">
+<tt class="descname">damaged</tt><a class="headerlink" href="#foldbeam.graph.OutputPad.damaged" title="Permalink to this definition">¶</a></dt>
+<dd><p>A signal which can be connected to to be notified when the contents which can be pulled from this pad have
+changed. Connect to it by passing a callable to the <tt class="xref py py-meth docutils literal"><span class="pre">damaged.connect()</span></tt> method:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">damage_cb</span><span class="p">(</span><span class="n">boundary</span><span class="p">):</span>
+    <span class="n">recalculate_envelope</span><span class="p">(</span><span class="n">boundary</span><span class="o">.</span><span class="n">envelope</span><span class="p">)</span>
+
+<span class="c"># ... pad is the OutputPad of interest</span>
+<span class="n">pad</span><span class="o">.</span><span class="n">damaged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">damage_cb</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The callable should accept a single parameter which is a <tt class="xref py py-class docutils literal"><span class="pre">Boundary</span></tt> specifying the geographic area in
+which the output has changed. This can be <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> in which case it is assumed that the output should
+always be pulled from.</p>
+<p>To notify listeners that an <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a> had new data, call the <a class="reference internal" href="#foldbeam.graph.OutputPad.damaged" title="foldbeam.graph.OutputPad.damaged"><tt class="xref py py-attr docutils literal"><span class="pre">damaged</span></tt></a> signal directly:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># ... pad is the OutputPad of interest</span>
+
+<span class="c"># Notify any listeners that a specific region of the pad has changed:</span>
+<span class="n">boundary</span> <span class="o">=</span> <span class="n">Boundary</span><span class="p">(</span>
+    <span class="c"># ...</span>
+<span class="p">)</span>
+<span class="n">pad</span><span class="o">.</span><span class="n">damaged</span><span class="p">(</span><span class="n">boundary</span><span class="p">)</span>
+
+<span class="c"># Notify any listeners that all regions of the pad have changed:</span>
+<span class="n">pad</span><span class="o">.</span><span class="n">damaged</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.graph.PadCollection">
+<em class="property">class </em><tt class="descclassname">foldbeam.graph.</tt><tt class="descname">PadCollection</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#foldbeam.graph.PadCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>A collection of pads which can be iterated over and indexed like a dictionary with the wrinkle that pads are
+returned in the order they are added.</p>
+<dl class="data">
+<dt id="foldbeam.graph.PadCollection.pad_name">
+<tt class="descname">pad_name</tt><a class="headerlink" href="#foldbeam.graph.PadCollection.pad_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>If compatible with Python&#8217;s naming convention, each pad is accessible as an attribute of the collection as well
+as indexing explicitly by name via the [] operator.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.graph.can_connect">
+<tt class="descclassname">foldbeam.graph.</tt><tt class="descname">can_connect</tt><big>(</big><em>src_pad</em>, <em>dst_pad</em><big>)</big><a class="headerlink" href="#foldbeam.graph.can_connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the types of two pads are compatible for connection. Currently this simply checks that
+<tt class="xref py py-attr docutils literal"><span class="pre">src_pad.type</span></tt> is the same object as <tt class="xref py py-attr docutils literal"><span class="pre">dst_pad.type</span></tt>. Should a more sophisticated type-munging
+scheme be added, this function will be updated and so this function should be used in preference to checking the
+types directly.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.graph.connect">
+<tt class="descclassname">foldbeam.graph.</tt><tt class="descname">connect</tt><big>(</big><em>src_pad</em>, <em>dst_pad</em><big>)</big><a class="headerlink" href="#foldbeam.graph.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Connect a source pad to a destination pad so that data may flow along an edge. A single source pad may be connected
+to multiple destination pads. If the source or destination is garbage collected, the edge is implicitly removed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>src_pad</strong> (<a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>) &#8211; the pad to draw data from</li>
+<li><strong>dst_pad</strong> (<a class="reference internal" href="#foldbeam.graph.InputPad" title="foldbeam.graph.InputPad"><tt class="xref py py-class docutils literal"><span class="pre">InputPad</span></tt></a>) &#8211; the pad to push data to</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ValueError</strong> &#8211; if any of the source or destination containers are <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt>.</li>
+<li><strong>ValueError</strong> &#8211; if the source and destination pad types are incompatible (see <a class="reference internal" href="#foldbeam.graph.can_connect" title="foldbeam.graph.can_connect"><tt class="xref py py-func docutils literal"><span class="pre">can_connect()</span></tt></a>).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<span class="target" id="module-foldbeam.transform"></span><div class="section" id="geographic-co-ordinate-transformation">
+<h2>Geographic co-ordinate transformation<a class="headerlink" href="#geographic-co-ordinate-transformation" title="Permalink to this headline">¶</a></h2>
+<p>This module contains support functions for transforming between different geographic co-ordinate systems.</p>
+<dl class="function">
+<dt id="foldbeam.transform.compute_warp">
+<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">compute_warp</tt><big>(</big><em>dst_envelope</em>, <em>dst_size</em>, <em>src_spatial_reference</em><big>)</big><a class="headerlink" href="#foldbeam.transform.compute_warp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the projection co-ordinates in a source spatial projection for pixels in a destination image.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>dst_envelope</strong> (<tt class="xref py py-class docutils literal"><span class="pre">core.Envelope</span></tt>) &#8211; the envelope of the destination raster</li>
+<li><strong>dst_size</strong> (<em>pair of integer</em>) &#8211; the width and height of the destination raster</li>
+<li><strong>src_spatial_reference</strong> (<tt class="xref py py-class docutils literal"><span class="pre">osgeo.osr.SpatialReference</span></tt>) &#8211; co-ordinate system of the source raster</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pair of arrays</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Compute the projection co-ordinates of each pixel in a destination raster when projected into the source spatial
+reference. This is necessary to re-project images correctly.</p>
+<p>The return value is a pair of array-like objects giving the x and y co-ordinates. The returned arrays are the width
+and height specified in dst_size.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.transform.pixels_to_proj">
+<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">pixels_to_proj</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.transform.pixels_to_proj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute projection co-ordinates of pixel co-ordinates x and y in image with envelope and size specified.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.transform.proj_to_pixels">
+<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">proj_to_pixels</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.transform.proj_to_pixels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute pixel co-ordinates of projection co-ordinates x and y in image with envelope and size specified.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.transform.reproject_raster">
+<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">reproject_raster</tt><big>(</big><em>dst</em>, <em>src</em><big>)</big><a class="headerlink" href="#foldbeam.transform.reproject_raster" title="Permalink to this definition">¶</a></dt>
+<dd><p>Re-project a source raster into a destination raster.</p>
+<p>See <tt class="xref py py-func docutils literal"><span class="pre">reproject_rasters()</span></tt>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.transform.sample_raster">
+<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">sample_raster</tt><big>(</big><em>src_pixel_x</em>, <em>src_pixel_y</em>, <em>src_raster</em><big>)</big><a class="headerlink" href="#foldbeam.transform.sample_raster" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sample pixels from a raster.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>src_pixel_x</strong> &#8211; array of pixel x-co-ordinates</li>
+<li><strong>src_pixel_y</strong> &#8211; array of pixel y-co-ordinates</li>
+<li><strong>src_raster</strong> (<tt class="xref py py-class docutils literal"><span class="pre">core.Raster</span></tt>) &#8211; source raster</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><tt class="xref py py-class docutils literal"><span class="pre">numpy.array</span></tt> or <tt class="xref py py-class docutils literal"><span class="pre">numpy.ma.array</span></tt></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The returned array has the same shape as src_raster with each value corresponding to the sampled value. The arrays
+src_pixel_x and src_pixel_y must have the same width and height as src_raster. If pixel co-ordinates outside of the
+range of those present in src_raster are specified, the values will be masked out of the resulting array and a numpy
+masked array will be returned.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Reference</a><ul>
+<li><a class="reference internal" href="#core-geometric-operations">Core geometric operations</a></li>
+<li><a class="reference internal" href="#the-nodal-compositing-model">The nodal compositing model</a></li>
+<li><a class="reference internal" href="#geographic-co-ordinate-transformation">Geographic co-ordinate transformation</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Contents</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="design.html"
+                        title="next chapter">Design notes</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/reference.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="design.html" title="Design notes"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Contents"
+             >previous</a> |</li>
+        <li><a href="index.html">The foldbeam manual</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Rich Wareham.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
