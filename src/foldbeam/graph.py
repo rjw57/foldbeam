@@ -9,8 +9,10 @@ the value of one of it's output pads, the node may pull data along from an input
 """
 
 import collections
-from notify.all import Signal
+import logging
 import weakref
+
+from notify.all import Signal
 
 node_classes = []
 def node(cls):
@@ -72,22 +74,35 @@ class InputPad(Pad):
         :py:class:`OutputPad` or :py:const`None` (signifying it wasn't connected in the first place). See
         :py:attr:`connected`.
 
+    .. py:data:: damaged
+
+        A :py:class:`pynotify.Signal` which is triggered when the equivalent :py:attr:`OutputPad.damaged` signal is
+        triggered on the source.
+
     """
 
     def __init__(self, type_, container, name):
         super(InputPad, self).__init__(type_, container, name)
         self.will_disconnect = Signal()
         self.connected = Signal()
+        self.damaged = Signal()
         self._source = None
 
     @property
     def source(self):
+        if self._source is None:
+            return None
         return self._source()
 
     @source.setter
     def source(self, pad):
+        logging.info('Pad %s connecting to %s' % (self, pad))
         self.will_disconnect(self)
+        if self.source is not None:
+            self.source.damaged.disconnect(self.damaged)
         self._source = weakref.ref(pad) if pad is not None else None
+        if self.source is not None:
+            self.source.damaged.connect(self.damaged)
         self.connected(self)
 
     def __call__(self, **kwargs):
@@ -302,9 +317,19 @@ def connect(src_pad, dst_pad):
     dst_pad.connect(src_pad)
 
 class ConstantNode(Node):
-    def __init__(self, type_, value):
+    def __init__(self, type_, value=None):
         super(ConstantNode, self).__init__()
-        self.add_output('value', type_, lambda: value)
+        self._value = None
+        self.add_output('value', type_, lambda: self.value)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, v):
+        self._value = v
+        self.outputs.value.damaged(None)
 
 class EdgeType(object):
     def useable_as(self, other_type):

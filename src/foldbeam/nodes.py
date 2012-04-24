@@ -1,32 +1,33 @@
 from __future__ import print_function
 
-from . import _gdal, core, graph, pads, transform
-from .graph import connect, ConstantNode, node
-import copy
+import logging
 import math
+
 from ModestMaps.Core import Point, Coordinate
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 import numpy as np
-import StringIO
 import TileStache
 
-@node
-class ToRgbaRasterNode(graph.Node):
-    def __init__(self, input_pad):
-        super(ToRgbaRasterNode, self).__init__()
-        self.add_output('output', graph.RasterType, self._render)
-        self.add_input('input', graph.RasterType)
+from . import _gdal, core, graph, pads, transform
+from .graph import connect, ConstantNode, node
 
-    def _render(self, envelope, size):
-        if size is None:
-            size = map(int, envelope.size())
-
-        raster = self.inputs.input(envelope, size)
-        if raster is None:
-            return None
-
-        return core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
+#@node
+#class ToRgbaRasterNode(graph.Node):
+#    def __init__(self, input_pad):
+#        super(ToRgbaRasterNode, self).__init__()
+#        self.add_output('output', graph.RasterType, self._render)
+#        self.add_input('input', graph.RasterType)
+#
+#    def _render(self, envelope, size):
+#        if size is None:
+#            size = map(int, envelope.size())
+#
+#        raster = self.inputs.input(envelope, size)
+#        if raster is None:
+#            return None
+#
+#        return core.Raster(raster.to_rgba(), envelope, to_rgba=lambda x: x)
 
 @node
 class LayerRasterNode(graph.Node):
@@ -38,11 +39,19 @@ class LayerRasterNode(graph.Node):
         self.add_input('bottom', graph.RasterType, top)
         self.add_input('bottom_opacity', graph.FloatType, bottom_opacity if bottom_opacity is not None else 1)
 
+        for input_pad in self.inputs.values():
+            input_pad.damaged.connect(self._inputs_damaged)
+
+    def _inputs_damaged(self, boundary):
+        self.outputs.output.damaged(boundary)
+
     def _render(self, envelope, size):
         opacities = [
             self.inputs.bottom_opacity(),
             self.inputs.top_opacity(),
         ]
+
+        opacities = [x if x is not None else 1.0 for x in opacities]
 
         layers = [
             self.inputs.bottom(envelope=envelope, size=size),
@@ -99,20 +108,29 @@ class FileReaderNode(graph.Node):
 class GDALDatasetSourceNode(graph.Node):
     def __init__(self, filename=None):
         super(GDALDatasetSourceNode, self).__init__()
+        self._dataset = None
+        self._filename = None
+
         self.add_input('filename', str, filename)
-        self.dataset = None
-        self.add_output('dataset', gdal.Dataset, self._load)
+        self.add_output('dataset', gdal.Dataset, lambda: self._dataset)
 
-    def _load(self):
-        if self.dataset is not None:
-            return self.dataset
+        self.inputs.filename.damaged.connect(self._filename_damaged)
+        self._filename_damaged(None)
 
+    def _filename_damaged(self, boundary, **kwargs):
         filename = self.inputs.filename()
-        if filename is None:
-            return None
+        if filename == self._filename:
+            return
 
-        self.dataset = gdal.Open(filename)
-        return self.dataset
+        if filename is not None:
+            logging.info('Opening GDAL dataset: ' + str(filename))
+            self._dataset = gdal.Open(filename)
+            logging.info('Opened GDAL dataset ' + str(self._dataset))
+        else:
+            logging.info('Dropping GDAL dataset ' + str(self._dataset))
+            self._dataset = None
+
+        self._filename = filename
 
 @node
 class GDALDatasetRasterNode(graph.Node):
@@ -167,6 +185,9 @@ class GDALDatasetRasterNode(graph.Node):
         return rgba
 
     def _render_reprojected(self, **kwargs):
+        if self.dataset is None:
+            return None
+
         self.spatial_reference = SpatialReference()
         self.spatial_reference.ImportFromWkt(self.dataset.GetProjection())
         self.envelope = _gdal.dataset_envelope(self.dataset, self.spatial_reference)

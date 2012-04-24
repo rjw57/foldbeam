@@ -1,14 +1,24 @@
-from .graphcanvas import GraphModel
-from .model import FoldbeamNodeModel
+import logging
+
 from foldbeam.nodes import LayerRasterNode
-from foldbeam.graph import node_classes
+from foldbeam.tilestache import TileStacheServerNode
+from foldbeam.graph import node_classes, FloatType
+from twisted.internet import gtk2reactor
+gtk2reactor.install()
+
 import pygtk
 import gtk
 import goocanvas
+from twisted.internet import reactor
+from twisted.web import server
+from twisted.web.wsgi import WSGIResource
+
+from .graphcanvas import GraphModel
+from .model import FoldbeamNodeModel, ConstantNodeModel
 
 class Application:
     def main_win_destroy(self, widget, data=None):
-        gtk.main_quit()
+        reactor.stop()
 
     def new_canvas(self, graph_model):
         bg_color = 0xBABDB6
@@ -28,13 +38,14 @@ class Application:
     def _on_edge_added(self, graph, edge):
         start = edge.get_property('start-pad')
         end = edge.get_property('end-pad')
-        if hasattr(end, 'watch_pad'):
-            end.watch_pad(start)
+        if hasattr(end, 'connect_to'):
+            end.connect_to(start)
 
     def _on_edge_removed(self, graph, edge):
-        end = edge.get_property('end-pad')
-        if hasattr(end, 'set_value'):
-            end.set_value(None)
+        start = edge.get_property('start-pad')
+        # end = edge.get_property('end-pad')
+        if hasattr(end, 'connect_to'):
+            end.connect_to(None)
 
     def _on_menu_destroy(self, menu):
         menu.destroy()
@@ -45,16 +56,33 @@ class Application:
     def _on_remove_node(self, action):
         if self._remove_model is None:
             return
-
         node_idx = self._model.find_node(self._remove_model)
-
         if(node_idx >= 0):
             self._model.remove_node(node_idx)
-
         self._remove_model = None
 
     def _null_action(self, action):
         pass
+
+    def _on_add_text_node(self, action):
+        x, y = self._popup_location
+        node_model = ConstantNodeModel(
+            title = 'String',
+            color_scheme = 'Plum',
+            x = x, y = y,
+            radius_x = 6, radius_y = 6,
+            width = 200, height = 70)
+        self._model.add_node(node_model, -1)
+
+    def _on_add_real_node(self, action):
+        x, y = self._popup_location
+        node_model = ConstantNodeModel(
+            title = 'Real', type_=FloatType, type_cb=float,
+            color_scheme = 'Plum',
+            x = x, y = y,
+            radius_x = 6, radius_y = 6,
+            width = 200, height = 70)
+        self._model.add_node(node_model, -1)
 
     def _on_add_node(self, action):
         clsname = action.get_name()[4:]
@@ -62,13 +90,17 @@ class Application:
         node_cls = [x for x in node_classes if x.__name__ == clsname][0]
         x, y = self._popup_location
 
-        node = FoldbeamNodeModel(
-            node=node_cls(),
+        node = node_cls()
+        node_model = FoldbeamNodeModel(
+            node=node,
             color_scheme = 'Sky Blue',
             x = x, y = y,
             radius_x = 6, radius_y = 6,
             width = 200, height = 70)
-        self._model.add_node(node, -1)
+        self._model.add_node(node_model, -1)
+
+        if node_cls is TileStacheServerNode:
+            reactor.listenTCP(8080, server.Site(WSGIResource(reactor, reactor.getThreadPool(), node.wsgi_server)))
 
     def _do_graph_popup(self, graph, event):
         self._popup_location = self._graph_canvas.get_pointer()
@@ -86,7 +118,11 @@ class Application:
         actiongroup = gtk.ActionGroup('GraphPopupActions')
         actiongroup.add_actions([
             ('quit-application', gtk.STOCK_QUIT, '_Quit', None,
-             'Quit this application.', gtk.main_quit),
+                'Quit this application.', lambda x: reactor.stop()),
+            ('add-text-node', gtk.STOCK_ADD, 'Add text node', None,
+                'Add constant text node.', self._on_add_text_node),
+            ('add-real-node', gtk.STOCK_ADD, 'Add real node', None,
+                'Add constant real node.', self._on_add_real_node),
             ] + node_actions + [ \
             ('remove-node', gtk.STOCK_REMOVE, '_Remove Node', None,
              'Remove the node under the pointer.', self._on_remove_node),
@@ -97,9 +133,9 @@ class Application:
         uimanager.add_ui_from_string('''
   <ui>
     <popup name="Popup">
-      <menuitem action="remove-node" />
+      <menuitem action="add-text-node" />
+      <menuitem action="add-real-node" />
 ''' + '\n'.join(['<menuitem action="%s" />' % (x[0],) for x in node_actions]) + '''
-      <menuitem action="quit-application" />
     </popup>
   </ui>
         ''')
@@ -159,6 +195,8 @@ class Application:
     def __init__(self):
         gtk.gdk.threads_init()
 
+        self._remove_model = None
+
 #        self._image_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 #        self._image_window.set_position(gtk.WIN_POS_NONE)
 #        self._image_window.connect('destroy', self.main_win_destroy)
@@ -192,12 +230,10 @@ class Application:
 
         self._graph_window.show_all()
 
-    def run(self):
-        gtk.main()
-
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     app = Application()
-    app.run()
+    reactor.run()
 
 # vim:sw=4:ts=4:et:autoindent
 

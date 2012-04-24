@@ -1,3 +1,8 @@
+The Foldbeam GIS System
+-----------------------
+
+Foldbeam provides a convenient visual computing model for performing GIS operations.
+
 Contents
 --------
 
@@ -6,6 +11,7 @@ Contents
 
     reference
     design
+
 
 Indices and tables
 ------------------

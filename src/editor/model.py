@@ -1,6 +1,6 @@
 from . import graphcanvas 
 from foldbeam import graph, vector, tilestache
-from foldbeam.graph import InputPad, OutputPad, can_connect
+from foldbeam.graph import InputPad, OutputPad, can_connect, ConstantNode
 import pygtk
 import gobject
 import gtk
@@ -30,11 +30,11 @@ class PadModel(graphcanvas.PadModel):
 
         return can_connect(output_pad, input_pad)
 
-    def get_value(self):
-        return self._pad
-
-    def set_value(self, value):
-        self._pad.connect(value)
+    def connect_to(self, other_pad):
+        if other_pad is None:
+            self._pad.connect(None)
+        else:
+            self._pad.connect(other_pad._pad)
 
 gobject.type_register(PadModel)
 
@@ -48,6 +48,7 @@ class FoldbeamNodeModel(graphcanvas.NodeModel):
         self.node = node
         self.set_property('node-title', node.__class__.__name__)
 
+        self.is_removable = True
         self._output_pads = [ PadModel(self, v, type=graphcanvas.OUTPUT, label=k) for k,v in self.node.outputs.iteritems() ]
         self._input_pads = [ PadModel(self, v, type=graphcanvas.INPUT, label=k) for k,v in self.node.inputs.iteritems() ]
 
@@ -68,3 +69,23 @@ class FoldbeamNodeModel(graphcanvas.NodeModel):
         return self._input_pads[idx]
 
 gobject.type_register(FoldbeamNodeModel)
+
+class ConstantNodeModel(FoldbeamNodeModel):
+    def __init__(self, type_=str, type_cb=str, title=None, *args, **kwargs):
+        super(ConstantNodeModel, self).__init__(node=ConstantNode(type_, ''), *args, **kwargs)
+        self._entry = None
+        self._type_cb = type_cb
+        if title is not None:
+            self.set_property('node-title', title)
+
+    def create_widget(self):
+        self._entry = gtk.Entry()
+        self._entry.set_property('text', '')
+        self._entry.connect('changed', self._on_changed)
+        return self._entry
+
+    def _on_changed(self, editable):
+        self.node.value = self._type_cb(editable.get_property('text'))
+        return True
+
+gobject.type_register(ConstantNodeModel)

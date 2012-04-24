@@ -14,19 +14,33 @@ class TileStacheServerNode(Node):
         super(TileStacheServerNode, self).__init__()
         self.add_input('raster', RasterType)
 
+        # Create the tilestache config
+        self.config = TileStache.Config.buildConfiguration({
+            'cache': { 'name': 'Test' },
+        })
+        self.config.layers['foldbeam'] = TileStache.Core.Layer(
+            config=self.config,
+            projection=TileStache.Geography.SphericalMercator(),
+            metatile=TileStache.Core.Metatile(),
+        )
+
+        # Create the provider
+        self.config.layers['foldbeam'].provider = NodeProvider(self.inputs.raster)
+
+        self.wsgi_server = TileStache.WSGITileServer(self.config)
+
 class NodeProvider(object):
     """A very preliminary example of acting as a TileStache tile provider."""
 
-    def __init__(self, layer):
-        config = json.load(open('pipeline.json'))
-        self.pipeline = Pipeline(config)
+    def __init__(self, raster_pad):
+        self.raster_pad = raster_pad
 
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
         spatial_reference = osr.SpatialReference()
         spatial_reference.ImportFromProj4(srs)
         envelope = Envelope(xmin, xmax, ymax, ymin, spatial_reference)
 
-        raster = self.pipeline.outputs.values()[0](envelope=envelope, size=(width, height))
+        raster = self.raster_pad(envelope=envelope, size=(width, height))
         if raster is None:
             return Image.new('RGBA', (width, height))
 
