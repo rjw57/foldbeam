@@ -230,10 +230,7 @@ class Application:
 
         self._graph_window.show_all()
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(level=logging.INFO)
     app = Application()
     reactor.run()
-
-# vim:sw=4:ts=4:et:autoindent
-
