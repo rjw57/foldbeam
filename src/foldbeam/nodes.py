@@ -41,6 +41,7 @@ class LayerRasterNode(graph.Node):
 
         for input_pad in self.inputs.values():
             input_pad.damaged.connect(self._inputs_damaged)
+            input_pad.connected.connect(self._inputs_damaged)
 
     def _inputs_damaged(self, boundary):
         self.outputs.output.damaged(boundary)
@@ -109,6 +110,7 @@ class GDALDatasetSourceNode(graph.Node):
         self.add_output('dataset', gdal.Dataset, lambda: self._dataset)
 
         self.inputs.filename.damaged.connect(self._filename_damaged)
+        self.inputs.filename.connected.connect(self._filename_damaged)
         self._filename_damaged(None)
 
     def _filename_damaged(self, boundary, **kwargs):
@@ -233,10 +235,10 @@ class TileStacheNode(graph.Node):
         super(TileStacheNode, self).__init__()
         self.add_input('config_file', str, config_file)
         self.inputs.config_file.damaged.connect(self._config_updated)
+        self.inputs.config_file.connected.connect(self._config_updated)
         self._config_updated()
 
     def _config_updated(self, *args, **kwargs):
-        print('Config: %s' % (self.config_file,))
         filename = self.config_file
         self.config = None
         if filename is not None:
