@@ -81,7 +81,7 @@ node [
                 type_color=type_colors[pad.type],
                 pad_name=pad_name,
                 pad_title=pad_title,
-                align='LEFT' if pad in inputs else 'RIGHT'))
+                align='LEFT' if pad_name in node.inputs else 'RIGHT'))
             pads[pad] = ('"%s":%s' % (node_name, 'pad_' + pad_name), node_name)
 
         output.write('</TABLE>\n>\n')
@@ -143,7 +143,7 @@ node [
     output.write('}\n')
 
 def main():
-    config = json.load(open('pipeline.json'))
+    config = json.load(open(os.path.join(os.path.dirname(__file__), 'pipeline.json')))
     pipeline = Pipeline(config)
     pipeline_to_dot(pipeline.nodes, pipeline.outputs.values()[0], open('pipeline.dot', 'w'))
 

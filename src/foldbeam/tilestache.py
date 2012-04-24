@@ -1,18 +1,23 @@
-from .core import Envelope
-from .pipeline import Pipeline
-from .graph import Node, node, RasterType
+"""
+Serving output via TileStache
+=============================
+
+"""
+
 import json
+
 import numpy as np
 from osgeo import osr
 from PIL import Image
 import TileStache
-from werkzeug.serving import run_simple
 
-@node
-class TileStacheServerNode(Node):
+from foldbeam import core, graph, raster
+
+@graph.node
+class TileStacheServerNode(graph.Node):
     def __init__(self):
         super(TileStacheServerNode, self).__init__()
-        self.add_input('raster', RasterType)
+        self.add_input('raster', raster.Raster)
 
         # Create the tilestache config
         self.config = TileStache.Config.buildConfiguration({
@@ -38,7 +43,7 @@ class NodeProvider(object):
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
         spatial_reference = osr.SpatialReference()
         spatial_reference.ImportFromProj4(srs)
-        envelope = Envelope(xmin, xmax, ymax, ymin, spatial_reference)
+        envelope = core.Envelope(xmin, xmax, ymax, ymin, spatial_reference)
 
         raster = self.raster_pad(envelope=envelope, size=(width, height))
         if raster is None:

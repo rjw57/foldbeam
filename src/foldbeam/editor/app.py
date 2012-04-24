@@ -1,6 +1,5 @@
 import logging
 
-from foldbeam.nodes import LayerRasterNode
 from foldbeam.tilestache import TileStacheServerNode
 from foldbeam.graph import node_classes, FloatType
 from twisted.internet import gtk2reactor

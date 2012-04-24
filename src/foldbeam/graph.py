@@ -366,8 +366,5 @@ class NamedType(object):
     def get_description(cls):
         return cls.__name__
 
-class RasterType(NamedType):
-    pass
-
 class FloatType(NamedType):
     pass

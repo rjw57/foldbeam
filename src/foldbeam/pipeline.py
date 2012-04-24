@@ -1,6 +1,9 @@
 from __future__ import print_function
-from .graph import connect, Node
 import traceback
+
+from foldbeam.graph import connect, Node
+import foldbeam.vector
+import foldbeam.tilestache
 
 class Pipeline(Node):
     def __init__(self, configuration):

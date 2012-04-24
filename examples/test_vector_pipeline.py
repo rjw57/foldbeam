@@ -15,17 +15,15 @@ def main():
     config = dict(
         nodes = dict(
             tilestache = dict(
-                type = 'foldbeam.nodes:TileStacheNode',
-                parameters = dict(config_file = 'base-layers-cfg.json'),
+                type = 'foldbeam.raster:TileStacheSource',
+                parameters = dict(config_file = os.path.join(os.path.dirname(__file__), 'base-layers-cfg.json')),
             ),
-            road = dict(type = 'foldbeam.nodes:TileStacheRasterNode'),
-            aerial = dict(type = 'foldbeam.nodes:TileStacheRasterNode'),
             hybrid = dict(
-                type = 'foldbeam.nodes:LayerRasterNode',
+                type = 'foldbeam.raster:CompositeOver',
                 parameters = dict(top_opacity = 0.5),
             ),
             composite = dict(
-                type = 'foldbeam.nodes:LayerRasterNode',
+                type = 'foldbeam.raster:CompositeOver',
             ),
             vector = dict(
                 type = 'foldbeam.vector:VectorRendererNode',
@@ -37,10 +35,8 @@ def main():
             ),
         ),
         edges = [
-            [ 'tilestache:yahoo_road', 'road:layer' ],
-            [ 'tilestache:yahoo_aerial', 'aerial:layer' ],
-            [ 'road:output', 'hybrid:top' ],
-            [ 'aerial:output', 'hybrid:bottom' ],
+            [ 'tilestache:yahoo_road', 'hybrid:top' ],
+            [ 'tilestache:yahoo_aerial', 'hybrid:bottom' ],
             [ 'hybrid:output', 'composite:bottom' ],
             [ 'vector:output', 'composite:top' ],
         ],
