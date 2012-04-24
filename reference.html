@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-04-24',
+        VERSION:     '2012-04-25',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -261,13 +261,6 @@ the envelope.</p>
 </tr>
 </tbody>
 </table>
-</dd></dl>
-
-<dl class="function">
-<dt id="foldbeam.core.to_rgba_unknown">
-<tt class="descclassname">foldbeam.core.</tt><tt class="descname">to_rgba_unknown</tt><big>(</big><em>array</em><big>)</big><a class="headerlink" href="#foldbeam.core.to_rgba_unknown" title="Permalink to this definition">¶</a></dt>
-<dd><p>Default conversion from an array of unknown type to an RGBA array. This simply fills the array with a default
-pattern.</p>
 </dd></dl>
 
 </div>
@@ -544,12 +537,68 @@ to multiple destination pads. If the source or destination is garbage collected,
 </dd></dl>
 
 </div>
-<span class="target" id="module-foldbeam.transform"></span><div class="section" id="geographic-co-ordinate-transformation">
-<h2>Geographic co-ordinate transformation<a class="headerlink" href="#geographic-co-ordinate-transformation" title="Permalink to this headline">¶</a></h2>
-<p>This module contains support functions for transforming between different geographic co-ordinate systems.</p>
+<span class="target" id="module-foldbeam.raster"></span><div class="section" id="handling-raster-data">
+<h2>Handling raster data<a class="headerlink" href="#handling-raster-data" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="foldbeam.raster.Raster">
+<em class="property">class </em><tt class="descclassname">foldbeam.raster.</tt><tt class="descname">Raster</tt><big>(</big><em>array</em>, <em>envelope</em>, <em>to_rgba=None</em>, <em>can_interpolate=True</em>, <em>prototype=None</em><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster" title="Permalink to this definition">¶</a></dt>
+<dd><p>An array of pixels associated with a rectangle in some geographic projection. A raster is a wrapper around a
+<tt class="xref py py-class docutils literal"><span class="pre">numpy.array</span></tt> instance which can be accessed directly via the <tt class="xref py py-attr docutils literal"><span class="pre">array</span></tt> attribute. A raster has an
+associated envelope and the left, right, top and bottom edges of the array are mapped to the left, right, top and
+bottom of the envelope.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>array</strong> (<tt class="xref py py-class docutils literal"><span class="pre">numpy.array</span></tt> or similar) &#8211; the initial contents of the raster</li>
+<li><strong>envelope</strong> (<tt class="xref py py-class docutils literal"><span class="pre">core.Envelope</span></tt>) &#8211; the bounding box and associated projection which encloses this raster</li>
+<li><strong>to_rgba</strong> (<em>callable</em>) &#8211; called with <tt class="xref py py-attr docutils literal"><span class="pre">array</span></tt> to convert this raster into a 4-channel RGBA raster</li>
+<li><strong>can_interpolate</strong> &#8211; flag indicating whether interpolation of values in this raster is valid</li>
+<li><strong>prototype</strong> (<a class="reference internal" href="#foldbeam.raster.Raster" title="foldbeam.raster.Raster"><tt class="xref py py-class docutils literal"><span class="pre">Raster</span></tt></a>) &#8211; copy <em>can_interpolate</em> and <em>to_rgba</em> from a prototype <a class="reference internal" href="#foldbeam.raster.Raster" title="foldbeam.raster.Raster"><tt class="xref py py-class docutils literal"><span class="pre">Raster</span></tt></a></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="foldbeam.raster.Raster.as_dataset">
+<tt class="descname">as_dataset</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster.as_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain a version of this raster as a <tt class="xref py py-class docutils literal"><span class="pre">gdal.Dataset</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.raster.Raster.as_rgba_dataset">
+<tt class="descname">as_rgba_dataset</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster.as_rgba_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain a <tt class="xref py py-class docutils literal"><span class="pre">gdal.Dataset</span></tt> with red, green, blue and alpha bands representing the array returned from
+<a class="reference internal" href="#foldbeam.raster.Raster.to_rgba" title="foldbeam.raster.Raster.to_rgba"><tt class="xref py py-meth docutils literal"><span class="pre">to_rgba()</span></tt></a>.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="foldbeam.raster.Raster.from_dataset">
+<em class="property">classmethod </em><tt class="descname">from_dataset</tt><big>(</big><em>ds</em>, <em>mask_band=None</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster.from_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a <a class="reference internal" href="#foldbeam.raster.Raster" title="foldbeam.raster.Raster"><tt class="xref py py-class docutils literal"><span class="pre">Raster</span></tt></a> from a <tt class="xref py py-class docutils literal"><span class="pre">gdal.Dataset</span></tt>.</p>
+<p>Extra keyword arguments are passed to the <a class="reference internal" href="#foldbeam.raster.Raster" title="foldbeam.raster.Raster"><tt class="xref py py-class docutils literal"><span class="pre">Raster</span></tt></a> constructor.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.raster.Raster.to_rgba">
+<tt class="descname">to_rgba</tt><big>(</big><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster.to_rgba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain an array with shape (height, width, 4) where the depth are respectively the red, green, blue and alpha
+values for displaying this raster on the interval [0,1).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.raster.Raster.write_tiff">
+<tt class="descname">write_tiff</tt><big>(</big><em>filename</em><big>)</big><a class="headerlink" href="#foldbeam.raster.Raster.write_tiff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write this raster to a GeoTIFF.</p>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="function">
-<dt id="foldbeam.transform.compute_warp">
-<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">compute_warp</tt><big>(</big><em>dst_envelope</em>, <em>dst_size</em>, <em>src_spatial_reference</em><big>)</big><a class="headerlink" href="#foldbeam.transform.compute_warp" title="Permalink to this definition">¶</a></dt>
+<dt id="foldbeam.raster.compute_warp">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">compute_warp</tt><big>(</big><em>dst_envelope</em>, <em>dst_size</em>, <em>src_spatial_reference</em><big>)</big><a class="headerlink" href="#foldbeam.raster.compute_warp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the projection co-ordinates in a source spatial projection for pixels in a destination image.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -574,27 +623,27 @@ and height specified in dst_size.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="foldbeam.transform.pixels_to_proj">
-<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">pixels_to_proj</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.transform.pixels_to_proj" title="Permalink to this definition">¶</a></dt>
+<dt id="foldbeam.raster.pixels_to_proj">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">pixels_to_proj</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.raster.pixels_to_proj" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute projection co-ordinates of pixel co-ordinates x and y in image with envelope and size specified.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="foldbeam.transform.proj_to_pixels">
-<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">proj_to_pixels</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.transform.proj_to_pixels" title="Permalink to this definition">¶</a></dt>
+<dt id="foldbeam.raster.proj_to_pixels">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">proj_to_pixels</tt><big>(</big><em>x</em>, <em>y</em>, <em>envelope</em>, <em>size</em><big>)</big><a class="headerlink" href="#foldbeam.raster.proj_to_pixels" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute pixel co-ordinates of projection co-ordinates x and y in image with envelope and size specified.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="foldbeam.transform.reproject_raster">
-<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">reproject_raster</tt><big>(</big><em>dst</em>, <em>src</em><big>)</big><a class="headerlink" href="#foldbeam.transform.reproject_raster" title="Permalink to this definition">¶</a></dt>
+<dt id="foldbeam.raster.reproject_raster">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">reproject_raster</tt><big>(</big><em>dst</em>, <em>src</em><big>)</big><a class="headerlink" href="#foldbeam.raster.reproject_raster" title="Permalink to this definition">¶</a></dt>
 <dd><p>Re-project a source raster into a destination raster.</p>
 <p>See <tt class="xref py py-func docutils literal"><span class="pre">reproject_rasters()</span></tt>.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="foldbeam.transform.sample_raster">
-<tt class="descclassname">foldbeam.transform.</tt><tt class="descname">sample_raster</tt><big>(</big><em>src_pixel_x</em>, <em>src_pixel_y</em>, <em>src_raster</em><big>)</big><a class="headerlink" href="#foldbeam.transform.sample_raster" title="Permalink to this definition">¶</a></dt>
+<dt id="foldbeam.raster.sample_raster">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">sample_raster</tt><big>(</big><em>src_pixel_x</em>, <em>src_pixel_y</em>, <em>src_raster</em><big>)</big><a class="headerlink" href="#foldbeam.raster.sample_raster" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sample pixels from a raster.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -603,7 +652,7 @@ and height specified in dst_size.</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>src_pixel_x</strong> &#8211; array of pixel x-co-ordinates</li>
 <li><strong>src_pixel_y</strong> &#8211; array of pixel y-co-ordinates</li>
-<li><strong>src_raster</strong> (<tt class="xref py py-class docutils literal"><span class="pre">core.Raster</span></tt>) &#8211; source raster</li>
+<li><strong>src_raster</strong> (<a class="reference internal" href="#foldbeam.raster.Raster" title="foldbeam.raster.Raster"><tt class="xref py py-class docutils literal"><span class="pre">Raster</span></tt></a>) &#8211; source raster</li>
 </ul>
 </td>
 </tr>
@@ -616,6 +665,26 @@ and height specified in dst_size.</p>
 src_pixel_x and src_pixel_y must have the same width and height as src_raster. If pixel co-ordinates outside of the
 range of those present in src_raster are specified, the values will be masked out of the resulting array and a numpy
 masked array will be returned.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="foldbeam.raster.to_rgba_unknown">
+<tt class="descclassname">foldbeam.raster.</tt><tt class="descname">to_rgba_unknown</tt><big>(</big><em>array</em><big>)</big><a class="headerlink" href="#foldbeam.raster.to_rgba_unknown" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default conversion from an array of unknown type to an RGBA array. This simply fills the array with a default
+pattern.</p>
+</dd></dl>
+
+</div>
+<span class="target" id="module-foldbeam.vector"></span><div class="section" id="handling-vector-data">
+<h2>Handling vector data<a class="headerlink" href="#handling-vector-data" title="Permalink to this headline">¶</a></h2>
+<p>This module is very incomplete.</p>
+</div>
+<span class="target" id="module-foldbeam.tilestache"></span><div class="section" id="serving-output-via-tilestache">
+<h2>Serving output via TileStache<a class="headerlink" href="#serving-output-via-tilestache" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="foldbeam.tilestache.NodeProvider">
+<em class="property">class </em><tt class="descclassname">foldbeam.tilestache.</tt><tt class="descname">NodeProvider</tt><big>(</big><em>raster_pad</em><big>)</big><a class="headerlink" href="#foldbeam.tilestache.NodeProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>A very preliminary example of acting as a TileStache tile provider.</p>
 </dd></dl>
 
 </div>
@@ -632,7 +701,9 @@ masked array will be returned.</p>
 <li><a class="reference internal" href="#">Reference</a><ul>
 <li><a class="reference internal" href="#core-geometric-operations">Core geometric operations</a></li>
 <li><a class="reference internal" href="#the-nodal-compositing-model">The nodal compositing model</a></li>
-<li><a class="reference internal" href="#geographic-co-ordinate-transformation">Geographic co-ordinate transformation</a></li>
+<li><a class="reference internal" href="#handling-raster-data">Handling raster data</a></li>
+<li><a class="reference internal" href="#handling-vector-data">Handling vector data</a></li>
+<li><a class="reference internal" href="#serving-output-via-tilestache">Serving output via TileStache</a></li>
 </ul>
 </li>
 </ul>

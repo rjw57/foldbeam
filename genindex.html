@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-04-24',
+        VERSION:     '2012-04-25',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -64,6 +64,7 @@
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
+ | <a href="#W"><strong>W</strong></a>
  
 </div>
 <h2 id="A">A</h2>
@@ -77,10 +78,18 @@
   <dt><a href="reference.html#foldbeam.graph.Node.add_output">add_output() (foldbeam.graph.Node method)</a>
   </dt>
 
+      
+  <dt><a href="reference.html#foldbeam.graph.Node.add_subnode">add_subnode() (foldbeam.graph.Node method)</a>
+  </dt>
+
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#foldbeam.graph.Node.add_subnode">add_subnode() (foldbeam.graph.Node method)</a>
+  <dt><a href="reference.html#foldbeam.raster.Raster.as_dataset">as_dataset() (foldbeam.raster.Raster method)</a>
+  </dt>
+
+      
+  <dt><a href="reference.html#foldbeam.raster.Raster.as_rgba_dataset">as_rgba_dataset() (foldbeam.raster.Raster method)</a>
   </dt>
 
   </dl></td>
@@ -118,7 +127,7 @@
   </dt>
 
       
-  <dt><a href="reference.html#foldbeam.transform.compute_warp">compute_warp() (in module foldbeam.transform)</a>
+  <dt><a href="reference.html#foldbeam.raster.compute_warp">compute_warp() (in module foldbeam.raster)</a>
   </dt>
 
   </dl></td>
@@ -167,10 +176,22 @@
   <dt><a href="reference.html#module-foldbeam.graph">foldbeam.graph (module)</a>
   </dt>
 
+      
+  <dt><a href="reference.html#module-foldbeam.raster">foldbeam.raster (module)</a>
+  </dt>
+
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#module-foldbeam.transform">foldbeam.transform (module)</a>
+  <dt><a href="reference.html#module-foldbeam.tilestache">foldbeam.tilestache (module)</a>
+  </dt>
+
+      
+  <dt><a href="reference.html#module-foldbeam.vector">foldbeam.vector (module)</a>
+  </dt>
+
+      
+  <dt><a href="reference.html#foldbeam.raster.Raster.from_dataset">from_dataset() (foldbeam.raster.Raster class method)</a>
   </dt>
 
   </dl></td>
@@ -241,6 +262,10 @@
   <dt><a href="reference.html#foldbeam.graph.Node.subnodes">Node.subnodes (in module foldbeam.graph)</a>
   </dt>
 
+      
+  <dt><a href="reference.html#foldbeam.tilestache.NodeProvider">NodeProvider (class in foldbeam.tilestache)</a>
+  </dt>
+
   </dl></td>
 </tr></table>
 
@@ -280,13 +305,13 @@
   </dt>
 
       
-  <dt><a href="reference.html#foldbeam.transform.pixels_to_proj">pixels_to_proj() (in module foldbeam.transform)</a>
+  <dt><a href="reference.html#foldbeam.raster.pixels_to_proj">pixels_to_proj() (in module foldbeam.raster)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#foldbeam.transform.proj_to_pixels">proj_to_pixels() (in module foldbeam.transform)</a>
+  <dt><a href="reference.html#foldbeam.raster.proj_to_pixels">proj_to_pixels() (in module foldbeam.raster)</a>
   </dt>
 
       
@@ -300,7 +325,13 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#foldbeam.transform.reproject_raster">reproject_raster() (in module foldbeam.transform)</a>
+  <dt><a href="reference.html#foldbeam.raster.Raster">Raster (class in foldbeam.raster)</a>
+  </dt>
+
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="reference.html#foldbeam.raster.reproject_raster">reproject_raster() (in module foldbeam.raster)</a>
   </dt>
 
   </dl></td>
@@ -310,7 +341,7 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#foldbeam.transform.sample_raster">sample_raster() (in module foldbeam.transform)</a>
+  <dt><a href="reference.html#foldbeam.raster.sample_raster">sample_raster() (in module foldbeam.raster)</a>
   </dt>
 
   </dl></td>
@@ -326,15 +357,19 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="reference.html#foldbeam.core.to_rgba_unknown">to_rgba_unknown() (in module foldbeam.core)</a>
+  <dt><a href="reference.html#foldbeam.raster.Raster.to_rgba">to_rgba() (foldbeam.raster.Raster method)</a>
   </dt>
 
       
-  <dt><a href="reference.html#foldbeam.core.Envelope.top_left">top_left() (foldbeam.core.Envelope method)</a>
+  <dt><a href="reference.html#foldbeam.raster.to_rgba_unknown">to_rgba_unknown() (in module foldbeam.raster)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="reference.html#foldbeam.core.Envelope.top_left">top_left() (foldbeam.core.Envelope method)</a>
+  </dt>
+
       
   <dt><a href="reference.html#foldbeam.core.Boundary.transform_to">transform_to() (foldbeam.core.Boundary method)</a>
   </dt>
@@ -345,6 +380,16 @@
   </dt>
 
       </dl></dd>
+  </dl></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="reference.html#foldbeam.raster.Raster.write_tiff">write_tiff() (foldbeam.raster.Raster method)</a>
+  </dt>
+
   </dl></td>
 </tr></table>
 

@@ -7,5 +7,11 @@ Reference
 .. automodule:: foldbeam.graph
     :members:
 
-.. automodule:: foldbeam.transform
+.. automodule:: foldbeam.raster
+    :members:
+
+.. automodule:: foldbeam.vector
+    :members:
+
+.. automodule:: foldbeam.tilestache
     :members:

@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-04-24',
+        VERSION:     '2012-04-25',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -55,6 +55,17 @@
 <p>Compositing pipeline is nodal. Rendering is a pull operation where a geographic region is requested on an output and a
 Node is expected to fulfil the requirements.</p>
 <p>An edge therefore consists of an endpoint from which pulled and an input through which &#8216;damage&#8217; events can be pushed.</p>
+<p>The overall effect is something like the following:</p>
+<p class="graphviz">
+<img src="_images/graphviz-39f2b8ccfef2427b9c372f817d9509fcea645b11.png" alt="digraph g {
+    rankdir=LR;
+    node [
+        shape=rectangle
+    ];
+    &quot;Raster Source&quot; -&gt; &quot;Render Raster&quot; -&gt; &quot;Display&quot;;
+    &quot;Vector Source&quot; -&gt; &quot;Render Vector&quot; -&gt; &quot;Display&quot;;
+}" />
+</p>
 </div>
 
 
