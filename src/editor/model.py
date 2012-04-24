@@ -1,10 +1,28 @@
-from . import graphcanvas 
-from foldbeam import graph, vector, tilestache
-from foldbeam.graph import InputPad, OutputPad, can_connect, ConstantNode
+import colorsys
+
 import pygtk
 import gobject
 import gtk
 import goocanvas
+from foldbeam import graph, vector, tilestache
+from foldbeam.graph import InputPad, OutputPad, can_connect, ConstantNode
+
+from . import graphcanvas 
+from ._sobol_seq import i4_sobol_generate
+
+_type_colors = {}
+def type_color(t):
+    global _type_colors
+    if t in _type_colors:
+        return _type_colors[t]
+
+    h = i4_sobol_generate(1, 1, len(_type_colors)+1)
+    s = 0.8
+    l = 0.3
+
+    new_color = colorsys.hls_to_rgb(h,l,s)
+    _type_colors[t] = new_color
+    return new_color
 
 class PadModel(graphcanvas.PadModel):
     __gsignals__ = {
@@ -14,6 +32,10 @@ class PadModel(graphcanvas.PadModel):
     def __init__(self, node_parent, pad, *args, **kwargs):
         graphcanvas.PadModel.__init__(self, node_parent, *args, **kwargs)
         self._pad = pad
+
+    @property
+    def well_color(self):
+        return type_color(self._pad.type)
 
     def can_connect(self, other_pad):
         if isinstance(self._pad, InputPad) and isinstance(other_pad._pad, InputPad):
