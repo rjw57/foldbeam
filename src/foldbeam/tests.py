@@ -251,18 +251,18 @@ class TestOutputPad(unittest.TestCase):
         env2 = core.Envelope(0,0,2,2,self.bng_srs)
         self.assertIsNotNone(env2)
 
-        e.notify_damage(env1)
+        e.damaged(env1)
         self.assertEqual(len(damages), 1)
         self.assertEqual(damages[-1], env1)
         self.assertNotEqual(damages[-1], env2)
 
-        e.notify_damage(env2)
+        e.damaged(env2)
         self.assertEqual(len(damages), 2)
         self.assertEqual(damages[-1], env2)
         self.assertNotEqual(damages[-1], env1)
 
         e.damaged.disconnect(damage_cb)
-        e.notify_damage(env1)
+        e.damaged(env1)
         self.assertEqual(len(damages), 2)
         self.assertEqual(damages[-1], env2)
         self.assertNotEqual(damages[-1], env1)

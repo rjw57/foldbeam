@@ -99,6 +99,33 @@ class OutputPad(Pad):
         A strong reference to this pad's container or :py:const:`None` if the container was not set or has been garbage
         collected.
 
+    .. py:data:: damaged
+
+        A signal which can be connected to to be notified when the contents which can be pulled from this pad have
+        changed. Connect to it by passing a callable to the :py:meth:`damaged.connect` method::
+
+            def damage_cb(boundary):
+                recalculate_envelope(boundary.envelope)
+
+            # ... pad is the OutputPad of interest
+            pad.damaged.connect(damage_cb)
+
+        The callable should accept a single parameter which is a :py:class:`Boundary` specifying the geographic area in
+        which the output has changed. This can be :py:const:`None` in which case it is assumed that the output should
+        always be pulled from.
+
+        To notify listeners that an :py:class:`OutputPad` had new data, call the :py:attr:`damaged` signal directly::
+        
+            # ... pad is the OutputPad of interest
+
+            # Notify any listeners that a specific region of the pad has changed:
+            boundary = Boundary(
+                # ...
+            )
+            pad.damaged(boundary)
+
+            # Notify any listeners that all regions of the pad have changed:
+            pad.damaged(None)
     """
     def __init__(self, type_, container, name, pull):
         super(OutputPad, self).__init__(type_, container, name)
@@ -107,11 +134,6 @@ class OutputPad(Pad):
 
     def __call__(self, **kwargs):
         return self._pull(**kwargs)
-
-    def notify_damage(self, envelope):
-        """Push a region which has been invalidated."""
-
-        self.damaged(envelope)
 
 class PadCollection(collections.OrderedDict):
     """A collection of pads which can be iterated over and indexed like a dictionary with the wrinkle that pads are
@@ -201,8 +223,13 @@ class Node(object):
         self.outputs[name] = OutputPad(type_, self, name, pad_cb)
 
 def can_connect(src_pad, dst_pad):
-    """Checks if the types of two pads are compatible for connection."""
-
+    """
+    Checks if the types of two pads are compatible for connection. Currently this simply checks that
+    :py:attr:`src_pad.type` is the same object as :py:attr:`dst_pad.type`. Should a more sophisticated type-munging
+    scheme be added, this function will be updated and so this function should be used in preference to checking the
+    types directly.
+    
+    """
     if src_pad is None or dst_pad is None:
         return False
 

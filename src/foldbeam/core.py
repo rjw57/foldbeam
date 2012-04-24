@@ -72,6 +72,7 @@ class Boundary(object):
 
         self.geometry = geometry
 
+    @property
     def envelope(self):
         """Calculate the bounding axis-aligned envelope which entirely contains this boundary.
         
@@ -203,7 +204,7 @@ class Envelope(object):
 
         """
         return boundary_from_envelope(self). \
-            transform_to(other_spatial_reference, src_seg_len, dst_seg_len).envelope()
+            transform_to(other_spatial_reference, src_seg_len, dst_seg_len).envelope
 
     def __repr__(self):
         return 'Envelope(%f,%f,%f,%f)' % (self.left, self.right, self.top, self.bottom)
