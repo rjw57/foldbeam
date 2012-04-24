@@ -50,17 +50,45 @@ class InputPad(Pad):
 
     .. py:data:: source
 
-        A strong reference to the pad this pad is connected to or :py:const:`None` if this pad is connected to no other pad.
+        A strong reference to the pad this pad is connected to or :py:const:`None` if this pad is connected to no other
+        pad. Setting this attribute is equivalent to calling the :py:meth:`connect` method.
+
+    .. py:data:: connected
+
+        A :py:class:`pynotify.Signal` which is emitted when this input is connected to a source :py:class:`OutputPad`.
+        A signal handler should be a callable which takes a reference to the pad which emitted this value. For example::
+
+            def pad_connected_cb(pad):
+                print("Pad %s connected to %s." % (pad, pad.source))
+
+            # ... pad is the InputPad we're interested in
+            pad.connected.connect(pad_connected_cb)
+
+        See also the :py:meth:`connect` method.
+
+    .. py:data:: will_disconnect
+
+        A :py:class:`pynotify.Signal` which is emitted when this input is about to be disconnected from either a source
+        :py:class:`OutputPad` or :py:const`None` (signifying it wasn't connected in the first place). See
+        :py:attr:`connected`.
 
     """
 
     def __init__(self, type_, container, name):
         super(InputPad, self).__init__(type_, container, name)
+        self.will_disconnect = Signal()
+        self.connected = Signal()
         self._source = None
 
     @property
     def source(self):
         return self._source()
+
+    @source.setter
+    def source(self, pad):
+        self.will_disconnect(self)
+        self._source = weakref.ref(pad) if pad is not None else None
+        self.connected(self)
 
     def __call__(self, **kwargs):
         if self._source is None:
@@ -77,7 +105,13 @@ class InputPad(Pad):
         return self(**kwargs)
 
     def connect(self, pad=None):
-        self._source = weakref.ref(pad) if pad is not None else None
+        """
+        Connect this pad to an :py:class:`OutputPad`. This will trigger the :py:attr:`will_disconnect` signal before
+        disconnecting and will trigger the :py:attr:`connected` after connecting. Note that connecting the pad to
+        :py:const:`None` is the way to signal a pad is disconnected.
+
+        """
+        self.source = pad
 
 class OutputPad(Pad):
     """A pad which can act as an output to a node. An :py:class:`InputPad` can be connected to an :py:class:`OutputPad`
