@@ -314,7 +314,7 @@ pad. Setting this attribute is equivalent to calling the <a class="reference int
 <dl class="data">
 <dt id="foldbeam.graph.InputPad.connected">
 <tt class="descname">connected</tt><a class="headerlink" href="#foldbeam.graph.InputPad.connected" title="Permalink to this definition">¶</a></dt>
-<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">pynotify.Signal</span></tt> which is emitted when this input is connected to a source <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>.
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">notify.Signal</span></tt> which is emitted when this input is connected to a source <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>.
 A signal handler should be a callable which takes a reference to the pad which emitted this value. For example:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">pad_connected_cb</span><span class="p">(</span><span class="n">pad</span><span class="p">):</span>
     <span class="k">print</span><span class="p">(</span><span class="s">&quot;Pad </span><span class="si">%s</span><span class="s"> connected to </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="o">.</span><span class="n">source</span><span class="p">))</span>
@@ -329,7 +329,7 @@ A signal handler should be a callable which takes a reference to the pad which e
 <dl class="data">
 <dt id="foldbeam.graph.InputPad.will_disconnect">
 <tt class="descname">will_disconnect</tt><a class="headerlink" href="#foldbeam.graph.InputPad.will_disconnect" title="Permalink to this definition">¶</a></dt>
-<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">pynotify.Signal</span></tt> which is emitted when this input is about to be disconnected from either a source
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">notify.Signal</span></tt> which is emitted when this input is about to be disconnected from either a source
 <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a> or :py:const`None` (signifying it wasn&#8217;t connected in the first place). See
 <a class="reference internal" href="#foldbeam.graph.InputPad.connected" title="foldbeam.graph.InputPad.connected"><tt class="xref py py-attr docutils literal"><span class="pre">connected</span></tt></a>.</p>
 </dd></dl>
@@ -337,7 +337,7 @@ A signal handler should be a callable which takes a reference to the pad which e
 <dl class="data">
 <dt id="foldbeam.graph.InputPad.damaged">
 <tt class="descname">damaged</tt><a class="headerlink" href="#foldbeam.graph.InputPad.damaged" title="Permalink to this definition">¶</a></dt>
-<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">pynotify.Signal</span></tt> which is triggered when the equivalent <a class="reference internal" href="#foldbeam.graph.OutputPad.damaged" title="foldbeam.graph.OutputPad.damaged"><tt class="xref py py-attr docutils literal"><span class="pre">OutputPad.damaged</span></tt></a> signal is
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">notify.Signal</span></tt> which is triggered when the equivalent <a class="reference internal" href="#foldbeam.graph.OutputPad.damaged" title="foldbeam.graph.OutputPad.damaged"><tt class="xref py py-attr docutils literal"><span class="pre">OutputPad.damaged</span></tt></a> signal is
 triggered on the source.</p>
 </dd></dl>
 
@@ -373,6 +373,27 @@ class contains functionality common to all nodes.</p>
 <dt id="foldbeam.graph.Node.subnodes">
 <tt class="descname">subnodes</tt><a class="headerlink" href="#foldbeam.graph.Node.subnodes" title="Permalink to this definition">¶</a></dt>
 <dd><p>A sequence of sub-nodes which exist within this node and are used to generate its output.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.Node.input_pad_added">
+<tt class="descname">input_pad_added</tt><a class="headerlink" href="#foldbeam.graph.Node.input_pad_added" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">notify.Signal</span></tt> which is emitted whenever a node gains an input pad. The first argument to the
+signal handler is the pad which has been added.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.Node.output_pad_added">
+<tt class="descname">output_pad_added</tt><a class="headerlink" href="#foldbeam.graph.Node.output_pad_added" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">notify.Signal</span></tt> which is emitted whenever a node gains an output pad. The first argument to the
+signal handler is the pad which has been added.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.Node.pad_name">
+<tt class="descname">pad_name</tt><a class="headerlink" href="#foldbeam.graph.Node.pad_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>The values of input and output pads can be accessed using the name of the pad as an attribute. If there is an
+input pad with the attribute name, its value will be returned. Next the output pads will be searched.</p>
 </dd></dl>
 
 <dl class="method">
