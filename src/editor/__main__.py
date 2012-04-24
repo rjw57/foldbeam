@@ -42,8 +42,8 @@ class Application:
             end.connect_to(start)
 
     def _on_edge_removed(self, graph, edge):
-        start = edge.get_property('start-pad')
-        # end = edge.get_property('end-pad')
+        #start = edge.get_property('start-pad')
+        end = edge.get_property('end-pad')
         if hasattr(end, 'connect_to'):
             end.connect_to(None)
 

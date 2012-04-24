@@ -39,10 +39,6 @@ class PadModel(graphcanvas.PadModel):
 gobject.type_register(PadModel)
 
 class FoldbeamNodeModel(graphcanvas.NodeModel):
-    __gsignals__ = {
-        'contents-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, []),
-    }
-
     def __init__(self, node=None, *args, **kwargs):
         graphcanvas.NodeModel.__init__(self, *args, **kwargs)
         self.node = node
@@ -52,9 +48,17 @@ class FoldbeamNodeModel(graphcanvas.NodeModel):
         self._output_pads = [ PadModel(self, v, type=graphcanvas.OUTPUT, label=k) for k,v in self.node.outputs.iteritems() ]
         self._input_pads = [ PadModel(self, v, type=graphcanvas.INPUT, label=k) for k,v in self.node.inputs.iteritems() ]
 
-    def contents_changed(self):
-        self.emit('contents-changed')
-    
+        self.node.input_pad_added.connect(self._input_pad_added)
+        self.node.output_pad_added.connect(self._output_pad_added)
+
+    def _input_pad_added(self, pad):
+        self._input_pads.append(PadModel(self, pad, type=graphcanvas.INPUT, label=pad.name))
+        self.pads_changed()
+
+    def _output_pad_added(self, pad):
+        self._output_pads.append(PadModel(self, pad, type=graphcanvas.OUTPUT, label=pad.name))
+        self.pads_changed()
+
     ## pad query methods
     def get_n_output_pads(self):
         return len(self._output_pads)

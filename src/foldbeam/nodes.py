@@ -46,12 +46,7 @@ class LayerRasterNode(graph.Node):
         self.outputs.output.damaged(boundary)
 
     def _render(self, envelope, size):
-        opacities = [
-            self.inputs.bottom_opacity(),
-            self.inputs.top_opacity(),
-        ]
-        opacities = [x if x is not None else 1.0 for x in opacities]
-
+        opacities = [x if x is not None else 1.0 for x in [self.bottom_opacity, self.top_opacity]]
         layers = [
             self.inputs.bottom(envelope=envelope, size=size),
             self.inputs.top(envelope=envelope, size=size),
@@ -236,10 +231,13 @@ class GDALDatasetRasterNode(graph.Node):
 class TileStacheNode(graph.Node):
     def __init__(self, config_file=None):
         super(TileStacheNode, self).__init__()
-
         self.add_input('config_file', str, config_file)
+        self.inputs.config_file.damaged.connect(self._config_updated)
+        self._config_updated()
 
-        filename = self.inputs.config_file()
+    def _config_updated(self, *args, **kwargs):
+        print('Config: %s' % (self.config_file,))
+        filename = self.config_file
         self.config = None
         if filename is not None:
             self.config = TileStache.parseConfigfile(filename)

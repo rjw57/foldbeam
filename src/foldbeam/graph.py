@@ -57,7 +57,7 @@ class InputPad(Pad):
 
     .. py:data:: connected
 
-        A :py:class:`pynotify.Signal` which is emitted when this input is connected to a source :py:class:`OutputPad`.
+        A :py:class:`notify.Signal` which is emitted when this input is connected to a source :py:class:`OutputPad`.
         A signal handler should be a callable which takes a reference to the pad which emitted this value. For example::
 
             def pad_connected_cb(pad):
@@ -70,13 +70,13 @@ class InputPad(Pad):
 
     .. py:data:: will_disconnect
 
-        A :py:class:`pynotify.Signal` which is emitted when this input is about to be disconnected from either a source
+        A :py:class:`notify.Signal` which is emitted when this input is about to be disconnected from either a source
         :py:class:`OutputPad` or :py:const`None` (signifying it wasn't connected in the first place). See
         :py:attr:`connected`.
 
     .. py:data:: damaged
 
-        A :py:class:`pynotify.Signal` which is triggered when the equivalent :py:attr:`OutputPad.damaged` signal is
+        A :py:class:`notify.Signal` which is triggered when the equivalent :py:attr:`OutputPad.damaged` signal is
         triggered on the source.
 
     """
@@ -224,6 +224,16 @@ class Node(object):
 
         A sequence of sub-nodes which exist within this node and are used to generate its output.
 
+    .. py:data:: input_pad_added
+
+        A :py:class:`notify.Signal` which is emitted whenever a node gains an input pad. The first argument to the
+        signal handler is the pad which has been added.
+
+    .. py:data:: output_pad_added
+
+        A :py:class:`notify.Signal` which is emitted whenever a node gains an output pad. The first argument to the
+        signal handler is the pad which has been added.
+
     .. py:data:: pad_name
 
         The values of input and output pads can be accessed using the name of the pad as an attribute. If there is an
@@ -233,7 +243,9 @@ class Node(object):
 
     def __init__(self):
         self.inputs = PadCollection()
+        self.input_pad_added = Signal()
         self.outputs = PadCollection()
+        self.output_pad_added = Signal()
         self.subnodes = []
 
     def add_subnode(self, node):
@@ -264,6 +276,7 @@ class Node(object):
         if default is not None:
             const_node = self.add_subnode(ConstantNode(type_, default))
             connect(const_node.outputs['value'], self.inputs[name])
+        self.input_pad_added(self.inputs[name])
 
     def add_output(self, name, type_, pad_cb):
         """
@@ -275,6 +288,7 @@ class Node(object):
         """
         assert name not in self.outputs
         self.outputs[name] = OutputPad(type_, self, name, pad_cb)
+        self.output_pad_added(self.outputs[name])
 
     def __getattr__(self, name):
         if name in self.inputs:
