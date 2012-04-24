@@ -307,7 +307,39 @@ collected.</p>
 <dl class="data">
 <dt id="foldbeam.graph.InputPad.source">
 <tt class="descname">source</tt><a class="headerlink" href="#foldbeam.graph.InputPad.source" title="Permalink to this definition">¶</a></dt>
-<dd><p>A strong reference to the pad this pad is connected to or <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> if this pad is connected to no other pad.</p>
+<dd><p>A strong reference to the pad this pad is connected to or <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> if this pad is connected to no other
+pad. Setting this attribute is equivalent to calling the <a class="reference internal" href="#foldbeam.graph.connect" title="foldbeam.graph.connect"><tt class="xref py py-meth docutils literal"><span class="pre">connect()</span></tt></a> method.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.InputPad.connected">
+<tt class="descname">connected</tt><a class="headerlink" href="#foldbeam.graph.InputPad.connected" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">pynotify.Signal</span></tt> which is emitted when this input is connected to a source <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>.
+A signal handler should be a callable which takes a reference to the pad which emitted this value. For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">pad_connected_cb</span><span class="p">(</span><span class="n">pad</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Pad </span><span class="si">%s</span><span class="s"> connected to </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="o">.</span><span class="n">source</span><span class="p">))</span>
+
+<span class="c"># ... pad is the InputPad we&#39;re interested in</span>
+<span class="n">pad</span><span class="o">.</span><span class="n">connected</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pad_connected_cb</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See also the <a class="reference internal" href="#foldbeam.graph.connect" title="foldbeam.graph.connect"><tt class="xref py py-meth docutils literal"><span class="pre">connect()</span></tt></a> method.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="foldbeam.graph.InputPad.will_disconnect">
+<tt class="descname">will_disconnect</tt><a class="headerlink" href="#foldbeam.graph.InputPad.will_disconnect" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">pynotify.Signal</span></tt> which is emitted when this input is about to be disconnected from either a source
+<a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a> or :py:const`None` (signifying it wasn&#8217;t connected in the first place). See
+<a class="reference internal" href="#foldbeam.graph.InputPad.connected" title="foldbeam.graph.InputPad.connected"><tt class="xref py py-attr docutils literal"><span class="pre">connected</span></tt></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="foldbeam.graph.InputPad.connect">
+<tt class="descname">connect</tt><big>(</big><em>pad=None</em><big>)</big><a class="headerlink" href="#foldbeam.graph.InputPad.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Connect this pad to an <a class="reference internal" href="#foldbeam.graph.OutputPad" title="foldbeam.graph.OutputPad"><tt class="xref py py-class docutils literal"><span class="pre">OutputPad</span></tt></a>. This will trigger the <a class="reference internal" href="#foldbeam.graph.InputPad.will_disconnect" title="foldbeam.graph.InputPad.will_disconnect"><tt class="xref py py-attr docutils literal"><span class="pre">will_disconnect</span></tt></a> signal before
+disconnecting and will trigger the <a class="reference internal" href="#foldbeam.graph.InputPad.connected" title="foldbeam.graph.InputPad.connected"><tt class="xref py py-attr docutils literal"><span class="pre">connected</span></tt></a> after connecting. Note that connecting the pad to
+<tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> is the way to signal a pad is disconnected.</p>
 </dd></dl>
 
 </dd></dl>
