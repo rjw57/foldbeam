@@ -5,7 +5,6 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
-
 version = '0.1'
 
 install_requires = [
@@ -19,7 +18,7 @@ install_requires = [
     'numpy',
     'pyproj',
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
-    'tornado',
+    'twisted',
 ]
 
 
