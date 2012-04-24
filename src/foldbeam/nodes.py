@@ -35,9 +35,9 @@ class LayerRasterNode(graph.Node):
         super(LayerRasterNode, self).__init__()
         self.add_output('output', graph.RasterType, self._render)
         self.add_input('top', graph.RasterType, top)
-        self.add_input('top_opacity', graph.FloatType, top_opacity if top_opacity is not None else 1)
+        self.add_input('top_opacity', graph.FloatType, top_opacity)
         self.add_input('bottom', graph.RasterType, top)
-        self.add_input('bottom_opacity', graph.FloatType, bottom_opacity if bottom_opacity is not None else 1)
+        self.add_input('bottom_opacity', graph.FloatType, bottom_opacity)
 
         for input_pad in self.inputs.values():
             input_pad.damaged.connect(self._inputs_damaged)
@@ -50,7 +50,6 @@ class LayerRasterNode(graph.Node):
             self.inputs.bottom_opacity(),
             self.inputs.top_opacity(),
         ]
-
         opacities = [x if x is not None else 1.0 for x in opacities]
 
         layers = [
@@ -146,10 +145,6 @@ class GDALDatasetRasterNode(graph.Node):
             connect(ds_node.outputs.dataset, self.inputs.dataset)
 
         self.add_output('output', graph.RasterType, self._render_reprojected)
-
-    @property
-    def dataset(self):
-        return self.inputs.dataset()
 
     def _to_rgba(self, array):
         rgba = core.to_rgba_unknown(array)
@@ -256,13 +251,8 @@ class TileStacheNode(graph.Node):
 
 @node
 class TileStacheRasterNode(graph.Node):
-    @property
-    def layer(self):
-        return self.inputs.layer()
-
     def __init__(self, layer=None):
         super(TileStacheRasterNode, self).__init__()
-
         self.add_input('layer', TileStache.Core.Layer, layer)
         self.add_output('output', graph.RasterType, pads.TiledRasterFilter(self._render, tile_size=256))
 

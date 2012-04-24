@@ -224,6 +224,11 @@ class Node(object):
 
         A sequence of sub-nodes which exist within this node and are used to generate its output.
 
+    .. py:data:: pad_name
+
+        The values of input and output pads can be accessed using the name of the pad as an attribute. If there is an
+        input pad with the attribute name, its value will be returned. Next the output pads will be searched.
+
     """
 
     def __init__(self):
@@ -270,6 +275,13 @@ class Node(object):
         """
         assert name not in self.outputs
         self.outputs[name] = OutputPad(type_, self, name, pad_cb)
+
+    def __getattr__(self, name):
+        if name in self.inputs:
+            return self.inputs[name]()
+        elif name in self.outputs:
+            return self.outputs[name]()
+        raise AttributeError(name)
 
 def can_connect(src_pad, dst_pad):
     """
@@ -319,7 +331,7 @@ def connect(src_pad, dst_pad):
 class ConstantNode(Node):
     def __init__(self, type_, value=None):
         super(ConstantNode, self).__init__()
-        self._value = None
+        self._value = value
         self.add_output('value', type_, lambda: self.value)
 
     @property
