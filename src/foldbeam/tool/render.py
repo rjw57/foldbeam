@@ -1,6 +1,6 @@
 import argparse
 import TileStache
-from foldbeam import nodes, core, graph, pads
+from foldbeam import core, graph, raster
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 import sys
@@ -81,10 +81,11 @@ def run(args):
         ew, eh = map(abs, envelope.offset())
         args.width = max(1, int(args.height * ew / eh))
 
-    node = nodes.TileStacheRasterNode(config.layers['aerial' if args.aerial else 'osm'])
+    node = raster.TileStacheSource(config=config)
     size = (args.width, args.height)
-    raster = node.outputs.output(envelope=envelope, size=size)
-    raster.write_tiff(args.output)
+    output_pad = node.outputs['aerial' if args.aerial else 'osm']
+    output = output_pad(envelope=envelope, size=size)
+    output.write_tiff(args.output)
 
 if __name__ == '__main__':
     main()

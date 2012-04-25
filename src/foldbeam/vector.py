@@ -1,4 +1,12 @@
-from . import core, graph, pads
+"""
+Handling vector data
+====================
+
+This module is very incomplete.
+
+"""
+
+from foldbeam import core, graph, raster
 import cairo
 import math
 import numpy as np
@@ -7,12 +15,9 @@ from osgeo import ogr
 class OgrDataSourceNode(graph.Node):
     def __init__(self, filename=None):
         super(OgrDataSourceNode, self).__init__()
-        self.add_output('data_source', pads.CallableOutputPad(ogr.DataSource, lambda: self.data_source))
-        self.add_input('filename', pads.InputPad(str))
+        self.add_output('data_source', ogr.DataSource, lambda: self.data_source)
+        self.add_input('filename', str, filename)
         self._data_source = None
-
-        if filename is not None:
-            self.inputs.filename.connect(pads.ConstantOutputPad(str, str(filename)))
 
     @property
     def filename(self):
@@ -32,21 +37,14 @@ class OgrDataSourceNode(graph.Node):
 class VectorRendererNode(graph.Node):
     def __init__(self, sql=None, filename=None, pen_rgba=None):
         super(VectorRendererNode, self).__init__()
-        self.add_output('output', pads.CallableOutputPad(graph.RasterType, self._render))
-        self.add_input('sql', pads.InputPad(str))
-        self.add_input('data_source', pads.InputPad(ogr.DataSource))
-        self.add_input('pen_rgba', pads.InputPad(list))
-
-        if sql is not None:
-            self.inputs.sql.connect(pads.ConstantOutputPad(str, str(sql)))
-
-        if pen_rgba is not None:
-            self.inputs.pen_rgba.connect(pads.ConstantOutputPad(list, list(pen_rgba)))
+        self.add_output('output', raster.Raster, self._render)
+        self.add_input('sql', str, sql)
+        self.add_input('data_source', ogr.DataSource)
+        self.add_input('pen_rgba', list, pen_rgba)
 
         if filename is not None:
-            source = OgrDataSourceNode(filename)
-            self.add_subnode(source)
-            self.inputs.data_source.connect(source.outputs.data_source)
+            source = self.add_subnode(OgrDataSourceNode(filename))
+            graph.connect(source.outputs.data_source, self.inputs.data_source)
 
     @property
     def pen_rgba(self):
@@ -107,14 +105,14 @@ class VectorRendererNode(graph.Node):
 
         surface.flush()
         surface_array = np.frombuffer(surface.get_data(), dtype=np.uint8).reshape((size[1], size[0], 4), order='C')
-        output = core.Raster(
+        output = raster.Raster(
             surface_array, envelope,
-            to_rgba=core.RgbaFromBands(
+            to_rgba=raster.RgbaFromBands(
             (
-                (core.RgbaFromBands.BLUE,   1.0/255.0),
-                (core.RgbaFromBands.GREEN,  1.0/255.0),
-                (core.RgbaFromBands.RED,    1.0/255.0),
-                (core.RgbaFromBands.ALPHA,  1.0/255.0),
+                (raster.RgbaFromBands.BLUE,   1.0/255.0),
+                (raster.RgbaFromBands.GREEN,  1.0/255.0),
+                (raster.RgbaFromBands.RED,    1.0/255.0),
+                (raster.RgbaFromBands.ALPHA,  1.0/255.0),
             ), True)
         )
 

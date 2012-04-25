@@ -3,8 +3,7 @@ import colorsys
 import json
 from foldbeam.pipeline import Pipeline
 from foldbeam.core import Envelope
-from foldbeam.graph import Node, Pad
-from foldbeam.pads import ConstantOutputPad
+from foldbeam.graph import Node, Pad, ConstantNode
 from osgeo import osr
 import os
 import sys
@@ -26,6 +25,7 @@ def random_color():
 def pipeline_to_dot(seed_nodes, output_pad, output):
     output.write('''
 digraph g {
+ranksep = "1"
 graph [
     rankdir = "LR"
 ];
@@ -38,21 +38,30 @@ node [
     nodes = { }
     pads = { }
     type_colors = { }
+    enclosing_nodes = { }
 
     # A function to output a node (or subnode)
-    def output_node(node, name, nodes, pads):
-        node_name = 'node_%i' % (len(nodes),)
-        output.write('subgraph cluster_node_%s {\n' % (node_name,))
-        output.write('    style = "filled";\n')
-        output.write('    fillcolor = "#f8f8f8";\n')
-        output.write('    shape = "rectangle";\n')
-        output.write('label = "%s"\n' % (name,))
+    def output_node(node, name, nodes, pads, enclosing_nodes, current_nodes):
+        node_name = 'node_%i' % (len(nodes)+1,)
+        cluster_name = 'cluster_node_%s' % (node_name,)
+        new_nodes = current_nodes + [node_name,]
+        enclosing_nodes[node_name] = new_nodes
+
+
+        if not isinstance(node, ConstantNode):
+            output.write('subgraph %s {\n' % (cluster_name,))
+            output.write('    style = "filled";\n')
+            output.write('    fillcolor = "#f8f8f8";\n')
+            output.write('    shape = "rectangle";\n')
+            output.write('label = "%s"\n' % (name,))
 
         output.write('"%s" [\n' % (node_name,))
         output.write('''label = <
-<TABLE BGCOLOR="white" CELLSPACING="0" CELLBORDER="1" BORDER="0">
-    <TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>
-        ''' % dict(name=escape(name), type=escape(node.__class__.__name__)))
+<TABLE BGCOLOR="white" CELLSPACING="0" CELLBORDER="1" BORDER="0">''')
+
+        if not isinstance(node, ConstantNode):
+            output.write('''<TR><TD  BGCOLOR="#eeeeee" PORT="_type"><B>%(type)s</B></TD></TR>''' \
+                    % dict(name=escape(name), type=escape(node.__class__.__name__)))
 
         outputs = node.outputs.items()
         inputs = node.inputs.items()
@@ -62,12 +71,17 @@ node [
                 color = random_color()
                 type_colors[pad.type] = color
 
+            pad_title = escape(pad_name)
+            if isinstance(node, ConstantNode):
+                pad_title = escape(str(node.outputs.value()))
+
             output.write('''
-    <TR><TD PORT="pad_%(pad_name)s" BGCOLOR="%(type_color)s" ALIGN="%(align)s">%(pad_name)s</TD></TR>
+    <TR><TD PORT="pad_%(pad_name)s" BGCOLOR="%(type_color)s" ALIGN="%(align)s">%(pad_title)s</TD></TR>
             ''' % dict(
                 type_color=type_colors[pad.type],
                 pad_name=pad_name,
-                align='LEFT' if pad.direction is Pad.IN else 'RIGHT'))
+                pad_title=pad_title,
+                align='LEFT' if pad_name in node.inputs else 'RIGHT'))
             pads[pad] = ('"%s":%s' % (node_name, 'pad_' + pad_name), node_name)
 
         output.write('</TABLE>\n>\n')
@@ -75,54 +89,32 @@ node [
         output.write(']\n')
         nodes[node] = dict(name=node_name)
 
-        [output_node(x[1], name + '_%i' % x[0], nodes, pads) for x in enumerate(node.subnodes)]
-        output.write('}\n')
+        [output_node(x[1], name + '_sub%i' % (x[0]+1), nodes, pads, enclosing_nodes, new_nodes) for x in enumerate(node.subnodes)]
+        if not isinstance(node, ConstantNode):
+            output.write('}\n')
 
     # Output all nodes
-    [output_node(x[1], x[0], nodes, pads) for x in seed_nodes.iteritems()]
+    [output_node(x[1], x[0], nodes, pads, enclosing_nodes, []) for x in seed_nodes.iteritems()]
 
     for node, record in nodes.iteritems():
         for dst_pad in node.inputs.values():
             src_pad = dst_pad.source
             dst_pad_name, dst_node_name = pads[dst_pad]
 
-            if src_pad not in pads and isinstance(src_pad, ConstantOutputPad):
-                const_node_name = 'constant_%i' % len(pads)
-                output.write('''subgraph cluster_node_%(node_name)s {
-                "%(name)s" [
-                    label = <<TABLE BGCOLOR="%(color)s" CELLSPACING="0" CELLBORDER="1" BORDER="0">
-                    <TR><TD PORT="_value">%(value)s</TD></TR>
-                    </TABLE>>
-                ]
-                }\n''' % dict(
-                    color=type_colors[src_pad.type],
-                    node_name=record['name'],
-                    name=const_node_name,
-                    value=escape(str(src_pad.value))))
-
-                pads[src_pad] = ('"%s":_value' % (const_node_name,), record['name'])
-            elif src_pad not in pads:
+            if src_pad not in pads:
                 continue
 
             src_pad_name, src_node_name = pads[src_pad]
             output.write('%(src)s -> %(dst)s [ ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
-
-    # Add implicit edges to separate out constant nodes
-    for node, record in nodes.iteritems():
-        for dst_pad in node.inputs.values():
-            src_pad = dst_pad.source
-            dst_pad_name, dst_node_name = pads[dst_pad]
-            src_pad_name, src_node_name = pads[src_pad]
-
-            for dst_pad_name, dst_node_name in [x for x in pads.itervalues() if x[1] == dst_node_name]:
-                if src_node_name == dst_node_name:
-                    continue
-                if dst_pad_name == src_pad_name:
-                    continue
-                if not dst_pad_name.startswith('"constant'):
-                    continue
-                output.write('%(src)s -> %(dst)s [ style="invis" ];\n' % dict(src=src_pad_name, dst=dst_pad_name))
-
+#
+#            # Create implicit edges between clusters
+#            src_enclosing = enclosing_nodes[src_node_name]
+#            for node_name in enclosing_nodes[dst_node_name]:
+#                siblings = [x[0] for x in enclosing_nodes.iteritems() if node_name in x[1]]
+#                for sibling in siblings:
+#                    if src_node_name == sibling:
+#                        continue
+#                    output.write('%(src)s -> %(dst)s [ style="invis" ];\n' % dict(src=src_node_name, dst=sibling))
 
     if output_pad in pads:
         output.write('''
@@ -151,9 +143,9 @@ node [
     output.write('}\n')
 
 def main():
-    config = json.load(open('pipeline.json'))
+    config = json.load(open(os.path.join(os.path.dirname(__file__), 'pipeline.json')))
     pipeline = Pipeline(config)
-    pipeline_to_dot(pipeline.nodes, pipeline.output, open('pipeline.dot', 'w'))
+    pipeline_to_dot(pipeline.nodes, pipeline.outputs.values()[0], open('pipeline.dot', 'w'))
 
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(27700) # British National Grid
@@ -164,7 +156,7 @@ def main():
 
     w = 852
     size = map(int, (w, w/proj_aspect))
-    output = pipeline.output(envelope=envelope, size=size)
+    output = pipeline.outputs.values()[0](envelope=envelope, size=size)
     if output is None:
         print('No output generated')
         return

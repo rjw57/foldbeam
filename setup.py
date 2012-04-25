@@ -5,7 +5,6 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
-
 version = '0.1'
 
 install_requires = [
@@ -19,6 +18,7 @@ install_requires = [
     'numpy',
     'pyproj',
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
+    'twisted',
     'pyopencl',
 ]
 
@@ -40,6 +40,10 @@ setup(name='foldbeam',
     zip_safe=False,
     install_requires=install_requires,
     entry_points={
-        'console_scripts': ['foldbeam=foldbeam:main', 'foldbeam-render=foldbeam.tool.render:main']
+        'console_scripts': [
+            'foldbeam=foldbeam.editor.app:main',
+            'foldbeam-render=foldbeam.tool.render:main',
+            'foldbeam-pipeline-to-dot=foldbeam.pipeline:pipeline_to_dot_main',
+        ]
     }
 )
