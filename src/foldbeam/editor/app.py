@@ -1,7 +1,7 @@
 import logging
 
 from foldbeam.tilestache import TileStacheServerNode
-from foldbeam.graph import node_classes, FloatType
+from foldbeam.graph import node_classes
 from twisted.internet import gtk2reactor
 gtk2reactor.install()
 
@@ -76,7 +76,7 @@ class Application:
     def _on_add_real_node(self, action):
         x, y = self._popup_location
         node_model = ConstantNodeModel(
-            title = 'Real', type_=FloatType, type_cb=float,
+            title = 'Real', type_=float, type_cb=float,
             color_scheme = 'Plum',
             x = x, y = y,
             radius_x = 6, radius_y = 6,

@@ -362,6 +362,20 @@ class TestTransform(unittest.TestCase):
         dst = raster.Raster(np.ones((10,5)), self.lnglat_env)
         raster.reproject_raster(dst, src)
 
+class TestRasterBasicNodes(unittest.TestCase):
+    def setUp(self):
+        self.bng_srs = SpatialReference()
+        self.bng_srs.ImportFromEPSG(27700) # British national grid
+
+    def test_placeholder(self):
+        ph = raster.PlaceholderRasterSource()
+        self.assertIsNotNone(ph.outputs.output)
+        rv = ph.outputs.output(
+                envelope=core.Envelope(0, 700000, 1300000, 0, self.bng_srs),
+                size=(350, 480))
+        self.assertIsNotNone(rv)
+        rv.write_tiff('placeholder.tiff')
+
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(TestUtility),
@@ -369,4 +383,5 @@ def test_suite():
         unittest.makeSuite(TestBoundary),
         unittest.makeSuite(TestOutputPad),
         unittest.makeSuite(TestTransform),
+        unittest.makeSuite(TestRasterBasicNodes),
     ])

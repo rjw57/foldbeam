@@ -12,6 +12,7 @@ import os
 from ModestMaps.Core import Point, Coordinate
 import numpy as np
 from osgeo import gdal, gdal_array, osr
+from PIL import Image
 import pyproj
 import TileStache
 
@@ -384,9 +385,9 @@ class CompositeOver(graph.Node):
         super(CompositeOver, self).__init__()
         self.add_output('output', Raster, self._render)
         self.add_input('top', Raster, top)
-        self.add_input('top_opacity', graph.FloatType, top_opacity)
+        self.add_input('top_opacity', float, top_opacity)
         self.add_input('bottom', Raster, top)
-        self.add_input('bottom_opacity', graph.FloatType, bottom_opacity)
+        self.add_input('bottom_opacity', float, bottom_opacity)
 
         for input_pad in self.inputs.values():
             input_pad.damaged.connect(self._inputs_damaged)
@@ -518,7 +519,7 @@ class GDALDatasetRasterNode(graph.Node):
 
         return ReprojectingRasterFilter(
                 self.spatial_reference,
-                TiledRasterFilter(self._render, tile_size=256))(**kwargs)
+                TiledRasterFilter(tile_size=256)(self._render))(**kwargs)
 
     def _render(self, envelope, size):
         if self.dataset is None:
@@ -728,66 +729,67 @@ class TileStacheSource(graph.Node):
         return output
 
 class TiledRasterFilter(object):
-    def __init__(self, render_cb, tile_size=None):
-        self.render_cb = render_cb
+    def __init__(self, tile_size=None):
         self.tile_size = tile_size
 
-    def __call__(self, envelope=None, size=None, **kwargs):
-        if envelope is None:
-            return None
-
-        if size is None:
-            size = map(int, envelope.size())
-
-        if self.tile_size is None:
-            raster = self.render_cb(envelope=envelope, size=size, **kwargs)
-            if raster is None or len(raster) == 0 or raster[0] is None:
+    def __call__(self, render_cb):
+        def wrapped(other_self, envelope=None, size=None, **kwargs):
+            if envelope is None:
                 return None
-            return raster[0]
 
-        tiles = []
-        tile_offsets = []
-        xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
-        for x in xrange(0, size[0], self.tile_size):
-            width = min(x + self.tile_size, size[0]) - x
-            for y in xrange(0, size[1], self.tile_size):
-                height = min(y + self.tile_size, size[1]) - y
-                tile_envelope = core.Envelope(
-                        envelope.left + xscale * x,
-                        envelope.left + xscale * (x + width),
-                        envelope.top + yscale * y,
-                        envelope.top + yscale * (y + height),
-                        envelope.spatial_reference,
-                )
-                tiles.append(self.render_cb(envelope=tile_envelope, size=(width, height), **kwargs))
-                tile_offsets.append((x,y))
+            if size is None:
+                size = map(int, envelope.size())
 
-        results = [x for x in zip(tile_offsets, tiles) if x[1] is not None]
-        if len(results) == 0:
-            return None
+            if self.tile_size is None:
+                raster = self.render_cb(other_self, envelope=envelope, size=size, **kwargs)
+                if raster is None or len(raster) == 0 or raster[0] is None:
+                    return None
+                return raster[0]
 
-        # FIXME: This assumes that to_rgba_cb is the same for each tile
-        prototype = results[0][1]
-        depth = prototype.array.shape[2]
+            tiles = []
+            tile_offsets = []
+            xscale, yscale = [x[0] / float(x[1]) for x in zip(envelope.offset(), size)]
+            for x in xrange(0, size[0], self.tile_size):
+                width = min(x + self.tile_size, size[0]) - x
+                for y in xrange(0, size[1], self.tile_size):
+                    height = min(y + self.tile_size, size[1]) - y
+                    tile_envelope = core.Envelope(
+                            envelope.left + xscale * x,
+                            envelope.left + xscale * (x + width),
+                            envelope.top + yscale * y,
+                            envelope.top + yscale * (y + height),
+                            envelope.spatial_reference,
+                    )
+                    tiles.append(render_cb(other_self, envelope=tile_envelope, size=(width, height), **kwargs))
+                    tile_offsets.append((x,y))
 
-        shape = (size[1], size[0])
-        mask = np.ones(shape + (depth,), dtype=np.bool)
-        data = np.zeros(shape + (depth,), dtype=np.float32)
-        for pos, tile in results:
-            x, y = pos
-            h, w = tile.array.shape[:2]
+            results = [x for x in zip(tile_offsets, tiles) if x[1] is not None]
+            if len(results) == 0:
+                return None
 
-            tile_mask = np.ma.getmask(tile.array)
-            if tile_mask is np.ma.nomask:
-                tile_mask = False
+            # FIXME: This assumes that to_rgba_cb is the same for each tile
+            prototype = results[0][1]
+            depth = prototype.array.shape[2]
 
-            mask[y:(y+h), x:(x+w), :] = tile_mask
-            data[y:(y+h), x:(x+w), :] = tile.array
+            shape = (size[1], size[0])
+            mask = np.ones(shape + (depth,), dtype=np.bool)
+            data = np.zeros(shape + (depth,), dtype=np.float32)
+            for pos, tile in results:
+                x, y = pos
+                h, w = tile.array.shape[:2]
 
-        if np.any(mask):
-            data = np.ma.array(data, mask=mask)
+                tile_mask = np.ma.getmask(tile.array)
+                if tile_mask is np.ma.nomask:
+                    tile_mask = False
 
-        return Raster(data, envelope, prototype=prototype)
+                mask[y:(y+h), x:(x+w), :] = tile_mask
+                data[y:(y+h), x:(x+w), :] = tile.array
+
+            if np.any(mask):
+                data = np.ma.array(data, mask=mask)
+
+            return Raster(data, envelope, prototype=prototype)
+        return wrapped
 
 class ReprojectingRasterFilter(object):
     def __init__(self, native_spatial_reference, render_cb):
@@ -846,3 +848,29 @@ class ReprojectingRasterFilter(object):
         mask_band = mask_ds.GetRasterBand(1).GetMaskBand()
 
         return Raster.from_dataset(ds, mask_band=mask_band, prototype=raster)
+
+@graph.node
+class PlaceholderRasterSource(graph.Node):
+    def __init__(self):
+        super(PlaceholderRasterSource, self).__init__()
+        self.add_output('output', Raster, self._render)
+        ph_image = Image.open(os.path.join(os.path.dirname(__file__), 'data', 'placeholder.png'))
+        self._ph_array = np.array(ph_image)
+
+    @TiledRasterFilter(tile_size=256)
+    def _render(self, envelope, size):
+        assert size is not None
+
+        assert size[0] <= 256
+        assert size[1] <= 256
+
+        return Raster(
+            self._ph_array[0:size[1], 0:size[0], :],
+            envelope,
+            to_rgba=RgbaFromBands(
+            (
+                (RgbaFromBands.RED,    1.0/255.0),
+                (RgbaFromBands.GREEN,  1.0/255.0),
+                (RgbaFromBands.BLUE,   1.0/255.0),
+            ), True)
+        )

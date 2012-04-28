@@ -357,14 +357,3 @@ class ConstantNode(Node):
         self._value = v
         self.outputs.value.damaged(None)
 
-class EdgeType(object):
-    def useable_as(self, other_type):
-        return other_type is self
-
-class NamedType(object):
-    @classmethod
-    def get_description(cls):
-        return cls.__name__
-
-class FloatType(NamedType):
-    pass
