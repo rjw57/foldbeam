@@ -1,13 +1,18 @@
+import datetime
+import logging
 import math
 import os
 import unittest
+import sys
 
 import numpy as np
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 from TileStache.Config import buildConfiguration
+import zmq
+from zmq.eventloop.ioloop import IOLoop, ZMQPoller
 
-from foldbeam import core, graph, _gdal
+from foldbeam import core, graph, _gdal, network
 from foldbeam import raster, vector, tilestache
 
 class TestUtility(unittest.TestCase):
@@ -376,7 +381,48 @@ class TestRasterBasicNodes(unittest.TestCase):
         self.assertIsNotNone(rv)
         rv.write_tiff('placeholder.tiff')
 
+class TestNetwork(unittest.TestCase):
+    def setUp(self):
+        io_loop = IOLoop.instance()
+
+        # Add a timeout to terminate the IOLoop if the test takes too long
+        def timeout():
+            logging.warning('Test took too long. Terminating the event loop.')
+            io_loop.stop()
+        io_loop.add_timeout(datetime.timedelta(seconds=5), timeout)
+
+        self.pipeline = network.Pipeline()
+
+    def test_setup_teardown(self):
+        io_loop = IOLoop.instance()
+        io_loop.add_callback(io_loop.stop)
+        io_loop.start()
+
+    def test_create_node(self):
+        io_loop = IOLoop.instance()
+
+        def node_created(node_uuid):
+            logging.info('Node %s created.' % (node_uuid,))
+            io_loop.stop()
+        self.pipeline.node_created.connect(node_created)
+
+        def create_node():
+            self.pipeline.create_node('foldbeam.raster', 'PlaceholderRasterSource')
+        io_loop.add_callback(create_node)
+
+        io_loop.start()
+
+    def tearDown(self):
+        self.pipeline.close()
+        del self.pipeline
+
 def test_suite():
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(stream=sys.stderr)
+    handler.setFormatter(logging.Formatter(fmt='%(name)s:%(levelname)s: %(message)s'))
+    logger.addHandler(handler)
+
     return unittest.TestSuite([
         unittest.makeSuite(TestUtility),
         unittest.makeSuite(TestTileStacheRasterNode),
@@ -384,4 +430,5 @@ def test_suite():
         unittest.makeSuite(TestOutputPad),
         unittest.makeSuite(TestTransform),
         unittest.makeSuite(TestRasterBasicNodes),
+        unittest.makeSuite(TestNetwork),
     ])

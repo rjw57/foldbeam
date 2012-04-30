@@ -15,3 +15,6 @@ Reference
 
 .. automodule:: foldbeam.tilestache
     :members:
+
+.. automodule:: foldbeam.network
+    :members:
