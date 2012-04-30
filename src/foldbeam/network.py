@@ -19,8 +19,9 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 log = logging.getLogger(__name__)
 
-CREATED = 'CREATED'
-DIE     = 'DIE'
+EVERYONE    = '\x00' * 16
+CREATED     = 'CREATED'
+DIE         = 'DIE'
 
 class NodeServerProcess(mp.Process):
     """A process which encapsulates a single node. Each process has a number of zeromq sockets exposed through the
@@ -57,6 +58,7 @@ class NodeServerProcess(mp.Process):
 
         self.sub_socket = context.socket(zmq.SUB)
         self.sub_socket.subscribe = self.node_uuid.bytes
+        self.sub_socket.subscribe = EVERYONE
         self.sub_socket.connect(self.pub_address)
 
         self.io_loop = IOLoop.instance()
@@ -82,7 +84,10 @@ class NodeServerProcess(mp.Process):
         self.status_socket.send_multipart(msg)
 
     def _on_sub_recv(self, msg):
-        if len(msg) < 1 or msg[0] != self.node_uuid.bytes:
+        if len(msg) < 1:
+            self.log.error('Node %s got empty message.' % (self.node_uuid,))
+
+        if msg[0] != self.node_uuid.bytes and msg[0] != EVERYONE:
             self.log.error('Node %s got malformed message: %s' % (self.node_uuid, msg))
 
         msg = msg[1:]
@@ -115,9 +120,8 @@ class Pipeline(object):
         self.status_stream.on_recv(self._on_recv_status)
 
     def close(self):
-        for node_uuid, proc in self.node_processes.iteritems():
-            log.info('Asking node process %i to die' % (proc.pid,))
-            self.pub_socket.send_multipart((node_uuid.bytes, DIE))
+        # Tell everyone to die
+        self.pub_socket.send_multipart((EVERYONE, DIE))
 
         for proc in self.node_processes.itervalues():
             proc.join(1.0)
