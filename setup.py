@@ -19,6 +19,7 @@ install_requires = [
     'pyproj',
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
     'twisted',
+    'pyzmq',
 ]
 
 
