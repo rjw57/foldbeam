@@ -17,11 +17,29 @@ import zmq
 from zmq.eventloop.ioloop import IOLoop, ZMQPoller
 from zmq.eventloop.zmqstream import ZMQStream
 
+from foldbeam import graph
+
 log = logging.getLogger(__name__)
 
 EVERYONE    = '\x00' * 16
 CREATED     = 'CREATED'
 DIE         = 'DIE'
+
+class InputPad(graph.InputPad):
+    """A :py:class:`graph.InputPad` sub-class which can connect to a networked :py:class:`network.OutputPad`. The input
+    pad consists of a SUB socket which listens for damage information from an output pad and a REQ socket which can be
+    used to request data from the output.
+    
+    """
+    pass
+
+class OutputPad(graph.OutputPad):
+    """A :py:class:`graph.OutputPad` sub-class which can connect to a networked :py:class:`network.InputPad`. The output
+    pad consists of a PUB socket which it uses to notify subscribers of damage and a REP socket which listens for
+    incoming requests.
+    
+    """
+    pass
 
 class NodeServerProcess(mp.Process):
     """A process which encapsulates a single node. Each process has a number of zeromq sockets exposed through the
