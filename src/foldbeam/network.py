@@ -79,7 +79,7 @@ class NodeServerProcess(mp.Process):
         self.sub_socket.subscribe = EVERYONE
         self.sub_socket.connect(self.pub_address)
 
-        self.io_loop = IOLoop.instance()
+        self.io_loop = IOLoop(ZMQPoller())
         self.io_loop.add_callback(self._loop_started)
 
         self.sub_stream = ZMQStream(self.sub_socket, self.io_loop)
@@ -157,6 +157,25 @@ class Pipeline(object):
         node_process.daemon = True
         node_process.start()
         self.node_processes[node_uuid] = node_process
+        return node_uuid
+
+    def load_configuration(self, node_dict, edge_dict, ready_cb=None):
+        uuids_yet_to_create = []
+        node_name_uuid_map = {}
+
+        def node_created(node_uuid):
+            if node_uuid in uuids_yet_to_create:
+                uuids_yet_to_create.remove(node_uuid)
+            if len(uuids_yet_to_create) == 0 and ready_cb is not None:
+                self.node_created.disconnect(node_created)
+                ready_cb()
+        self.node_created.connect(node_created)
+
+        for name, spec in node_dict.iteritems():
+            mod_name, class_name = spec['type'].split(':')
+            node_uuid = self.create_node(mod_name, class_name)
+            uuids_yet_to_create.append(node_uuid)
+            node_name_uuid_map[name] = node_uuid
 
     def _on_recv_status(self, msg):
         if len(msg) < 1 or len(msg[0]) != 16:

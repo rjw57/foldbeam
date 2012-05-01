@@ -383,38 +383,65 @@ class TestRasterBasicNodes(unittest.TestCase):
 
 class TestNetwork(unittest.TestCase):
     def setUp(self):
-        io_loop = IOLoop.instance()
+        self.io_loop = IOLoop.instance()
+        self.pipeline = network.Pipeline(io_loop=self.io_loop, context=zmq.Context())
 
         # Add a timeout to terminate the IOLoop if the test takes too long
         def timeout():
             logging.warning('Test took too long. Terminating the event loop.')
-            io_loop.stop()
-        io_loop.add_timeout(datetime.timedelta(seconds=5), timeout)
-
-        self.pipeline = network.Pipeline()
+            self.io_loop.stop()
+        self.io_loop.add_timeout(datetime.timedelta(seconds=5), timeout)
 
     def test_setup_teardown(self):
-        io_loop = IOLoop.instance()
-        io_loop.add_callback(io_loop.stop)
-        io_loop.start()
+        self.io_loop.add_callback(self.io_loop.stop)
+        self.io_loop.start()
 
     def test_create_node(self):
-        io_loop = IOLoop.instance()
+        self.io_loop = IOLoop.instance()
 
         def node_created(node_uuid):
             logging.info('Node %s created.' % (node_uuid,))
-            io_loop.stop()
+            self.io_loop.stop()
         self.pipeline.node_created.connect(node_created)
 
         def create_node():
             self.pipeline.create_node('foldbeam.raster', 'PlaceholderRasterSource')
-        io_loop.add_callback(create_node)
 
-        io_loop.start()
+        self.io_loop.add_callback(create_node)
+        self.io_loop.start()
+
+    def test_load_configuration(self):
+        def pipeline_created():
+            logging.info('Pipeline created.')
+            self.io_loop.stop()
+
+        def node_created(node_uuid):
+            logging.info('Node %s created.' % (node_uuid,))
+            self.io_loop.stop()
+        self.pipeline.node_created.connect(node_created)
+
+        def create_pipeline():
+            logging.info('Creating pipeline')
+
+            nodes = {
+                'source': {
+                    'type': "foldbeam.raster:PlaceholderRasterSource"
+                },
+                'sink': {
+                    'type': "foldbeam.tilestache:TileStacheServerNode"
+                },
+            }
+
+            edges = { }
+            self.pipeline.load_configuration(nodes, edges, pipeline_created)
+
+        self.io_loop.add_callback(create_pipeline)
+        self.io_loop.start()
 
     def tearDown(self):
         self.pipeline.close()
         del self.pipeline
+        del self.io_loop
 
 def test_suite():
     logger = logging.getLogger()
