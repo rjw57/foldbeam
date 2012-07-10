@@ -14,3 +14,4 @@ eggs/
 parts/
 sample-output/tilecache/
 docs/
+venv/*

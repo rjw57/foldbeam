@@ -12,13 +12,13 @@ install_requires = [
     # For more details, see:
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     'gdal',
-    'modestmaps',
-    'py-notify',
-    'tilestache',
+    'geoalchemy',
     'numpy',
     'pyproj',
+    'pyspatialite',
+    'shapely',
+    'sqlalchemy',
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
-    'twisted',
 ]
 
 
@@ -40,9 +40,7 @@ setup(name='foldbeam',
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'foldbeam=foldbeam.editor.app:main',
-            'foldbeam-render=foldbeam.tool.render:main',
-            'foldbeam-pipeline-to-dot=foldbeam.pipeline:pipeline_to_dot_main',
+            'foldbeam=foldbeam:main',
         ]
     }
 )
