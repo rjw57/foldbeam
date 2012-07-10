@@ -42,5 +42,6 @@ setup(name='foldbeam',
         'console_scripts': [
             'foldbeam=foldbeam:main',
         ]
-    }
+    },
+    test_suite='foldbeam.tests',
 )
