@@ -35,7 +35,10 @@ setup(name='foldbeam',
     url='',
     license='Apache 2.0',
     packages=find_packages('src'),
-    package_dir = {'': 'src'},include_package_data=True,
+    package_dir = {'': 'src'},
+    package_data = {
+        'foldbeam': [ 'data/*' ],
+    },
     zip_safe=False,
     install_requires=install_requires,
     entry_points={
