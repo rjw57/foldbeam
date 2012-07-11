@@ -2,7 +2,7 @@ import unittest
 
 import cairo
 
-from foldbeam.core import RendererBase
+from foldbeam.core import RendererBase, set_geo_transform
 
 class TestCore(unittest.TestCase):
     def setUp(self):
@@ -11,6 +11,8 @@ class TestCore(unittest.TestCase):
         self.cr = cairo.Context(self.surface)
         self.cr.set_source_rgba(0,0,0,0)
         self.cr.paint()
+
+        set_geo_transform(self.cr, 49, 51, 2, 1, 400, 200)
 
     def test_render(self):
         renderer = RendererBase()
