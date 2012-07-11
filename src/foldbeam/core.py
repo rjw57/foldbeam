@@ -33,6 +33,12 @@ def set_geo_transform(context, left, right, top, bottom, device_width, device_he
     context.translate(left, bottom)
 
 class RendererBase(object):
+    """The base class for all renderers. A renderer can take a cairo surface and render into it. The surface's
+    user-space co-ordinate system specifies the extent to render. The :py:meth:`render` method optionally takes a
+    spatial reference allowing implicit transformation of the underlying data if necessary.
+    
+    """
+
     def render(self, context, spatial_reference=None):
         """Called to render the object to the specified cairo context.
 
@@ -41,12 +47,12 @@ class RendererBase(object):
 
         The output context's co-ordinate system optionally has a spatial reference associated with it. If this is not
         specified, it is assumed that the 'natural' spatial reference of the renderer object will be used. This is
-        generally a bad idea; unless you know what you're doing always specify the :pyparam:`spatial_reference`
+        generally a bad idea; unless you know what you're doing always specify the :py:obj:`spatial_reference`
         parameter.
 
         :param context: the cairo context to render this object to
         :param spatial_reference: default None, the spatial reference for the context's user co-ordinate system
-        :type spatial_reference: osgeo.osr.SpatialReference
+        :type spatial_reference: osgeo.osr.SpatialReference or None
         """
 
         # Get the user space distance of one output device unit
