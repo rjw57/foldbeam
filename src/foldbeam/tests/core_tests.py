@@ -3,6 +3,7 @@ import unittest
 import cairo
 
 from foldbeam.core import RendererBase, set_geo_transform
+from foldbeam.tests import surface_hash, output_surface
 
 class TestGeoTransform(unittest.TestCase):
     def setUp(self):
@@ -31,4 +32,5 @@ class TestCore(unittest.TestCase):
     def test_render(self):
         renderer = RendererBase()
         renderer.render(self.cr)
-        self.surface.write_to_png('foo.png')
+        output_surface(self.surface, 'renderer_base')
+        self.assertEqual(surface_hash(self.surface), 58499)

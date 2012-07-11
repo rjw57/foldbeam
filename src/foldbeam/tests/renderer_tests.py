@@ -4,6 +4,7 @@ import cairo
 
 from foldbeam.core import set_geo_transform
 from foldbeam.renderer import TileFetcher
+from foldbeam.tests import surface_hash, output_surface
 
 class TestTileFetcher(unittest.TestCase):
     def setUp(self):
@@ -23,5 +24,6 @@ class TestTileFetcher(unittest.TestCase):
     def test_default(self):
         renderer = TileFetcher()
         renderer.render(self.cr)
-        self.surface.write_to_png('tile-fetcher-default.png')
+        output_surface(self.surface, 'tilefetcher_default')
+        self.assertEqual(surface_hash(self.surface), 32199)
 

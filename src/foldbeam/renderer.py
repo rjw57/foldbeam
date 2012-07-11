@@ -133,16 +133,20 @@ class TileFetcher(RendererBase):
                     # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
                     context.get_source().set_extend(cairo.EXTEND_PAD)
 
-                    # fill the tile
+                    # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
+                    # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
+                    context.save()
+                    context.set_antialias(cairo.ANTIALIAS_NONE)
                     context.rectangle(tile_x, tile_y, tile_w, tile_h)
                     context.fill()
+                    context.restore()
 
 
     def _tile_extents(self, tx, ty, zoom):
         """Return a tuple (minx, miny, width, height) giving the extents of a tile in projection co-ords."""
 
         # Calculate size of one tile in projection co-ordinates
-        tile_size = tuple([x / math.pow(2.0, zoom) for x in self.bounds_size])
+        tile_size = tuple([math.pow(2.0, math.log(x,2) - zoom) for x in self.bounds_size])
 
         left = tx * tile_size[0] + self.bounds[0]
         top = self.bounds[2] - ty * tile_size[1]
