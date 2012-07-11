@@ -33,13 +33,20 @@ def set_geo_transform(context, left, right, top, bottom, device_width, device_he
     context.translate(left, bottom)
 
 class RendererBase(object):
-    def render(self, context):
+    def render(self, context, spatial_reference=None):
         """Called to render the object to the specified cairo context.
 
         The user co-ordinates of the cairo context are respected. If you want to render a specific portion of the image,
         translate and scale the user co-ordinate system appropriately.
 
+        The output context's co-ordinate system optionally has a spatial reference associated with it. If this is not
+        specified, it is assumed that the 'natural' spatial reference of the renderer object will be used. This is
+        generally a bad idea; unless you know what you're doing always specify the :pyparam:`spatial_reference`
+        parameter.
+
         :param context: the cairo context to render this object to
+        :param spatial_reference: default None, the spatial reference for the context's user co-ordinate system
+        :type spatial_reference: osgeo.osr.SpatialReference
         """
 
         # Get the user space distance of one output device unit
