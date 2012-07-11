@@ -20,6 +20,9 @@ def set_geo_transform(context, left, right, top, bottom, device_width, device_he
     with the desired top, left, bottom and right co-ordinates corresponding to the rectangular extent of a surface will
     append the appropriate transformation matrix to the cairo context.
 
+    If the top-left of the context was (0,0) and the bottom right was (device_width, device_height), after this the
+    top-left is (left, top) and bottom-right is (right, bottom).
+
     :param context: the cairo context to transform
     :param left: the left co-ordinate
     :param right: the right co-ordinate
@@ -29,8 +32,8 @@ def set_geo_transform(context, left, right, top, bottom, device_width, device_he
     :param device_height: the height of the underlying device
     """
 
-    context.scale(float(device_width) / float(right - left), float(device_height) / float(top - bottom))
-    context.translate(left, bottom)
+    context.scale(float(device_width) / float(right - left), float(device_height) / float(bottom - top))
+    context.translate(-left, -top)
 
 class RendererBase(object):
     """The base class for all renderers. A renderer can take a cairo surface and render into it. The surface's
@@ -56,9 +59,9 @@ class RendererBase(object):
         """
 
         # Get the user space distance of one output device unit
-        placeholder_scale = max(*context.user_to_device_distance(1, 1))
+        placeholder_scale = max(*[abs(x) for x in context.user_to_device_distance(1, 1)])
 
         context.set_source_surface(_get_placeholder_surface())
         context.get_source().set_extend(cairo.EXTEND_REPEAT)
-        context.get_source().set_matrix(cairo.Matrix(placeholder_scale, 0.0, 0.0, placeholder_scale, 0.0, 0.0))
+        context.get_source().set_matrix(cairo.Matrix(xx=placeholder_scale, yy=-placeholder_scale))
         context.paint()
