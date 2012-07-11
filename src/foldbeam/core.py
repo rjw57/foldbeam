@@ -14,6 +14,21 @@ def _get_placeholder_surface():
     return _placeholder_surface
 
 def set_geo_transform(context, left, right, top, bottom, device_width, device_height):
+    """Apply a geo transform to a cairo context.
+
+    This is a convenience function to make it easy to map a desired output extent onto an output surface. Calling this
+    with the desired top, left, bottom and right co-ordinates corresponding to the rectangular extent of a surface will
+    append the appropriate transformation matrix to the cairo context.
+
+    :param context: the cairo context to transform
+    :param left: the left co-ordinate
+    :param right: the right co-ordinate
+    :param top: the top co-ordinate
+    :param bottom: the bottom co-ordinate
+    :param device_width: the width of the underlying device
+    :param device_height: the height of the underlying device
+    """
+
     context.scale(float(device_width) / float(right - left), float(device_height) / float(top - bottom))
     context.translate(left, bottom)
 
