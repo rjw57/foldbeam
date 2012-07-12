@@ -16,3 +16,6 @@ sample-output/tilecache/
 docs/
 venv/*
 test-output/
+
+# The cached tiles from the renderer tests
+src/foldbeam/tests/renderer_tests.py.cache

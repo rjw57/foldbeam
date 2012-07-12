@@ -1,18 +1,19 @@
+import hashlib
 import logging
 import unittest
 
 import cairo
+from filecache import filecache
 
 from foldbeam.core import set_geo_transform
 from foldbeam.renderer import TileFetcher, default_url_fetcher
 from foldbeam.tests import surface_hash, output_surface
 
+@filecache(24*60*60)
 def test_url_fetcher(url):
-    """The default URL fetcher to use in :py:class:`TileFetcher`. If there is an error fetching the URL a URLFetchError
-    is raised.
-
+    """A cached version of the default URL fetcher. This function uses filecache to cache the results for 24 hours.
     """
-    logging.info('Intercepted attempt to load URL: {0}'.format(url))
+    logging.info('Fetching URL: {0}'.format(url))
     return default_url_fetcher(url)
 
 class TestTileFetcher(unittest.TestCase):
