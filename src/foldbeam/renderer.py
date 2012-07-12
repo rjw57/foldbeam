@@ -161,12 +161,12 @@ def reproject_from_native_spatial_reference(f):
         output_dataset = driver.Create('', output_width, output_height, 4, gdal.GDT_Byte)
         assert output_dataset is not None
         output_dataset.SetGeoTransform((
-            target_min_x, output_pixel_size[0], 0.0,
-            target_max_y, 0.0, output_pixel_size[1],
+            target_min_x, abs(output_pixel_size[0]), 0.0,
+            target_max_y, 0.0, -abs(output_pixel_size[1]),
         ))
 
         # project intermediate into output
-        gdal.ReprojectImage(
+        rv = gdal.ReprojectImage(
                 intermediate_dataset, output_dataset,
                 native_spatial_reference.ExportToWkt(), spatial_reference.ExportToWkt(),
                 gdal.GRA_Bilinear
@@ -182,10 +182,10 @@ def reproject_from_native_spatial_reference(f):
         # draw the transformed output to the context
         context.set_source_surface(output_surface)
         context.get_source().set_matrix(cairo.Matrix(
-            xx = 1.0 / output_pixel_size[0],
-            yy = 1.0 / output_pixel_size[1],
-            x0 = -target_min_x / output_pixel_size[0],
-            y0 = -target_max_y / output_pixel_size[1],
+            xx = 1.0 / abs(output_pixel_size[0]),
+            yy = -1.0 / abs(output_pixel_size[1]),
+            x0 = -target_min_x / abs(output_pixel_size[0]),
+            y0 = -target_max_y / -abs(output_pixel_size[1]),
         ))
 
         # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output

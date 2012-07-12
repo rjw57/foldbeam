@@ -92,3 +92,83 @@ class TestTileFetcher(unittest.TestCase):
         output_surface(surface, 'tilefetcher_british_national_grid')
         self.assertEqual(surface_hash(surface)/10, 2050940)
 
+    def test_british_national_grid_upside_down(self):
+        sw = int(671196.3657 - 1393.0196) / 1000
+        sh = int(1230275.0454 - 13494.9764) / 1000
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        cr = cairo.Context(surface)
+
+        # The valid range of the British national grid_upside_down
+        set_geo_transform(cr,
+            1393.0196, 671196.3657, 13494.9764, 1230275.0454,
+            surface.get_width(), surface.get_height()
+        )
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # OSGB 1936
+
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
+        renderer.render(cr, spatial_reference=srs)
+        output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
+        self.assertEqual(surface_hash(surface)/10, 2050940)
+
+    def test_british_national_grid_mirrored(self):
+        sw = int(671196.3657 - 1393.0196) / 1000
+        sh = int(1230275.0454 - 13494.9764) / 1000
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        cr = cairo.Context(surface)
+
+        # The valid range of the British national grid_mirrored
+        set_geo_transform(cr,
+            671196.3657, 1393.0196, 1230275.0454, 13494.9764,
+            surface.get_width(), surface.get_height()
+        )
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # OSGB 1936
+
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
+        renderer.render(cr, spatial_reference=srs)
+        output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
+        self.assertEqual(surface_hash(surface)/10, 2050940)
+
+    def test_british_national_grid_wide(self):
+        sw = 1200
+        sh = 900
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        cr = cairo.Context(surface)
+
+        # The valid range of the British national grid
+        set_geo_transform(cr,
+            -2400000, 2400000, 1800000, -1800000,
+            surface.get_width(), surface.get_height()
+        )
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # OSGB 1936
+
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
+        renderer.render(cr, spatial_reference=srs)
+        output_surface(surface, 'tilefetcher_british_national_grid_wide')
+        self.assertEqual(surface_hash(surface)/10, 2618257)
+
+    def test_british_national_grid_ultra_wide(self):
+        sw = 1200
+        sh = 900
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        cr = cairo.Context(surface)
+
+        # The valid range of the British national grid
+        set_geo_transform(cr,
+            -4800000, 4800000, 3600000, -3600000,
+            surface.get_width(), surface.get_height()
+        )
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # OSGB 1936
+
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
+        renderer.render(cr, spatial_reference=srs)
+        output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
+        self.assertEqual(surface_hash(surface)/10, 2641576)
+
