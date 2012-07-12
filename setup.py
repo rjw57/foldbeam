@@ -16,11 +16,14 @@ install_requires = [
     'gdal',
     'geoalchemy',
     'numpy',
+    'modestmaps',
     'PIL',
     'pyproj',
     'pyspatialite',
     'shapely',
     'sqlalchemy',
+    'tilestache',
+    # 'wsgiutils', # only required for examples
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
 ]
 

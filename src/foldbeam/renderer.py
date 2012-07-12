@@ -117,7 +117,7 @@ def reproject_from_native_spatial_reference(f):
         geom.Segmentize(seg_len)
 
         # compute a rough resolution for the intermediate based on the segment length and clip extents
-        intermediate_size = int(math.ceil(min(
+        intermediate_size = int(math.ceil(max(
             abs(target_max_y - target_min_y) / seg_len, abs(target_max_x - target_min_x) / seg_len
         )))
 
@@ -259,7 +259,7 @@ class TileFetcher(RendererBase):
         ideal_zoom = tuple([math.log(x[0],2) - math.log(x[1],2) for x in zip(self.bounds_size, ideal_tile_size)])
 
         # What zoom will we *actually* use
-        zoom = int(math.floor(min(*ideal_zoom)))
+        zoom = max(0, int(math.floor(min(*ideal_zoom))))
 
         # How many tiles at this zoom level?
         n_tiles = 1<<zoom
@@ -355,3 +355,20 @@ class TileFetcher(RendererBase):
 
         # Map projection co-ords into tile co-ords
         return tuple([x[0] / x[1] for x in zip((px-self.bounds[0], self.bounds[2]-py), tile_size)])
+
+class TileStacheProvider(object):
+    def __init__(self, layer):
+        super(TileStacheProvider, self).__init__()
+        self.renderer = TileFetcher()
+
+    def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
+        spatial_reference = SpatialReference()
+        spatial_reference.ImportFromProj4(srs)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, xmin, xmax, ymax, ymin, width, height)
+        self.renderer.render(cr, spatial_reference=spatial_reference)
+
+        im = Image.frombuffer('RGBA', (width, height), surface.get_data(), 'raw', 'BGRA', 0, 1)
+        return im
