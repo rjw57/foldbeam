@@ -12,6 +12,7 @@ from osgeo import gdal, gdal_array
 from osgeo.ogr import CreateGeometryFromWkt
 from osgeo.osr import SpatialReference
 from PIL import Image
+import TileStache
 
 from foldbeam.core import RendererBase, set_geo_transform
 
@@ -367,8 +368,13 @@ class TileStacheProvider(object):
         self.renderer = TileFetcher()
 
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
-        spatial_reference = SpatialReference()
-        spatial_reference.ImportFromProj4(srs)
+        # HACK to recognise SRS explicitly
+        if srs == TileStache.Geography.SphericalMercator().srs:
+            spatial_reference = SpatialReference()
+            spatial_reference.ImportFromEPSG(3857)
+        else:
+            spatial_reference = SpatialReference()
+            spatial_reference.ImportFromProj4(srs)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         cr = cairo.Context(surface)
