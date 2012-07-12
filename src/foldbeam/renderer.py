@@ -89,7 +89,7 @@ class TileFetcher(RendererBase):
         self._fetch_url = url_fetcher or default_url_fetcher
 
     def render(self, context, spatial_reference=None):
-        if spatial_reference is not None and spatial_reference.IsSame(self.spatial_reference):
+        if spatial_reference is not None and not spatial_reference.IsSame(self.spatial_reference):
             raise ValueError('TileFetcher asked to render tile from incompatible spatial reference.')
 
         # Calculate the distance in projection co-ordinates of one device pixel
