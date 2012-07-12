@@ -33,4 +33,4 @@ class TestCore(unittest.TestCase):
         renderer = RendererBase()
         renderer.render(self.cr)
         output_surface(self.surface, 'renderer_base')
-        self.assertEqual(surface_hash(self.surface), 58499)
+        self.assertEqual(surface_hash(self.surface), 2986593)

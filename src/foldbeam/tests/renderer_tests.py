@@ -39,12 +39,12 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher()
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_default')
-        self.assertEqual(surface_hash(self.surface), 32199)
+        self.assertEqual(surface_hash(self.surface)/10, 782746)
 
     def test_aerial(self):
         self.centre_on_big_ben(1000e3)
         renderer = TileFetcher(url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg')
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial')
-        self.assertEqual(surface_hash(self.surface), 33548)
+        self.assertEqual(surface_hash(self.surface)/10, 722896)
 
