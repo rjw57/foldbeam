@@ -1,3 +1,4 @@
+from functools import wraps
 import math
 import logging
 from urllib2 import urlopen, URLError
@@ -42,6 +43,30 @@ def default_url_fetcher(url):
     except URLError as e:
         raise URLFetchError(e.message)
 
+def reproject_from_native_spatial_reference(f):
+    """Wrap a rendering method by reprojecting rasterised images from a renderer which can handle only one spatial
+    reference.
+
+    The object with the wrapped rendering method *must* have an attribute called :py:attr:`native_spatial_reference`
+    which is an instance of :py:class:`osgeo.osr.SpatialReference` giving the native spatial reference for that renderer.
+
+    """
+
+    @wraps(f)
+    def render(self, context, spatial_reference=None, **kwargs):
+        # Find the native spatial reference
+        native_spatial_reference = self.native_spatial_reference
+        assert(native_spatial_reference is not None)
+
+        # If no spatial reference was specified, or if it matches the native one, just render directly
+        if spatial_reference is None or spatial_reference.IsSame(native_spatial_reference):
+            return f(self, context, native_spatial_reference, **kwargs)
+
+        # If we get here, some spatial reference other than the native was required
+        raise NotImplementedError('reprojection is yet to be implemented')
+
+    return render
+
 class TileFetcher(RendererBase):
     """Render from slippy map tile URLs.
 
@@ -81,15 +106,16 @@ class TileFetcher(RendererBase):
         self.bounds_size = (abs(self.bounds[1] - self.bounds[0]), abs(self.bounds[3] - self.bounds[2]))
 
         if spatial_reference is not None:
-            self.spatial_reference = spatial_reference
+            self.native_spatial_reference = spatial_reference
         else:
-            self.spatial_reference = SpatialReference()
-            self.spatial_reference.ImportFromEPSG(3857)
+            self.native_spatial_reference = SpatialReference()
+            self.native_spatial_reference.ImportFromEPSG(3857)
 
         self._fetch_url = url_fetcher or default_url_fetcher
 
+    @reproject_from_native_spatial_reference
     def render(self, context, spatial_reference=None):
-        if spatial_reference is not None and not spatial_reference.IsSame(self.spatial_reference):
+        if spatial_reference is not None and not spatial_reference.IsSame(self.native_spatial_reference):
             raise ValueError('TileFetcher asked to render tile from incompatible spatial reference.')
 
         # Calculate the distance in projection co-ordinates of one device pixel

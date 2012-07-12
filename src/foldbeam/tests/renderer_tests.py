@@ -4,6 +4,7 @@ import unittest
 
 import cairo
 from filecache import filecache
+from osgeo.osr import SpatialReference
 
 from foldbeam.core import set_geo_transform
 from foldbeam.renderer import TileFetcher, default_url_fetcher
@@ -50,4 +51,19 @@ class TestTileFetcher(unittest.TestCase):
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial')
         self.assertEqual(surface_hash(self.surface)/10, 722896)
+
+    def test_british_national_grid(self):
+        # The valid range of the British national grid
+        set_geo_transform(self.cr,
+            1393.0196, 671196.3657, 1230275.0454, 13494.9764,
+            self.surface.get_width(), self.surface.get_height()
+        )
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # OSGB 1936
+
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
+        renderer.render(self.cr, spatial_reference=srs)
+        output_surface(self.surface, 'tilefetcher_british_national_grid')
+        self.assertEqual(surface_hash(self.surface)/10, 782746)
 
