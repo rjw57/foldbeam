@@ -286,6 +286,10 @@ class TileFetcher(RendererBase):
                     wrapped_x += n_tiles
 
                 for y in range(min_y, max_y+1):
+                    # skip out of range y-tiles
+                    if y < 0 or y >= n_tiles:
+                        continue
+
                     url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
                     future_to_tile[executor.submit(self._fetch_url, url)] = (x,y,url)
 
