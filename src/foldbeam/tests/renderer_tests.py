@@ -73,17 +73,22 @@ class TestTileFetcher(unittest.TestCase):
         self.assertEqual(surface_hash(self.surface)/10, 569772)
 
     def test_british_national_grid(self):
+        sw = int(671196.3657 - 1393.0196) / 1000
+        sh = int(1230275.0454 - 13494.9764) / 1000
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        cr = cairo.Context(surface)
+
         # The valid range of the British national grid
-        set_geo_transform(self.cr,
+        set_geo_transform(cr,
             1393.0196, 671196.3657, 1230275.0454, 13494.9764,
-            self.surface.get_width(), self.surface.get_height()
+            surface.get_width(), surface.get_height()
         )
 
         srs = SpatialReference()
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(self.cr, spatial_reference=srs)
-        output_surface(self.surface, 'tilefetcher_british_national_grid')
-        self.assertEqual(surface_hash(self.surface)/10, 782746)
+        renderer.render(cr, spatial_reference=srs)
+        output_surface(surface, 'tilefetcher_british_national_grid')
+        self.assertEqual(surface_hash(surface)/10, 2050940)
 
