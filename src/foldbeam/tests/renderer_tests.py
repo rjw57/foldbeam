@@ -1,20 +1,19 @@
 import logging
 import unittest
-import urllib2
 
 import cairo
 
-# Intercept urllib2's  urlopen function which is used by TileFetcher so that we can provide output from the cache
-_original_urlopen = urllib2.urlopen
-def _urlopen(url, *args, **kwargs):
-    global _original_urlopen
-    logging.info('Intercepted attempt to load URL: {0}'.format(url))
-    return _original_urlopen(url, *args, **kwargs)
-urllib2.urlopen = _urlopen
-
 from foldbeam.core import set_geo_transform
-from foldbeam.renderer import TileFetcher
+from foldbeam.renderer import TileFetcher, default_url_fetcher
 from foldbeam.tests import surface_hash, output_surface
+
+def test_url_fetcher(url):
+    """The default URL fetcher to use in :py:class:`TileFetcher`. If there is an error fetching the URL a URLFetchError
+    is raised.
+
+    """
+    logging.info('Intercepted attempt to load URL: {0}'.format(url))
+    return default_url_fetcher(url)
 
 class TestTileFetcher(unittest.TestCase):
     def setUp(self):
@@ -36,14 +35,17 @@ class TestTileFetcher(unittest.TestCase):
 
     def test_default(self):
         self.centre_on_big_ben()
-        renderer = TileFetcher()
+        renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_default')
         self.assertEqual(surface_hash(self.surface)/10, 782746)
 
     def test_aerial(self):
         self.centre_on_big_ben(1000e3)
-        renderer = TileFetcher(url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg')
+        renderer = TileFetcher(
+            url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
+            url_fetcher=test_url_fetcher
+        )
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial')
         self.assertEqual(surface_hash(self.surface)/10, 722896)

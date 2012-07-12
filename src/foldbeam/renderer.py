@@ -1,6 +1,6 @@
 import math
 import logging
-from urllib2 import urlopen
+from urllib2 import urlopen, URLError
 import StringIO
 import sys
 
@@ -27,6 +27,21 @@ def _cairo_surface_from_data(data):
 
     return surface
 
+class URLFetchError(Exception):
+    """An error raised by a custom URL fetchber for TileFetcher if the URL could not be fetchbed."""
+    pass
+
+def default_url_fetcher(url):
+    """The default URL fetcher to use in :py:class:`TileFetcher`. If there is an error fetching the URL a URLFetchError
+    is raised.
+
+    """
+    request = urlopen(url, timeout=10)
+    try:
+        return request.read()
+    except URLError as e:
+        raise URLFetchError(e.message)
+
 class TileFetcher(RendererBase):
     """Render from slippy map tile URLs.
 
@@ -39,6 +54,11 @@ class TileFetcher(RendererBase):
 
     The default URL pattern is ``http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg`` which will load tiles
     from the MapQuest servers.
+
+    If the *url_fetcher* parameter is specified, it is a callable which takes a single string giving a URL as the first
+    argument and returns a sequence of bytes for the URL contents. It can raise URLFetchError if the resource is not
+    available. If no fetcher is provided, :py:func:`default_url_fetcher` is used. The fetcher callable must be
+    thread-safe.
     
     :param url_pattern: default is to use MapQuest, a pattern for calculating the URL to load tiles from
     :type url_pattern: string
@@ -48,9 +68,11 @@ class TileFetcher(RendererBase):
     :type tile_size: tuple of integer or None
     :param bounds: default as noted above, the left, right, top and bottom boundary of the projection
     :type bounds: tuple of float or None
+    :param url_fetcher: which callable to use for URL fetching
+    :type url_fetcher: callable or None
     """
 
-    def __init__(self, url_pattern=None, spatial_reference=None, tile_size=None, bounds=None):
+    def __init__(self, url_pattern=None, spatial_reference=None, tile_size=None, bounds=None, url_fetcher=None):
         super(TileFetcher, self).__init__()
         self.url_pattern = url_pattern or 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg'
         self.tile_size = tile_size or (256, 256)
@@ -63,6 +85,8 @@ class TileFetcher(RendererBase):
         else:
             self.spatial_reference = SpatialReference()
             self.spatial_reference.ImportFromEPSG(3857)
+
+        self._fetch_url = url_fetcher or default_url_fetcher
 
     def render(self, context, spatial_reference=None):
         if spatial_reference is not None and spatial_reference.IsSame(self.spatial_reference):
@@ -91,11 +115,6 @@ class TileFetcher(RendererBase):
         min_x, min_y = [min(*x) for x in zip(bl, tr)]
         max_x, max_y = [max(*x) for x in zip(bl, tr)]
 
-        # utility function to load a URL with urlopen
-        def load_url(url, timeout):
-            request = urlopen(url, timeout=timeout)
-            return (request.info().gettype(), request.read())
-
         # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
         with futures.ThreadPoolExecutor(max_workers=10) as executor:
             # kick off requests for the tiles (maximum 4 concurrent requests)
@@ -103,16 +122,20 @@ class TileFetcher(RendererBase):
             for x in range(min_x, max_x+1):
                 for y in range(min_y, max_y+1):
                     url = self.url_pattern.format(x=x, y=y, zoom=zoom)
-                    future_to_tile[executor.submit(load_url, url, 10)] = (x,y,url)
+                    future_to_tile[executor.submit(self._fetch_url, url)] = (x,y,url)
 
             # render the tiles as they come in
             for future in futures.as_completed(future_to_tile):
                 x, y, url = future_to_tile[future]
                 if future.exception():
-                    log.error("error loading '{url}'\n".format(url=url))
+                    import traceback
+                    log.error("error loading '{url}':".format(url=url))
+                    e = future.exception()
+                    for line in traceback.format_exception_only(type(e), e):
+                        log.error('    ' + line)
                 else:
                     # load the tile into a cairo surface
-                    _, data = future.result()
+                    data = future.result()
                     surface = _cairo_surface_from_data(data)
 
                     # what extents should this tile have?
