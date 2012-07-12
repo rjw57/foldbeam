@@ -130,24 +130,32 @@ class TileFetcher(RendererBase):
         # What zoom will we *actually* use
         zoom = int(math.floor(min(*ideal_zoom)))
 
+        # How many tiles at this zoom level?
+        n_tiles = 1<<zoom
+
         # Calculate the tile co-ordinates for the clip area extent
         min_px, min_py, max_px, max_py = context.clip_extents()
 
         # This give tile co-ordinates for the extremal tiles
-        bl = [int(math.floor(x)) for x in self._projection_to_tile(min_px, min_py, zoom)]
-        tr = [int(math.floor(x)) for x in self._projection_to_tile(max_px, max_py, zoom)]
+        tl = [int(math.floor(x)) for x in self._projection_to_tile(min_px, max_py, zoom)]
+        br = [int(math.floor(x)) for x in self._projection_to_tile(max_px, min_py, zoom)]
 
-        # calculate the minimum/maximum x/y co-ordinate for the tiles
-        min_x, min_y = [min(*x) for x in zip(bl, tr)]
-        max_x, max_y = [max(*x) for x in zip(bl, tr)]
+        # extract the minimum/maximum x/y co-ordinate for the tiles
+        min_x, min_y = tl
+        max_x, max_y = br
 
         # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
         with futures.ThreadPoolExecutor(max_workers=10) as executor:
             # kick off requests for the tiles (maximum 4 concurrent requests)
             future_to_tile = {}
             for x in range(min_x, max_x+1):
+                # wrap the x co-ordinate in the number of tiles
+                wrapped_x = x % n_tiles
+                if wrapped_x < 0:
+                    wrapped_x += n_tiles
+
                 for y in range(min_y, max_y+1):
-                    url = self.url_pattern.format(x=x, y=y, zoom=zoom)
+                    url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
                     future_to_tile[executor.submit(self._fetch_url, url)] = (x,y,url)
 
             # render the tiles as they come in

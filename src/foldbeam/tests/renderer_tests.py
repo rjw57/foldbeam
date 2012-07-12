@@ -35,6 +35,15 @@ class TestTileFetcher(unittest.TestCase):
                 cx-0.5*width, cx+0.5*width, cy+0.5*height, cy-0.5*height,
                 self.surface.get_width(), self.surface.get_height())
 
+    def centre_on_hawaii(self, width=500):
+        # The EPSG:3857 co-ordinates of Hawaii
+        cx, cy = (-17565813.6724973172, 2429047.3665894675)
+        height = float(width * self.surface.get_height()) / float(self.surface.get_width())
+        set_geo_transform(
+                self.cr,
+                cx-0.5*width, cx+0.5*width, cy+0.5*height, cy-0.5*height,
+                self.surface.get_width(), self.surface.get_height())
+
     def test_default(self):
         self.centre_on_big_ben()
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
@@ -51,6 +60,17 @@ class TestTileFetcher(unittest.TestCase):
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial')
         self.assertEqual(surface_hash(self.surface)/10, 722896)
+
+    def test_aerial_hawaii(self):
+        # should be a large enough area to wrap over the -180/180 longitude
+        self.centre_on_hawaii(7000e3) # 7000 km
+        renderer = TileFetcher(
+            url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
+            url_fetcher=test_url_fetcher
+        )
+        renderer.render(self.cr)
+        output_surface(self.surface, 'tilefetcher_aerial_hawaii')
+        self.assertEqual(surface_hash(self.surface)/10, 569772)
 
     def test_british_national_grid(self):
         # The valid range of the British national grid
