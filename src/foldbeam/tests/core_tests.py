@@ -17,7 +17,8 @@ class TestGeoTransform(unittest.TestCase):
         self.assertEqual(self.cr.clip_extents(), (49.0, 1.0, 51.0, 2.0))
         renderer = RendererBase()
         renderer.render(self.cr)
-        self.surface.write_to_png('foo.png')
+        output_surface(self.surface, 'geo_transform')
+        self.assertEqual(surface_hash(self.surface), 3127943)
 
 class TestCore(unittest.TestCase):
     def setUp(self):
