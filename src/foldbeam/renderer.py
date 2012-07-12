@@ -97,6 +97,11 @@ def reproject_from_native_spatial_reference(f):
             f(self, context, native_spatial_reference, **kwargs)
             return
 
+        log.info('Reprojecting from native SRS:')
+        log.info(native_spatial_reference.ExportToWkt())
+        log.info('to:')
+        log.info(spatial_reference.ExportToWkt())
+
         # Construct a polygon representing the current clip area's extent
         target_min_x, target_min_y, target_max_x, target_max_y = context.clip_extents()
 
