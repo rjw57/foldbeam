@@ -1,9 +1,15 @@
 import argparse
-import TileStache
-from foldbeam import core, graph, raster
+import logging
+import sys
+
+import cairo
+import httplib2
 from osgeo import gdal
 from osgeo.osr import SpatialReference
-import sys
+
+from foldbeam.renderer import TileFetcher, set_geo_transform
+
+logging.basicConfig(level=logging.WARNING)
 
 parser = argparse.ArgumentParser(description='Generate maps of the world from OpenStreetMaps data')
 parser.add_argument('-o', '--output', metavar='FILENAME', type=str, nargs='?',
@@ -39,53 +45,56 @@ def main(argv=None):
     run(parser.parse_args(argv))
 
 def run(args):
-    if args.cache_dir is None:
-        cache_config = { 'name': 'Test' }
-    else:
-        cache_config = { 'name': 'Disk', 'path': args.cache_dir }
-
-    config = TileStache.Config.buildConfiguration({
-        'cache': cache_config,
-        'layers': {
-            'osm': {
-                'provider': {
-                    'name': 'proxy', 
-                    'url': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{Z}/{X}/{Y}.png',
-                },
-            },
-            'aerial': {
-                'provider': {
-                    'name': 'proxy', 
-                    'url': 'http://oatile1.mqcdn.com/naip/{Z}/{X}/{Y}.jpg',
-                },
-            },
-        },
-    })
-
-    envelope_srs = SpatialReference()
+    srs = SpatialReference()
     if args.epsg is not None:
-        envelope_srs.ImportFromEPSG(args.epsg)
+        srs.ImportFromEPSG(args.epsg)
     elif args.proj is not None:
-        envelope_srs.ImportFromProj4(args.proj)
+        srs.ImportFromProj4(args.proj)
     else:
-        envelope_srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
-    envelope = core.Envelope(args.left*args.units, args.right*args.units, args.top*args.units, args.bottom*args.units, envelope_srs)
+        srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
+
+    left, right, top, bottom = (
+        args.left*args.units,
+        args.right*args.units,
+        args.top*args.units,
+        args.bottom*args.units
+    )
 
     if args.width is None and args.height is None:
         print('error: at least one of height or width must be set')
         sys.exit(1)
     elif args.height is None:
-        ew, eh = map(abs, envelope.offset())
+        ew, eh = (abs(right-left), abs(top-bottom))
         args.height = max(1, int(args.width * eh / ew))
     elif args.width is None:
-        ew, eh = map(abs, envelope.offset())
+        ew, eh = (abs(right-left), abs(top-bottom))
         args.width = max(1, int(args.height * ew / eh))
 
-    node = raster.TileStacheSource(config=config)
     size = (args.width, args.height)
-    output_pad = node.outputs['aerial' if args.aerial else 'osm']
-    output = output_pad(envelope=envelope, size=size)
-    output.write_tiff(args.output)
+
+    url_patterns = {
+        'osm': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg',
+        'aerial': 'http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
+    }
+
+    def url_fetcher(url):
+        http = httplib2.Http(args.cache_dir)
+        rep, content = http.request(url, 'GET')
+        if rep.status != 200:
+            raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason)
+        return content
+
+    renderer = TileFetcher(
+            url_pattern=url_patterns['aerial' if args.aerial else 'osm'],
+            url_fetcher=url_fetcher)
+
+    output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size[0], size[1])
+
+    context = cairo.Context(output_surface)
+    set_geo_transform(context, left, right, top, bottom, size[0], size[1])
+    renderer.render(context, spatial_reference=srs)
+
+    output_surface.write_to_png(args.output)
 
 if __name__ == '__main__':
     main()

@@ -51,6 +51,7 @@ setup(name='foldbeam',
     entry_points={
         'console_scripts': [
             'foldbeam=foldbeam:main',
+            'foldbeam-render=foldbeam.tool.render:main',
         ]
     },
     test_suite='foldbeam.tests',
