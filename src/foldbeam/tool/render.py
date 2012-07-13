@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.WARNING)
 parser = argparse.ArgumentParser(description='Generate maps of the world from OpenStreetMaps data')
 parser.add_argument('-o', '--output', metavar='FILENAME', type=str, nargs='?',
         required=True, dest='output',
-        help='the filename to write the output map in GeoTIFF format')
+        help='the filename to write the output map in PNG format')
 parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
         dest='epsg', help='the target projection\'s number in the EPSG database')
 parser.add_argument('--proj', metavar='PROJ-INITIALISER', type=str, nargs='?',
