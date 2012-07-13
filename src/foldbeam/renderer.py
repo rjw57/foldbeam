@@ -122,7 +122,7 @@ def reproject_from_native_spatial_reference(f):
         geom.Segmentize(seg_len)
 
         # compute a rough resolution for the intermediate based on the segment length and clip extents
-        intermediate_size = int(math.ceil(min(
+        intermediate_size = int(math.ceil(max(
             abs(target_max_y - target_min_y) / seg_len, abs(target_max_x - target_min_x) / seg_len
         )))
 

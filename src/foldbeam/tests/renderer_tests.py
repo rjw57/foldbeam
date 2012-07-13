@@ -93,7 +93,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid')
-        self.assertEqual(surface_hash(surface)/10, 1879583)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_upside_down(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -113,7 +113,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
-        self.assertEqual(surface_hash(surface)/10, 1879583)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_mirrored(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -133,7 +133,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
-        self.assertEqual(surface_hash(surface)/10, 1879583)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_wide(self):
         sw = 1200
@@ -153,7 +153,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_wide')
-        self.assertEqual(surface_hash(surface)/10, 2558175)
+        self.assertEqual(surface_hash(surface)/10, 2480899)
 
     def test_british_national_grid_ultra_wide(self):
         sw = 1200
@@ -173,7 +173,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
-        self.assertEqual(surface_hash(surface)/10, 2648355)
+        self.assertEqual(surface_hash(surface)/10, 2653480)
 
 class TestTileStacheProvider(unittest.TestCase):
     def setUp(self):
