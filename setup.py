@@ -15,6 +15,7 @@ install_requires = [
     'futures',
     'gdal',
     'geoalchemy',
+    'httplib2',
     'numpy',
     'modestmaps',
     'PIL',
