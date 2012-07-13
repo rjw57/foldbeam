@@ -171,7 +171,7 @@ def reproject_from_native_spatial_reference(f):
         ))
 
         # project intermediate into output
-        rv = gdal.ReprojectImage(
+        gdal.ReprojectImage(
                 intermediate_dataset, output_dataset,
                 native_spatial_reference.ExportToWkt(), spatial_reference.ExportToWkt(),
                 gdal.GRA_Bilinear
@@ -233,7 +233,7 @@ class TileFetcher(RendererBase):
     :type url_fetcher: callable or None
     """
 
-    _executor = futures.ProcessPoolExecutor()
+    _executor = futures.ThreadPoolExecutor(max_workers=12)
 
     def __init__(self, url_pattern=None, spatial_reference=None, tile_size=None, bounds=None, url_fetcher=None):
         super(TileFetcher, self).__init__()
