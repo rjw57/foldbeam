@@ -12,6 +12,7 @@ from osgeo.ogr import CreateGeometryFromWkt
 from osgeo.osr import SpatialReference
 from PIL import Image
 import httplib2
+import TileStache
 
 from foldbeam.core import RendererBase, set_geo_transform
 
@@ -372,7 +373,13 @@ class TileStacheProvider(object):
 
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
         spatial_reference = SpatialReference()
-        spatial_reference.ImportFromProj4(srs)
+
+        # this is a special HACK to take account of the fact that the proj4 srs provided by TileStache has the +over
+        # parameter and OGR thinks it is different to EPSG:3857
+        if srs == TileStache.Geography.SphericalMercator.srs:
+            spatial_reference.ImportFromEPSG(3857)
+        else:
+            spatial_reference.ImportFromProj4(srs)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         cr = cairo.Context(surface)
