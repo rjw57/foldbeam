@@ -19,29 +19,30 @@ def url_fetcher(url):
         raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason)
     return content
 
-def main():
-    cache_path = os.path.join(os.path.dirname(__file__), 'cache')
-    config = TileStache.Config.buildConfiguration({
-        'cache': { 'name': 'Disk', 'path': cache_path },
-        'layers': {
-            'test': {
-                'provider': {
-                    'class': 'foldbeam.renderer:TileStacheProvider',
-                    'kwargs': { },
-                },
-#                'projection': 'WGS84',
+cache_path = os.path.join(os.path.dirname(__file__), 'cache')
+config = TileStache.Config.buildConfiguration({
+    'cache': { 'name': 'Disk', 'path': cache_path },
+    'layers': {
+        'test': {
+            'provider': {
+                'class': 'foldbeam.renderer:TileStacheProvider',
+                'kwargs': { },
             },
+#                'projection': 'WGS84',
         },
-    })
+    },
+})
 
-    config.layers['test'].provider.renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
+config.layers['test'].provider.renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
 
-    app = TileStache.WSGITileServer(config)
+app = TileStache.WSGITileServer(config)
 
-    from wsgiutils import wsgiServer
-    print('About to start serving. Try visiting http://localhost:8080/test/')
-    wsgiServer.WSGIServer(('localhost', 8080), {'/': app}).serve_forever()
 
 if __name__ == '__main__':
-    main()
+    print('About to start serving. Try visiting http://localhost:8080/test/')
+    from wsgiutils import wsgiServer
+    wsgiServer.WSGIServer(('localhost', 8080), {'/': app}).serve_forever()
+
+    #from wsgiref import simple_server
+    #simple_server.make_server('localhost', 8080, app).serve_forever()
 
