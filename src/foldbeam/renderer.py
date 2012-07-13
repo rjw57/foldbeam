@@ -43,7 +43,7 @@ def default_url_fetcher(url):
     http = httplib2.Http()
     rep, content = http.request(url, 'GET')
     if rep.status != 200:
-        raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason)
+        raise URLFetchError(str(rep.status) + ' ' + rep.reason)
     return content
 
 class ProjectionError(Exception):
