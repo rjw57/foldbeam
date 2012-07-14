@@ -7,8 +7,12 @@ import cairo
 from filecache import filecache
 from osgeo.osr import SpatialReference
 
+from shapely.geometry import Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon
+from shapely.geometry.polygon import LinearRing
+
 from foldbeam.core import set_geo_transform
-from foldbeam.renderer import TileFetcher, default_url_fetcher, TileStacheProvider
+from foldbeam.geometry import IterableGeometry
+from foldbeam.renderer import TileFetcher, default_url_fetcher, TileStacheProvider, GeometryRenderer
 from foldbeam.tests import surface_hash, output_surface
 
 import TileStache
@@ -204,3 +208,260 @@ class TestTileStacheProvider(unittest.TestCase):
 
         # use the approximate length of output as a measure of entropy
         self.assertEqual(len(output.getvalue())/10, 5212)
+
+class TestGeometryRenderer(unittest.TestCase):
+    def test_default(self):
+        renderer = GeometryRenderer()
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        renderer.render(cr)
+        output_surface(surface, 'geometryrenderer_default')
+        self.assertEqual(surface_hash(surface)/10, 51840)
+
+    def test_points(self):
+        geom = IterableGeometry([
+            Point(0, 0),
+            Point(-180, 0),
+            Point(180, 0),
+            Point(0, 90),
+            Point(0, -90),
+            Point(45, 45),
+            Point(30, 10),
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgb(0,1,0)
+        renderer.fill = True
+        renderer.stroke = False
+        renderer.render(cr, spatial_reference=srs)
+        cr.set_source_rgb(0,0.5,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_points')
+        self.assertEqual(surface_hash(surface)/10, 53324)
+
+    def test_multipoints(self):
+        geom = IterableGeometry([
+            MultiPoint([
+                Point(0, 0),
+                Point(-180, 0),
+                Point(180, 0),
+                Point(0, 90),
+                Point(0, -90),
+                Point(45, 45),
+                Point(30, 10),
+            ])
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgb(0,1,0)
+        renderer.fill = True
+        renderer.stroke = False
+        renderer.render(cr, spatial_reference=srs)
+        cr.set_source_rgb(0,0.5,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_multipoints')
+        self.assertEqual(surface_hash(surface)/10, 53324)
+
+    def test_linestrings(self):
+        geom = IterableGeometry([
+            LineString([
+                (0, 0),
+                (-180, 0),
+                (180, 0),
+                (0, 90),
+            ]),
+            LineString([
+                (0, -90),
+                (45, 45),
+                (30, 10),
+            ]),
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgb(0.8,0,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_linestrings')
+        self.assertEqual(surface_hash(surface)/10, 55420)
+
+    def test_multilinestrings(self):
+        geom = IterableGeometry([
+            MultiLineString([
+                LineString([
+                    (0, 0),
+                    (-180, 0),
+                    (180, 0),
+                    (0, 90),
+                ]),
+                LineString([
+                    (0, -90),
+                    (45, 45),
+                    (30, 10),
+                ]),
+            ])
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgb(0.8,0,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_multilinestrings')
+        self.assertEqual(surface_hash(surface)/10, 55420)
+
+    def test_linearrings(self):
+        geom = IterableGeometry([
+            LinearRing([
+                (0, 0),
+                (-180, 0),
+                (180, 0),
+                (0, 90),
+            ]),
+            LinearRing([
+                (0, -90),
+                (45, 45),
+                (30, 10),
+            ]),
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgb(0.8,0,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_linearrings')
+        self.assertEqual(surface_hash(surface)/10, 55965)
+
+    def test_polygons(self):
+        geom = IterableGeometry([
+            Polygon(LinearRing([
+                (0, 0),
+                (-180, 0),
+                (-180, 80),
+                (20, 10),
+            ])),
+            Polygon(LinearRing([
+                (30,30),
+                (30,80),
+                (100,80),
+                (150,40),
+                (100,30),
+            ]), [
+                LinearRing([
+                    (50, 50),
+                    (60, 70),
+                    (70, 50),
+                ]),
+            ]),
+        ])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgba(0.8,0,0,0.7)
+        renderer.fill = True
+        renderer.stroke = False
+        renderer.render(cr, spatial_reference=srs)
+
+        cr.set_source_rgb(0.3,0,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_polygons')
+        self.assertEqual(surface_hash(surface)/10, 65078)
+
+    def test_multipolygons(self):
+        geom = IterableGeometry([MultiPolygon([
+            Polygon(LinearRing([
+                (0, 0),
+                (-180, 0),
+                (-180, 80),
+                (20, 10),
+            ])),
+            Polygon(LinearRing([
+                (30,30),
+                (30,80),
+                (100,80),
+                (150,40),
+                (100,30),
+            ]), [
+                LinearRing([
+                    (50, 50),
+                    (60, 70),
+                    (70, 50),
+                ]),
+            ]),
+        ])])
+        renderer = GeometryRenderer(geom=geom)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
+        cr = cairo.Context(surface)
+        set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        cr.set_source_rgba(0.8,0,0,0.7)
+        renderer.fill = True
+        renderer.stroke = False
+        renderer.render(cr, spatial_reference=srs)
+
+        cr.set_source_rgb(0.3,0,0)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_multipolygons')
+        self.assertEqual(surface_hash(surface)/10, 65078)
+
