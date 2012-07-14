@@ -136,6 +136,10 @@ class Boundary(object):
         self.geometry = geometry
 
     @property
+    def wkt(self):
+        return self.geometry.ExportToWkt()
+
+    @property
     def envelope(self):
         """Calculate the bounding axis-aligned envelope which entirely contains this boundary.
         

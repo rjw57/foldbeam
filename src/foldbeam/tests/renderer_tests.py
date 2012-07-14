@@ -2,6 +2,11 @@ import hashlib
 import logging
 import StringIO
 import unittest
+import os
+import sys
+
+import pyspatialite
+sys.modules['pysqlite2'] = pyspatialite
 
 import cairo
 from filecache import filecache
@@ -10,12 +15,20 @@ from osgeo.osr import SpatialReference
 from shapely.geometry import Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon
 from shapely.geometry.polygon import LinearRing
 
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+import geoalchemy
+
 from foldbeam.core import set_geo_transform
-from foldbeam.geometry import IterableGeometry
+from foldbeam.geometry import IterableGeometry, GeoAlchemyGeometry
 from foldbeam.renderer import TileFetcher, default_url_fetcher, TileStacheProvider, GeometryRenderer
 from foldbeam.tests import surface_hash, output_surface
 
 import TileStache
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger()
 
 @filecache(24*60*60)
 def test_url_fetcher(url):
@@ -464,4 +477,66 @@ class TestGeometryRenderer(unittest.TestCase):
 
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65078)
+
+class TestOSMGeometry(unittest.TestCase):
+    def test_osm(self):
+        # create an engine for the central cambridge DB
+        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../data/central-cambridge.sqlite'))
+        log.info('Loading DB from ' + db_path)
+        engine = create_engine('sqlite:///' + db_path, echo=True)
+        session = sessionmaker(bind=engine)()
+
+        metadata = MetaData(engine, reflect=True)
+        Base = declarative_base(metadata=metadata)
+
+        class PgLandUse(Base):
+            __tablename__ = 'pg_landuse'
+            __table_args__ = {'autoload': True, 'extend_existing': True}
+            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+        class LnHighway(Base):
+            __tablename__ = 'ln_highway'
+            __table_args__ = {'autoload': True, 'extend_existing': True}
+            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
+
+        land_use = GeoAlchemyGeometry(session.query(PgLandUse), geom_cls=PgLandUse, geom_attr='Geometry')
+        highways = GeoAlchemyGeometry(session.query(LnHighway), geom_cls=LnHighway, geom_attr='Geometry')
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1024, 480)
+        cr = cairo.Context(surface)
+        cx = 0.119
+        cy = 52.205
+        w = 0.005
+        h = float(w * surface.get_height()) / float(surface.get_width())
+        set_geo_transform(cr, cx-w, cx+w, cy+h, cy-h, surface.get_width(), surface.get_height())
+
+        srs = SpatialReference()
+        srs.ImportFromEPSG(4326) # WGS84 lat/long
+
+        base_layer = TileFetcher(
+            url_fetcher=test_url_fetcher
+        )
+        base_layer.render(cr, spatial_reference=srs)
+
+        cr.set_line_width(2.0 * max([abs(x) for x in cr.device_to_user_distance(1,1)]))
+
+        renderer = GeometryRenderer(geom=land_use)
+
+        cr.set_source_rgba(0,0.5,0,0.5)
+        renderer.fill = True
+        renderer.stroke = False
+        renderer.render(cr, spatial_reference=srs)
+
+        cr.set_source_rgba(0,0.5,0,1)
+        renderer.fill = False
+        renderer.stroke = True
+        renderer.render(cr, spatial_reference=srs)
+
+        renderer = GeometryRenderer(geom=highways)
+
+        cr.set_source_rgba(0,0,0.5,1)
+        renderer.render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geoalchemygeometry_osm')
+        self.assertEqual(surface_hash(surface)/10, 1258968)
 
