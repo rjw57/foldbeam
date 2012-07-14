@@ -1,7 +1,6 @@
 from functools import wraps
 import math
 import logging
-from urllib2 import urlopen, URLError
 import StringIO
 import sys
 
@@ -12,6 +11,7 @@ from osgeo import gdal, gdal_array
 from osgeo.ogr import CreateGeometryFromWkt
 from osgeo.osr import SpatialReference
 from PIL import Image
+import httplib2
 import TileStache
 
 from foldbeam.core import RendererBase, set_geo_transform
@@ -35,16 +35,17 @@ class URLFetchError(Exception):
     """An error raised by a custom URL fetchber for TileFetcher if the URL could not be fetchbed."""
     pass
 
+
 def default_url_fetcher(url):
     """The default URL fetcher to use in :py:class:`TileFetcher`. If there is an error fetching the URL a URLFetchError
     is raised.
 
     """
-    request = urlopen(url, timeout=10)
-    try:
-        return request.read()
-    except URLError as e:
-        raise URLFetchError(e.message)
+    http = httplib2.Http()
+    rep, content = http.request(url, 'GET')
+    if rep.status != 200:
+        raise URLFetchError(str(rep.status) + ' ' + rep.reason)
+    return content
 
 class ProjectionError(Exception):
     pass
@@ -95,8 +96,7 @@ def reproject_from_native_spatial_reference(f):
 
         # If no spatial reference was specified, or if it matches the native one, just render directly
         if spatial_reference is None or spatial_reference.IsSame(native_spatial_reference):
-            f(self, context, native_spatial_reference, **kwargs)
-            return
+            return f(self, context, native_spatial_reference, **kwargs)
 
         log.info('Reprojecting from native SRS:')
         log.info(native_spatial_reference.ExportToWkt())
@@ -172,7 +172,7 @@ def reproject_from_native_spatial_reference(f):
         ))
 
         # project intermediate into output
-        rv = gdal.ReprojectImage(
+        gdal.ReprojectImage(
                 intermediate_dataset, output_dataset,
                 native_spatial_reference.ExportToWkt(), spatial_reference.ExportToWkt(),
                 gdal.GRA_Bilinear
@@ -234,6 +234,8 @@ class TileFetcher(RendererBase):
     :type url_fetcher: callable or None
     """
 
+    _executor = futures.ThreadPoolExecutor(max_workers=12)
+
     def __init__(self, url_pattern=None, spatial_reference=None, tile_size=None, bounds=None, url_fetcher=None):
         super(TileFetcher, self).__init__()
         self.url_pattern = url_pattern or 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg'
@@ -265,7 +267,7 @@ class TileFetcher(RendererBase):
         ideal_zoom = tuple([math.log(x[0],2) - math.log(x[1],2) for x in zip(self.bounds_size, ideal_tile_size)])
 
         # What zoom will we *actually* use
-        zoom = max(0, int(math.floor(min(*ideal_zoom))))
+        zoom = max(0, int(round(max(*ideal_zoom))))
 
         # How many tiles at this zoom level?
         n_tiles = 1<<zoom
@@ -282,62 +284,64 @@ class TileFetcher(RendererBase):
         max_x, max_y = br
 
         # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
-        with futures.ThreadPoolExecutor(max_workers=10) as executor:
-            # kick off requests for the tiles (maximum 4 concurrent requests)
-            future_to_tile = {}
-            for x in range(min_x, max_x+1):
-                # wrap the x co-ordinate in the number of tiles
-                wrapped_x = x % n_tiles
-                if wrapped_x < 0:
-                    wrapped_x += n_tiles
+        future_to_tile = {}
 
-                for y in range(min_y, max_y+1):
-                    # skip out of range y-tiles
-                    if y < 0 or y >= n_tiles:
-                        continue
+        # kick off requests for the tiles (maximum 4 concurrent requests)
+        for x in range(min_x, max_x+1):
+            # wrap the x co-ordinate in the number of tiles
+            wrapped_x = x % n_tiles
+            if wrapped_x < 0:
+                wrapped_x += n_tiles
 
-                    url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
-                    future_to_tile[executor.submit(self._fetch_url, url)] = (x,y,url)
+            for y in range(min_y, max_y+1):
+                # skip out of range y-tiles
+                if y < 0 or y >= n_tiles:
+                    continue
 
-            # render the tiles as they come in
-            for future in futures.as_completed(future_to_tile):
-                x, y, url = future_to_tile[future]
-                if future.exception():
-                    import traceback
-                    log.error("error loading '{url}':".format(url=url))
-                    e = future.exception()
-                    for line in traceback.format_exception_only(type(e), e):
-                        log.error('    ' + line)
-                else:
-                    # load the tile into a cairo surface
-                    data = future.result()
-                    surface = _cairo_surface_from_data(data)
+                url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
 
-                    # what extents should this tile have?
-                    tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
+                future = TileFetcher._executor.submit(self._fetch_url, url)
+                future_to_tile[future] = (x,y,url)
 
-                    tile_x_scale = surface.get_width() / tile_w
-                    tile_y_scale = -surface.get_height() / tile_h
+        # render the tiles as they come in
+        for future in futures.as_completed(future_to_tile):
+            x, y, url = future_to_tile[future]
+            if future.exception():
+                import traceback
+                log.error("error loading '{url}':".format(url=url))
+                e = future.exception()
+                for line in traceback.format_exception_only(type(e), e):
+                    log.error('    ' + line)
+            else:
+                # load the tile into a cairo surface
+                data = future.result()
+                surface = _cairo_surface_from_data(data)
 
-                    # set up the tile as a source
-                    context.set_source_surface(surface)
-                    context.get_source().set_matrix(cairo.Matrix(
-                        xx = tile_x_scale,
-                        yy = tile_y_scale,
-                        x0 = -tile_x * tile_x_scale,
-                        y0 = -tile_y * tile_y_scale + surface.get_height()
-                    ))
+                # what extents should this tile have?
+                tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
 
-                    # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
-                    context.get_source().set_extend(cairo.EXTEND_PAD)
+                tile_x_scale = surface.get_width() / tile_w
+                tile_y_scale = -surface.get_height() / tile_h
 
-                    # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
-                    # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
-                    context.save()
-                    context.set_antialias(cairo.ANTIALIAS_NONE)
-                    context.rectangle(tile_x, tile_y, tile_w, tile_h)
-                    context.fill()
-                    context.restore()
+                # set up the tile as a source
+                context.set_source_surface(surface)
+                context.get_source().set_matrix(cairo.Matrix(
+                    xx = tile_x_scale,
+                    yy = tile_y_scale,
+                    x0 = -tile_x * tile_x_scale,
+                    y0 = -tile_y * tile_y_scale + surface.get_height()
+                ))
+
+                # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
+                context.get_source().set_extend(cairo.EXTEND_PAD)
+
+                # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
+                # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
+                context.save()
+                context.set_antialias(cairo.ANTIALIAS_NONE)
+                context.rectangle(tile_x, tile_y, tile_w, tile_h)
+                context.fill()
+                context.restore()
 
 
     def _tile_extents(self, tx, ty, zoom):
@@ -368,12 +372,13 @@ class TileStacheProvider(object):
         self.renderer = TileFetcher()
 
     def renderArea(self, width, height, srs, xmin, ymin, xmax, ymax, zoom):
-        # HACK to recognise SRS explicitly
-        if srs == TileStache.Geography.SphericalMercator().srs:
-            spatial_reference = SpatialReference()
+        spatial_reference = SpatialReference()
+
+        # this is a special HACK to take account of the fact that the proj4 srs provided by TileStache has the +over
+        # parameter and OGR thinks it is different to EPSG:3857
+        if srs == TileStache.Geography.SphericalMercator.srs:
             spatial_reference.ImportFromEPSG(3857)
         else:
-            spatial_reference = SpatialReference()
             spatial_reference.ImportFromProj4(srs)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)

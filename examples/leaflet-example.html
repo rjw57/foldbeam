@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+    <head>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.3.1/leaflet.css" />
+        <!--[if lte IE 8]>
+            <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.3.1/leaflet.ie.css" />
+        <![endif]-->
+        <script src="http://cdn.leafletjs.com/leaflet-0.3.1/leaflet.js"></script>
+    </head>
+    <body style="height: 100%; margin: 0; passing: 0">
+        <div id="map" style="height: 100%"></div>
+    </body>
+    <script>
+        var map = new L.Map('map');
+        var cloudmade = new L.TileLayer('http://localhost:8080/test/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        });
+        var london = new L.LatLng(51.505, -0.09); // geographical point (longitude and latitude)
+        map.setView(london, 13).addLayer(cloudmade);
+    </script>
+</html>
+

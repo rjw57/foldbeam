@@ -52,7 +52,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_default')
-        self.assertEqual(surface_hash(self.surface)/10, 782746)
+        self.assertEqual(surface_hash(self.surface)/10, 723002)
 
     def test_aerial(self):
         self.centre_on_big_ben(1000e3)
@@ -62,7 +62,7 @@ class TestTileFetcher(unittest.TestCase):
         )
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial')
-        self.assertEqual(surface_hash(self.surface)/10, 722896)
+        self.assertEqual(surface_hash(self.surface)/10, 720869)
 
     def test_aerial_hawaii(self):
         # should be a large enough area to wrap over the -180/180 longitude
@@ -73,7 +73,7 @@ class TestTileFetcher(unittest.TestCase):
         )
         renderer.render(self.cr)
         output_surface(self.surface, 'tilefetcher_aerial_hawaii')
-        self.assertEqual(surface_hash(self.surface)/10, 569772)
+        self.assertEqual(surface_hash(self.surface)/10, 545209)
 
     def test_british_national_grid(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -93,7 +93,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid')
-        self.assertEqual(surface_hash(surface)/10, 1895419)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_upside_down(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -113,7 +113,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
-        self.assertEqual(surface_hash(surface)/10, 1895419)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_mirrored(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -133,7 +133,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
-        self.assertEqual(surface_hash(surface)/10, 1895419)
+        self.assertEqual(surface_hash(surface)/10, 1765669)
 
     def test_british_national_grid_wide(self):
         sw = 1200
@@ -153,7 +153,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_wide')
-        self.assertEqual(surface_hash(surface)/10, 2565416)
+        self.assertEqual(surface_hash(surface)/10, 2480899)
 
     def test_british_national_grid_ultra_wide(self):
         sw = 1200
@@ -203,4 +203,4 @@ class TestTileStacheProvider(unittest.TestCase):
         [output.write(x) for x in app(environ, start_response)]
 
         # use the approximate length of output as a measure of entropy
-        self.assertEqual(len(output.getvalue())/10, 3012)
+        self.assertEqual(len(output.getvalue())/10, 5212)
