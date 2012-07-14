@@ -367,6 +367,12 @@ class TileFetcher(RendererBase):
         return tuple([x[0] / x[1] for x in zip((px-self.bounds[0], self.bounds[2]-py), tile_size)])
 
 class TileStacheProvider(object):
+    """An object suitable for use as a TileStache provider.
+
+    .. py:attribute:: renderer
+
+        Set this attribute to a renderer instance to use for rendering map tiles.
+    """
     def __init__(self, layer):
         super(TileStacheProvider, self).__init__()
         self.renderer = TileFetcher()
