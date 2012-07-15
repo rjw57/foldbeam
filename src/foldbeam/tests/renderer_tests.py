@@ -499,21 +499,27 @@ class TestOSMGeometry(unittest.TestCase):
             __table_args__ = {'autoload': True, 'extend_existing': True}
             Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
 
-        land_use = GeoAlchemyGeometry(session.query(PgLandUse), geom_cls=PgLandUse, geom_attr='Geometry')
-        highways = GeoAlchemyGeometry(session.query(LnHighway), geom_cls=LnHighway, geom_attr='Geometry')
+        wgs84 = SpatialReference()
+        wgs84.ImportFromEPSG(4326) # WGS84 lat/long
 
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1024, 480)
+        land_use = GeoAlchemyGeometry(session.query(PgLandUse), geom_cls=PgLandUse, geom_attr='Geometry',
+                spatial_reference=wgs84)
+        highways = GeoAlchemyGeometry(session.query(LnHighway), geom_cls=LnHighway, geom_attr='Geometry',
+                spatial_reference=wgs84)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1200, 720)
         cr = cairo.Context(surface)
-        cx = 0.119
-        cy = 52.205
-        w = 0.005
+        cx = 544783
+        cy = 258469
+        w = surface.get_width() * 0.5
         h = float(w * surface.get_height()) / float(surface.get_width())
-        set_geo_transform(cr, cx-w, cx+w, cy+h, cy-h, surface.get_width(), surface.get_height())
+        set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, surface.get_width(), surface.get_height())
 
         srs = SpatialReference()
-        srs.ImportFromEPSG(4326) # WGS84 lat/long
+        srs.ImportFromEPSG(27700) # British National Grid
 
         base_layer = TileFetcher(
+            url_pattern='http://tile.openstreetmap.org/{zoom}/{x}/{y}.png',
             url_fetcher=test_url_fetcher
         )
         base_layer.render(cr, spatial_reference=srs)
@@ -538,5 +544,5 @@ class TestOSMGeometry(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geoalchemygeometry_osm')
-        self.assertEqual(surface_hash(surface)/10, 1258968)
+        self.assertEqual(surface_hash(surface)/10, 2031079)
 

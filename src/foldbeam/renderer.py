@@ -234,8 +234,6 @@ class TileFetcher(RendererBase):
     :type url_fetcher: callable or None
     """
 
-    _executor = futures.ThreadPoolExecutor(max_workers=12)
-
     def __init__(self, url_pattern=None, spatial_reference=None, tile_size=None, bounds=None, url_fetcher=None):
         super(TileFetcher, self).__init__()
         self.url_pattern = url_pattern or 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg'
@@ -283,65 +281,66 @@ class TileFetcher(RendererBase):
         min_x, min_y = tl
         max_x, max_y = br
 
-        # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
-        future_to_tile = {}
-
         # kick off requests for the tiles (maximum 4 concurrent requests)
-        for x in range(min_x, max_x+1):
-            # wrap the x co-ordinate in the number of tiles
-            wrapped_x = x % n_tiles
-            if wrapped_x < 0:
-                wrapped_x += n_tiles
+        with futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
+            future_to_tile = {}
 
-            for y in range(min_y, max_y+1):
-                # skip out of range y-tiles
-                if y < 0 or y >= n_tiles:
-                    continue
+            for x in range(min_x, max_x+1):
+                # wrap the x co-ordinate in the number of tiles
+                wrapped_x = x % n_tiles
+                if wrapped_x < 0:
+                    wrapped_x += n_tiles
 
-                url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
+                for y in range(min_y, max_y+1):
+                    # skip out of range y-tiles
+                    if y < 0 or y >= n_tiles:
+                        continue
 
-                future = TileFetcher._executor.submit(self._fetch_url, url)
-                future_to_tile[future] = (x,y,url)
+                    url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
 
-        # render the tiles as they come in
-        for future in futures.as_completed(future_to_tile):
-            x, y, url = future_to_tile[future]
-            if future.exception():
-                import traceback
-                log.error("error loading '{url}':".format(url=url))
-                e = future.exception()
-                for line in traceback.format_exception_only(type(e), e):
-                    log.error('    ' + line)
-            else:
-                # load the tile into a cairo surface
-                data = future.result()
-                surface = _cairo_surface_from_data(data)
+                    future = executor.submit(self._fetch_url, url)
+                    future_to_tile[future] = (x,y,url)
 
-                # what extents should this tile have?
-                tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
+            # render the tiles as they come in
+            for future in futures.as_completed(future_to_tile):
+                x, y, url = future_to_tile[future]
+                if future.exception():
+                    import traceback
+                    log.error("error loading '{url}':".format(url=url))
+                    e = future.exception()
+                    for line in traceback.format_exception_only(type(e), e):
+                        log.error('    ' + line)
+                else:
+                    # load the tile into a cairo surface
+                    data = future.result()
+                    surface = _cairo_surface_from_data(data)
 
-                tile_x_scale = surface.get_width() / tile_w
-                tile_y_scale = -surface.get_height() / tile_h
+                    # what extents should this tile have?
+                    tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
 
-                # set up the tile as a source
-                context.set_source_surface(surface)
-                context.get_source().set_matrix(cairo.Matrix(
-                    xx = tile_x_scale,
-                    yy = tile_y_scale,
-                    x0 = -tile_x * tile_x_scale,
-                    y0 = -tile_y * tile_y_scale + surface.get_height()
-                ))
+                    tile_x_scale = surface.get_width() / tile_w
+                    tile_y_scale = -surface.get_height() / tile_h
 
-                # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
-                context.get_source().set_extend(cairo.EXTEND_PAD)
+                    # set up the tile as a source
+                    context.set_source_surface(surface)
+                    context.get_source().set_matrix(cairo.Matrix(
+                        xx = tile_x_scale,
+                        yy = tile_y_scale,
+                        x0 = -tile_x * tile_x_scale,
+                        y0 = -tile_y * tile_y_scale + surface.get_height()
+                    ))
 
-                # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
-                # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
-                context.save()
-                context.set_antialias(cairo.ANTIALIAS_NONE)
-                context.rectangle(tile_x, tile_y, tile_w, tile_h)
-                context.fill()
-                context.restore()
+                    # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
+                    context.get_source().set_extend(cairo.EXTEND_PAD)
+
+                    # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
+                    # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
+                    context.save()
+                    context.set_antialias(cairo.ANTIALIAS_NONE)
+                    context.rectangle(tile_x, tile_y, tile_w, tile_h)
+                    context.fill()
+                    context.restore()
 
 
     def _tile_extents(self, tx, ty, zoom):
@@ -442,7 +441,7 @@ class GeometryRenderer(RendererBase):
         minx, miny, maxx, maxy = context.clip_extents()
         boundary = boundary_from_envelope(Envelope(minx, maxx, maxy, miny, spatial_reference))
 
-        for g in self.geom.within(boundary):
+        for g in self.geom.within(boundary, spatial_reference):
             if g.geom_type == 'Point':
                 self._render_point(g, context)
             elif g.geom_type == 'MultiPoint':
