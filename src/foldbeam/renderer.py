@@ -465,7 +465,7 @@ class GeometryRenderer(RendererBase):
         if self.fill and not self.stroke:
             context.fill()
         elif self.fill and self.stroke:
-            context.fill_keep()
+            context.fill_preserve()
             context.stroke()
         elif self.stroke:
             context.stroke()
