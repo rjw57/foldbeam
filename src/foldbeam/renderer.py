@@ -123,9 +123,10 @@ def reproject_from_native_spatial_reference(f):
         geom.Segmentize(seg_len)
 
         # compute a rough resolution for the intermediate based on the segment length and clip extents
-        intermediate_size = int(math.ceil(max(
-            abs(target_max_y - target_min_y) / seg_len, abs(target_max_x - target_min_x) / seg_len
-        )))
+        intermediate_size = (
+            int(math.ceil(abs(target_max_x - target_min_x) / seg_len)),
+            int(math.ceil(abs(target_max_y - target_min_y) / seg_len)),
+        )
 
         # transform the geometry to the native spatial reference
         old_opt = gdal.GetConfigOption('OGR_ENABLE_PARTIAL_REPROJECTION')
@@ -139,12 +140,12 @@ def reproject_from_native_spatial_reference(f):
         native_min_x, native_max_x, native_min_y, native_max_y = geom.GetEnvelope()
 
         # create a cairo image surface for the intermediate
-        intermediate_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, intermediate_size, intermediate_size)
+        intermediate_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, intermediate_size[0], intermediate_size[1])
         intermediate_context = cairo.Context(intermediate_surface)
         set_geo_transform(
                 intermediate_context,
                 native_min_x, native_max_x, native_max_y, native_min_y,
-                intermediate_size, intermediate_size
+                intermediate_size[0], intermediate_size[1]
         )
 
         # render the intermediate
@@ -154,8 +155,8 @@ def reproject_from_native_spatial_reference(f):
         intermediate_dataset = _image_surface_to_dataset(intermediate_surface)
         assert intermediate_dataset is not None
         intermediate_dataset.SetGeoTransform((
-            native_min_x, (native_max_x-native_min_x) / float(intermediate_size), 0.0, 
-            native_max_y, 0.0, -(native_max_y-native_min_y) / float(intermediate_size),
+            native_min_x, (native_max_x-native_min_x) / float(intermediate_size[0]), 0.0, 
+            native_max_y, 0.0, -(native_max_y-native_min_y) / float(intermediate_size[1]),
         ))
 
         # create an output dataset
