@@ -182,9 +182,10 @@ def reproject_from_native_spatial_reference(f):
         # create a cairo image surface for the output. This unfortunately necessitates a copy since the in-memory format
         # for a GDAL Dataset is not interleaved.
         output_array = np.transpose(output_dataset.ReadAsArray(), (1,2,0))
-        output_surface = cairo.ImageSurface.create_for_data(
-                np.array(output_array.flat).data,
-                cairo.FORMAT_ARGB32, output_width, output_height)
+        output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, output_width, output_height)
+        surface_array = np.frombuffer(output_surface.get_data(), dtype=np.uint8)
+        surface_array[:] = output_array.flat
+        output_surface.mark_dirty()
 
         # draw the transformed output to the context
         context.set_source_surface(output_surface)
