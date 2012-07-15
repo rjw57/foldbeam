@@ -267,7 +267,7 @@ class TileFetcher(RendererBase):
         ideal_zoom = tuple([math.log(x[0],2) - math.log(x[1],2) for x in zip(self.bounds_size, ideal_tile_size)])
 
         # What zoom will we *actually* use
-        zoom = max(0, int(round(max(*ideal_zoom))))
+        zoom = min(18, max(0, int(round(max(*ideal_zoom)))))
 
         # How many tiles at this zoom level?
         n_tiles = 1<<zoom
