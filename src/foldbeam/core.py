@@ -1,11 +1,6 @@
-"""
-Core geometric operations
-=========================
-
-Mechanisms for converting axis-aligned bounding boxes (:py:class:`Envelope`) and polygonal boundaries
+"""Mechanisms for converting axis-aligned bounding boxes (:py:class:`Envelope`) and polygonal boundaries
 (:py:class:`Boundary`) from one spatial reference system to another. It is used internally to convert the regions
 represented by tiles between spatial references.
-
 """
 
 import os
