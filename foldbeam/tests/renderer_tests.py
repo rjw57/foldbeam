@@ -446,135 +446,134 @@ class TestGeometry(unittest.TestCase):
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
 
+def osm_map_renderer(metres_per_point):
+    # create an engine for the central cambridge DB
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
+    log.info('Loading DB from ' + db_path)
+    engine = create_engine('sqlite:///' + db_path)
+    session = sessionmaker(bind=engine)()
+    metadata = MetaData(engine, reflect=True)
+
+    Base = declarative_base(metadata=metadata)
+
+    wgs84 = SpatialReference()
+    wgs84.ImportFromEPSG(4326) # WGS84 lat/long
+
+    class PgLandUse(Base):
+        __tablename__ = 'pg_landuse'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+    PgLandUse = PgLandUse
+    land_use = GeoAlchemyGeometry(
+            session.query(PgLandUse),
+            geom_cls=PgLandUse, geom_attr='Geometry',
+            spatial_reference=wgs84)
+
+    class PgBuilding(Base):
+        __tablename__ = 'pg_building'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+    PgBuilding = PgBuilding
+    building = GeoAlchemyGeometry(
+            session.query(PgBuilding),
+            geom_cls=PgBuilding, geom_attr='Geometry',
+            spatial_reference=wgs84)
+
+    class PgAmenity(Base):
+        __tablename__ = 'pg_amenity'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+    PgAmenity = PgAmenity
+    amenity = GeoAlchemyGeometry(
+            session.query(PgAmenity),
+            geom_cls=PgAmenity, geom_attr='Geometry',
+            spatial_reference=wgs84)
+
+    class LnHighway(Base):
+        __tablename__ = 'ln_highway'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
+    LnHighway = LnHighway
+    highway = GeoAlchemyGeometry(
+            session.query(LnHighway),
+            geom_cls=LnHighway, geom_attr='Geometry',
+            spatial_reference=wgs84)
+
+    class PtShop(Base):
+        __tablename__ = 'pt_shop'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
+    PtShop = PtShop
+    shop = GeoAlchemyGeometry(
+            session.query(PtShop),
+            geom_cls=PtShop, geom_attr='Geometry',
+            spatial_reference=wgs84)
+
+    # Return a callable to set line width and source colour
+    def prepare(rgba=None, lw=None):
+        def f(cr, rgba=rgba, lw=lw):
+            rgba = rgba or (0,0,0,1)
+            cr.set_source_rgba(*rgba)
+            cr.set_line_width((lw or 1.0) * metres_per_point)
+        return f
+
+    # Create a renderer for the entire map
+    map_renderer = Layers(layers=[])
+
+    # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
+    # fetcher so we're kinder to MapQuest's servers.
+    map_renderer.layers.append(TileFetcher(url_fetcher=test_url_fetcher))
+    
+    # Fill building boundary polygons in translucent blue with a dark blue outline
+    # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=building, fill=True, stroke=False),
+        pre=prepare(rgba=(0,0,0.5,0.5), lw=2.0)
+    ))
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=building, fill=False, stroke=True),
+        pre=prepare(rgba=(0,0,0.5,1), lw=2.0)
+    ))
+
+    # Fill amenity boundary polygons in translucent red with a dark red outline
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=amenity, fill=True, stroke=False),
+        pre=prepare(rgba=(0.5,0,0,0.25), lw=2.0)
+    ))
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=amenity, fill=False, stroke=True),
+        pre=prepare(rgba=(0.5,0,0,1), lw=2.0)
+    ))
+
+    # Fill land-use boundary polygons in translucent green
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=land_use, fill=True, stroke=False),
+        pre=prepare(rgba=(0,0.5,0,0.25))
+    ))
+
+    # Stroke roads firstly in black, then overlay in yellow
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=highway),
+        pre=prepare(rgba=(0,0,0,1), lw=3.5)
+    ))
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=highway),
+        pre=prepare(rgba=(0.9,0.8,0,1), lw=2.0)
+    ))
+
+    # Draw shop locations in orange
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=shop, fill=True, stroke=False, marker_radius=3.0 * metres_per_point),
+        pre=prepare(rgba=(0.6,0.3,0,0.5), lw=1.0)
+    ))
+    map_renderer.layers.append(Wrapped(
+        Geometry(geom=shop, fill=False, stroke=True, marker_radius=3.0 * metres_per_point),
+        pre=prepare(rgba=(0.6,0.3,0,1), lw=1.0)
+    ))
+
+    return map_renderer
+
 class TestOSMGeometry(unittest.TestCase):
-    def setUp(self):
-        # create an engine for the central cambridge DB
-        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
-        log.info('Loading DB from ' + db_path)
-        engine = create_engine('sqlite:///' + db_path)
-        self.session = sessionmaker(bind=engine)()
-        metadata = MetaData(engine, reflect=True)
-
-        Base = declarative_base(metadata=metadata)
-
-        wgs84 = SpatialReference()
-        wgs84.ImportFromEPSG(4326) # WGS84 lat/long
-
-        class PgLandUse(Base):
-            __tablename__ = 'pg_landuse'
-            __table_args__ = {'autoload': True, 'extend_existing': True}
-            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-        self.PgLandUse = PgLandUse
-        self.land_use = GeoAlchemyGeometry(
-                self.session.query(self.PgLandUse),
-                geom_cls=self.PgLandUse, geom_attr='Geometry',
-                spatial_reference=wgs84)
-
-        class PgBuilding(Base):
-            __tablename__ = 'pg_building'
-            __table_args__ = {'autoload': True, 'extend_existing': True}
-            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-        self.PgBuilding = PgBuilding
-        self.building = GeoAlchemyGeometry(
-                self.session.query(self.PgBuilding),
-                geom_cls=self.PgBuilding, geom_attr='Geometry',
-                spatial_reference=wgs84)
-
-        class PgAmenity(Base):
-            __tablename__ = 'pg_amenity'
-            __table_args__ = {'autoload': True, 'extend_existing': True}
-            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-        self.PgAmenity = PgAmenity
-        self.amenity = GeoAlchemyGeometry(
-                self.session.query(self.PgAmenity),
-                geom_cls=self.PgAmenity, geom_attr='Geometry',
-                spatial_reference=wgs84)
-
-        class LnHighway(Base):
-            __tablename__ = 'ln_highway'
-            __table_args__ = {'autoload': True, 'extend_existing': True}
-            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
-        self.LnHighway = LnHighway
-        self.highway = GeoAlchemyGeometry(
-                self.session.query(self.LnHighway),
-                geom_cls=self.LnHighway, geom_attr='Geometry',
-                spatial_reference=wgs84)
-
-        class PtShop(Base):
-            __tablename__ = 'pt_shop'
-            __table_args__ = {'autoload': True, 'extend_existing': True}
-            Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
-        self.PtShop = PtShop
-        self.shop = GeoAlchemyGeometry(
-                self.session.query(self.PtShop),
-                geom_cls=self.PtShop, geom_attr='Geometry',
-                spatial_reference=wgs84)
-
-    def osm_map_renderer(self, metres_per_point):
-        # Return a callable to set line width and source colour
-        def prepare(rgba=None, lw=None):
-            def f(cr, rgba=rgba, lw=lw):
-                rgba = rgba or (0,0,0,1)
-                cr.set_source_rgba(*rgba)
-                cr.set_line_width((lw or 1.0) * metres_per_point)
-            return f
-
-        # Create a renderer for the entire map
-        map_renderer = Layers(layers=[])
-
-        # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
-        # fetcher so we're kinder to MapQuest's servers.
-        map_renderer.layers.append(TileFetcher(url_fetcher=test_url_fetcher))
-        
-        # Fill building boundary polygons in translucent blue with a dark blue outline
-        # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.building, fill=True, stroke=False),
-            pre=prepare(rgba=(0,0,0.5,0.5), lw=2.0)
-        ))
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.building, fill=False, stroke=True),
-            pre=prepare(rgba=(0,0,0.5,1), lw=2.0)
-        ))
-
-        # Fill amenity boundary polygons in translucent red with a dark red outline
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.amenity, fill=True, stroke=False),
-            pre=prepare(rgba=(0.5,0,0,0.25), lw=2.0)
-        ))
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.amenity, fill=False, stroke=True),
-            pre=prepare(rgba=(0.5,0,0,1), lw=2.0)
-        ))
-
-        # Fill land-use boundary polygons in translucent green
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.land_use, fill=True, stroke=False),
-            pre=prepare(rgba=(0,0.5,0,0.25))
-        ))
-
-        # Stroke roads firstly in black, then overlay in yellow
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.highway),
-            pre=prepare(rgba=(0,0,0,1), lw=3.5)
-        ))
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.highway),
-            pre=prepare(rgba=(0.9,0.8,0,1), lw=2.0)
-        ))
-
-        # Draw shop locations in orange
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.shop, fill=True, stroke=False, marker_radius=3.0 * metres_per_point),
-            pre=prepare(rgba=(0.6,0.3,0,0.5), lw=1.0)
-        ))
-        map_renderer.layers.append(Wrapped(
-            Geometry(geom=self.shop, fill=False, stroke=True, marker_radius=3.0 * metres_per_point),
-            pre=prepare(rgba=(0.6,0.3,0,1), lw=1.0)
-        ))
-
-        return map_renderer
-
     def test_osm(self):
         # Do we want to create a PDF or image?
         create_pdf = False
@@ -600,7 +599,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        self.osm_map_renderer(metres_per_point).render(cr, spatial_reference=srs)
+        osm_map_renderer(metres_per_point).render(cr, spatial_reference=srs)
 
         # Write the first page of the output
         cr.show_page()
