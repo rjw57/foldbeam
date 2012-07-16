@@ -452,48 +452,51 @@ class TestGeometry(unittest.TestCase):
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
 
-osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
-Base = declarative_base(metadata=MetaData(create_engine('sqlite:///' + osm_db_path), reflect=True))
-
-class PgLandUse(Base):
-    __tablename__ = 'pg_landuse'
-    __table_args__ = {'autoload': True, 'extend_existing': True}
-    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-
-class PgBuilding(Base):
-    __tablename__ = 'pg_building'
-    __table_args__ = {'autoload': True, 'extend_existing': True}
-    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-
-class PgAmenity(Base):
-    __tablename__ = 'pg_amenity'
-    __table_args__ = {'autoload': True, 'extend_existing': True}
-    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-
-class LnHighway(Base):
-    __tablename__ = 'ln_highway'
-    __table_args__ = {'autoload': True, 'extend_existing': True}
-    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
-
-class PtShop(Base):
-    __tablename__ = 'pt_shop'
-    __table_args__ = {'autoload': True, 'extend_existing': True}
-    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
-
-def osm_map_renderer(url_fetcher=None):
+def osm_map_renderer(url_fetcher=None, use_postgres=False):
+    osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
+    # engine = create_engine('postgresql://gis:gis@localhost/central-cambridge')
     engine = create_engine('sqlite:///' + osm_db_path,
-            connect_args={'check_same_thread': False},
-            poolclass=StaticPool)
+        connect_args={'check_same_thread': False},
+        poolclass=StaticPool)
+    session = sessionmaker(bind=engine)
+
+    Base = declarative_base(metadata=MetaData(engine, reflect=True))
+
+    class PgLandUse(Base):
+        __tablename__ = 'pg_landuse'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+    class PgBuilding(Base):
+        __tablename__ = 'pg_building'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+    class PgAmenity(Base):
+        __tablename__ = 'pg_amenity'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+    class LnHighway(Base):
+        __tablename__ = 'ln_highway'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
+
+    class PtShop(Base):
+        __tablename__ = 'pt_shop'
+        __table_args__ = {'autoload': True, 'extend_existing': True}
+        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
 
     def query(cls):
         def f(cls=cls):
-            session = sessionmaker(bind=engine)()
-            return session.query(cls)
+            return session().query(cls)
         return f
 
-    # create an engine for the central cambridge DB
     wgs84 = SpatialReference()
     wgs84.ImportFromEPSG(4326) # WGS84 lat/long
+
+    bng = SpatialReference()
+    bng.ImportFromEPSG(27700) # British national grid
 
     land_use = GeoAlchemyGeometry(
             query(PgLandUse),
@@ -572,12 +575,44 @@ def osm_map_renderer(url_fetcher=None):
         geom=shop,
         fill=True, prepare_fill=prepare(rgba=(0.6,0.3,0,0.5)),
         stroke=True, prepare_stroke=prepare(rgba=(0.6,0.3,0,1)),
-        marker_radius=1.0583333333333331
+        marker_radius=3.0
     ))
+
+    if use_postgres:
+        stops_engine = create_engine('postgresql://gis:gis@localhost/public_transport')
+        stops_session = sessionmaker(bind=stops_engine)
+
+        Base = declarative_base(metadata=MetaData(stops_engine, reflect=True))
+
+        class Stops(Base):
+            __tablename__ = 'stops'
+            __table_args__ = {'autoload': True, 'extend_existing': True}
+            Geometry = geoalchemy.GeometryColumn(geoalchemy.Point(dimension=2, srid=27700))
+
+        def stops_query(cls):
+            def f(cls=cls):
+                return stops_session().query(cls).filter(cls.naptancode.like('cmb%'))
+            return f
+
+        stops = GeoAlchemyGeometry(
+                stops_query(Stops),
+                geom_cls=Stops, geom_attr='Geometry',
+                spatial_reference=bng,
+                db_srid=27700)
+
+        map_renderer.layers.append(Geometry(
+            geom=stops,
+            fill=True, prepare_fill=prepare(rgba=(0.6,0,0.5,0.5)),
+            stroke=True, prepare_stroke=prepare(rgba=(0.6,0,0.5,1)),
+            marker_radius=3.0
+        ))
 
     return map_renderer
 
 class TestOSMGeometry(unittest.TestCase):
+    def setUp(self):
+        self.map_renderer = osm_map_renderer()
+
     def test_osm(self):
         # Create an output image surface for the map at 640x360 pixels.
         sw, sh = (640, 360)
@@ -595,7 +630,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        osm_map_renderer().render(cr, spatial_reference=srs)
+        self.map_renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_osm')
         self.assertEqual(surface_hash(surface)/10, 590026)
@@ -617,7 +652,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        osm_map_renderer().render(cr, spatial_reference=srs)
+        self.map_renderer.render(cr, spatial_reference=srs)
 
         # Write the first page of the output
         cr.show_page()

@@ -101,7 +101,8 @@ class Geometry(RendererBase):
             context.stroke()
 
     def _render_point(self, p, context):
-        context.arc(p.x, p.y, self.marker_radius, 0, math.pi * 2.0)
+        scale = max([abs(x) for x in context.device_to_user_distance(1,1)])
+        context.arc(p.x, p.y, self.marker_radius * scale, 0, math.pi * 2.0)
         self._stroke_and_or_fill(context)
 
     def _path(self, ls, context, close_path=False):

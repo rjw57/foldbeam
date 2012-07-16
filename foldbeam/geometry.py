@@ -1,8 +1,8 @@
 from functools import wraps
 
 from osgeo import ogr
-
 import shapely.wkb
+from geoalchemy.base import WKBSpatialElement, WKTSpatialElement
 
 def reproject_from_native_spatial_reference(f):
 
@@ -48,11 +48,12 @@ class IterableGeometry(object):
         return self.geom or []
 
 class GeoAlchemyGeometry(object):
-    def __init__(self, query_cb=None, geom_cls=None, geom_attr=None, spatial_reference=None):
+    def __init__(self, query_cb=None, geom_cls=None, geom_attr=None, spatial_reference=None, db_srid=None):
         self.query_cb = query_cb
         self.geom_cls = geom_cls
         self.geom_attr = geom_attr or 'geom'
         self.native_spatial_reference = spatial_reference
+        self.db_srid = db_srid or 4326
 
     @reproject_from_native_spatial_reference
     def within(self, boundary, spatial_reference=None):
@@ -64,6 +65,7 @@ class GeoAlchemyGeometry(object):
 
         q = self.query_cb()
         if self.geom_cls is not None:
-            q = q.filter(getattr(self.geom_cls, self.geom_attr).intersects(boundary.wkt))
+            bound = WKTSpatialElement(boundary.wkt, srid=self.db_srid)
+            q = q.filter(getattr(self.geom_cls, self.geom_attr).intersects(bound))
 
         return (shapely.wkb.loads(bytes(getattr(x, self.geom_attr).geom_wkb)) for x in q)

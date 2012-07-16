@@ -35,7 +35,7 @@ config = TileStache.Config.buildConfiguration({
 })
 
 #renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
-renderer = osm_map_renderer(url_fetcher=url_fetcher)
+renderer = osm_map_renderer(url_fetcher=url_fetcher, use_postgres=False)
 config.layers['test'].provider.renderer = renderer
 
 app = TileStache.WSGITileServer(config)
