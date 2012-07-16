@@ -25,7 +25,7 @@ config = TileStache.Config.buildConfiguration({
     'layers': {
         'test': {
             'provider': {
-                'class': 'foldbeam.renderer:TileStacheProvider',
+                'class': 'foldbeam.goodies.tilestache:TileStacheProvider',
                 'kwargs': { },
             },
 #                'projection': 'WGS84',
@@ -36,7 +36,6 @@ config = TileStache.Config.buildConfiguration({
 config.layers['test'].provider.renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
 
 app = TileStache.WSGITileServer(config)
-
 
 if __name__ == '__main__':
     print('About to start serving. Try visiting http://localhost:8080/test/')
