@@ -2,8 +2,8 @@
 THISDIR=`dirname $0`
 cd ${THISDIR}
 
-DOCFILES=`pushd "docs/html/" >/dev/null; find . -type f; popd >/dev/null`
-cp -rv docs/html/* docs/html/.* .
+DOCFILES=`pushd "build/sphinx/html/" >/dev/null; find . -type f; popd >/dev/null`
+cp -rv build/sphinx/html/* build/sphinx/html/.* .
 for f in ${DOCFILES}; do
     echo "Adding ${f}"
     git add "${f}"
