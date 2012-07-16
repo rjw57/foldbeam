@@ -480,7 +480,7 @@ class TestGeometryRenderer(unittest.TestCase):
 class TestOSMGeometry(unittest.TestCase):
     def setUp(self):
         # create an engine for the central cambridge DB
-        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../data/central-cambridge.sqlite'))
+        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
         log.info('Loading DB from ' + db_path)
         engine = create_engine('sqlite:///' + db_path)
         self.session = sessionmaker(bind=engine)()

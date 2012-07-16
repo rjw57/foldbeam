@@ -41,16 +41,14 @@ setup(name='foldbeam',
     author_email='rjw57@cantab.net',
     url='',
     license='Apache 2.0',
-    packages=find_packages('src'),
-    package_dir = {'': 'src'},
+    packages=find_packages(),
     package_data = {
-        'foldbeam': [ 'data/*' ],
+        'foldbeam.renderer': [ 'data/*' ],
     },
     zip_safe=False,
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'foldbeam=foldbeam:main',
             'foldbeam-render=foldbeam.tool.render:main',
         ]
     },
