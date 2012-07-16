@@ -27,7 +27,6 @@ from foldbeam.tests import surface_hash, output_surface
 
 import TileStache
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
 @filecache(24*60*60)

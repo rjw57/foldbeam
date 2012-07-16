@@ -5,7 +5,8 @@ import os
 from PIL import Image
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
+# Make test suite quite laconic unless the FOLDBEAM_VERBOSE environment variable is set.
+logging.basicConfig(level=logging.INFO if 'FOLDBEAM_VERBOSE' in os.environ else logging.WARNING)
 
 def surface_hash(surface):
     """Return a hash of the data within a Cairo ImageSurface. This is a quasi-perceptual hash based off of the image
