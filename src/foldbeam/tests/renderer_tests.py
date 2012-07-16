@@ -110,7 +110,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid')
-        self.assertEqual(surface_hash(surface)/10, 1765669)
+        self.assertEqual(surface_hash(surface)/10, 1893451)
 
     def test_british_national_grid_upside_down(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -130,7 +130,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
-        self.assertEqual(surface_hash(surface)/10, 1765669)
+        self.assertEqual(surface_hash(surface)/10, 1893451)
 
     def test_british_national_grid_mirrored(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -150,7 +150,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
-        self.assertEqual(surface_hash(surface)/10, 1765669)
+        self.assertEqual(surface_hash(surface)/10, 1893451)
 
     def test_british_national_grid_wide(self):
         sw = 1200
@@ -170,7 +170,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_wide')
-        self.assertEqual(surface_hash(surface)/10, 2480899)
+        self.assertEqual(surface_hash(surface)/10, 2560541)
 
     def test_british_national_grid_ultra_wide(self):
         sw = 1200
@@ -190,7 +190,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render(cr, spatial_reference=srs)
         output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
-        self.assertEqual(surface_hash(surface)/10, 2653480)
+        self.assertEqual(surface_hash(surface)/10, 2651647)
 
 class TestTileStacheProvider(unittest.TestCase):
     def setUp(self):
@@ -260,7 +260,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_points')
-        self.assertEqual(surface_hash(surface)/10, 53324)
+        self.assertEqual(surface_hash(surface)/10, 53314)
 
     def test_multipoints(self):
         geom = IterableGeometry([
@@ -293,7 +293,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_multipoints')
-        self.assertEqual(surface_hash(surface)/10, 53324)
+        self.assertEqual(surface_hash(surface)/10, 53314)
 
     def test_linestrings(self):
         geom = IterableGeometry([
@@ -324,7 +324,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_linestrings')
-        self.assertEqual(surface_hash(surface)/10, 55420)
+        self.assertEqual(surface_hash(surface)/10, 55488)
 
     def test_multilinestrings(self):
         geom = IterableGeometry([
@@ -357,7 +357,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_multilinestrings')
-        self.assertEqual(surface_hash(surface)/10, 55420)
+        self.assertEqual(surface_hash(surface)/10, 55488)
 
     def test_linearrings(self):
         geom = IterableGeometry([
@@ -388,7 +388,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_linearrings')
-        self.assertEqual(surface_hash(surface)/10, 55965)
+        self.assertEqual(surface_hash(surface)/10, 56042)
 
     def test_polygons(self):
         geom = IterableGeometry([
@@ -432,7 +432,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_polygons')
-        self.assertEqual(surface_hash(surface)/10, 65078)
+        self.assertEqual(surface_hash(surface)/10, 65083)
 
     def test_multipolygons(self):
         geom = IterableGeometry([MultiPolygon([
@@ -476,7 +476,7 @@ class TestGeometryRenderer(unittest.TestCase):
         renderer.render(cr, spatial_reference=srs)
 
         output_surface(surface, 'geometryrenderer_multipolygons')
-        self.assertEqual(surface_hash(surface)/10, 65078)
+        self.assertEqual(surface_hash(surface)/10, 65083)
 
 class TestOSMGeometry(unittest.TestCase):
     def setUp(self):
@@ -628,5 +628,5 @@ class TestOSMGeometry(unittest.TestCase):
         # If we weren't creating a PDF, save the output image
         if not create_pdf:
             output_surface(surface, 'geometryrenderer_osm')
-            self.assertEqual(surface_hash(surface)/10, 590137)
+            self.assertEqual(surface_hash(surface)/10, 590079)
 
