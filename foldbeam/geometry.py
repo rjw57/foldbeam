@@ -31,7 +31,7 @@ def reproject_from_native_spatial_reference(f):
     return within
 
 class IterableGeometry(object):
-    """An object suitable for rendering with GeometryRenderer which simply stores an iterable of shapely geometry
+    """An object suitable for rendering with Geometry which simply stores an iterable of shapely geometry
     objects.
 
     .. py:attribute:: geom

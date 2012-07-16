@@ -66,3 +66,56 @@ class RendererBase(object):
         context.get_source().set_matrix(cairo.Matrix(xx=placeholder_scale, yy=-placeholder_scale))
         context.paint()
 
+class Wrapped(RendererBase):
+    """Wrap a renderer with, optionally, a pre- or post-called callable. Each callable is passed the cairo context the
+    renderer is being called with and it is intended that these should set up the Cairo context appropriately. For
+    example, they may set the Cairo line width or fill pattern.
+
+    .. py:attribute:: renderer
+
+        The renderer instance to wrap
+
+    .. py:attribute:: pre
+
+        The callable to call before the renderer's :py:meth:`render` method.
+
+    .. py:attribute:: post
+
+        The callable to call before the renderer's :py:meth:`render` method.
+
+    """
+    def __init__(self, renderer, pre=None, post=None):
+        self.pre = pre
+        self.post = post
+        self.renderer = renderer
+
+    def render(self, context, spatial_reference=None):
+        if self.pre is not None:
+            self.pre(context)
+
+        self.renderer.render(context, spatial_reference=spatial_reference)
+
+        if self.post is not None:
+            self.post(context)
+
+class Layers(RendererBase):
+    """Render multiple layers one after another. Note that the layers are rendered in the order they are in the sequence
+    and so the first-most layer will be the bottom-most in the output.
+
+    :param layers: the set of layers or `None`
+    :type layers: None or a sequence of renderers
+
+    .. py:attribute:: layers
+
+        `None` or a sequence of renderers. If `None`, no rendering is performed. Otherwise the renderers are rendered
+        `in their order within the sequence` one after each other.
+    """
+    def __init__(self, layers=None):
+        self.layers = layers
+
+    def render(self, context, spatial_reference=None):
+        if self.layers is None:
+            return
+
+        for layer in self.layers:
+            layer.render(context, spatial_reference=spatial_reference)

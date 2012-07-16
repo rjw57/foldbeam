@@ -22,7 +22,8 @@ import geoalchemy
 
 from foldbeam.geometry import IterableGeometry, GeoAlchemyGeometry
 from foldbeam.renderer import set_geo_transform, default_url_fetcher
-from foldbeam.renderer import TileFetcher, GeometryRenderer
+from foldbeam.renderer import TileFetcher, Geometry
+from foldbeam.renderer import Wrapped, Layers
 from foldbeam.tests import surface_hash, output_surface
 
 log = logging.getLogger()
@@ -189,9 +190,9 @@ class TestTileFetcher(unittest.TestCase):
         output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
         self.assertEqual(surface_hash(surface)/10, 2651647)
 
-class TestGeometryRenderer(unittest.TestCase):
+class TestGeometry(unittest.TestCase):
     def test_default(self):
-        renderer = GeometryRenderer()
+        renderer = Geometry()
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
         renderer.render(cr)
@@ -208,7 +209,7 @@ class TestGeometryRenderer(unittest.TestCase):
             Point(45, 45),
             Point(30, 10),
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -241,7 +242,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 Point(30, 10),
             ])
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -276,7 +277,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 (30, 10),
             ]),
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -309,7 +310,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 ]),
             ])
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -340,7 +341,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 (30, 10),
             ]),
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -379,7 +380,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 ]),
             ]),
         ])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -423,7 +424,7 @@ class TestGeometryRenderer(unittest.TestCase):
                 ]),
             ]),
         ])])
-        renderer = GeometryRenderer(geom=geom)
+        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
@@ -509,6 +510,71 @@ class TestOSMGeometry(unittest.TestCase):
                 geom_cls=self.PtShop, geom_attr='Geometry',
                 spatial_reference=wgs84)
 
+    def osm_map_renderer(self, metres_per_point):
+        # Return a callable to set line width and source colour
+        def prepare(rgba=None, lw=None):
+            def f(cr, rgba=rgba, lw=lw):
+                rgba = rgba or (0,0,0,1)
+                cr.set_source_rgba(*rgba)
+                cr.set_line_width((lw or 1.0) * metres_per_point)
+            return f
+
+        # Create a renderer for the entire map
+        map_renderer = Layers(layers=[])
+
+        # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
+        # fetcher so we're kinder to MapQuest's servers.
+        map_renderer.layers.append(TileFetcher(url_fetcher=test_url_fetcher))
+        
+        # Fill building boundary polygons in translucent blue with a dark blue outline
+        # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.building, fill=True, stroke=False),
+            pre=prepare(rgba=(0,0,0.5,0.5), lw=2.0)
+        ))
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.building, fill=False, stroke=True),
+            pre=prepare(rgba=(0,0,0.5,1), lw=2.0)
+        ))
+
+        # Fill amenity boundary polygons in translucent red with a dark red outline
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.amenity, fill=True, stroke=False),
+            pre=prepare(rgba=(0.5,0,0,0.25), lw=2.0)
+        ))
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.amenity, fill=False, stroke=True),
+            pre=prepare(rgba=(0.5,0,0,1), lw=2.0)
+        ))
+
+        # Fill land-use boundary polygons in translucent green
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.land_use, fill=True, stroke=False),
+            pre=prepare(rgba=(0,0.5,0,0.25))
+        ))
+
+        # Stroke roads firstly in black, then overlay in yellow
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.highway),
+            pre=prepare(rgba=(0,0,0,1), lw=3.5)
+        ))
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.highway),
+            pre=prepare(rgba=(0.9,0.8,0,1), lw=2.0)
+        ))
+
+        # Draw shop locations in orange
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.shop, fill=True, stroke=False, marker_radius=3.0 * metres_per_point),
+            pre=prepare(rgba=(0.6,0.3,0,0.5), lw=1.0)
+        ))
+        map_renderer.layers.append(Wrapped(
+            Geometry(geom=self.shop, fill=False, stroke=True, marker_radius=3.0 * metres_per_point),
+            pre=prepare(rgba=(0.6,0.3,0,1), lw=1.0)
+        ))
+
+        return map_renderer
+
     def test_osm(self):
         # Do we want to create a PDF or image?
         create_pdf = False
@@ -533,61 +599,8 @@ class TestOSMGeometry(unittest.TestCase):
         w, h = [dist * metres_per_point for dist in (sw, sh)]
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
-        # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
-        # fetcher so we're kinder to MapQuest's servers.
-        base_layer = TileFetcher(
-                url_fetcher=test_url_fetcher
-        )
-
-        # Render the base layer.
-        base_layer.render(cr, spatial_reference=srs)
-
-        # Set the line width to 2 points == 2 / 72 in. (Device units are points for PDF.)
-        cr.set_line_width(2.0 * metres_per_point)
-
-        # Fill building boundary polygons in translucent blue with a dark blue outline
-        cr.set_source_rgba(0,0,0.5,0.5)
-        renderer = GeometryRenderer(geom=self.building, fill=True, stroke=False)
-        renderer.render(cr, spatial_reference=srs)
-        renderer.fill = False
-        renderer.stroke = True
-        cr.set_source_rgb(0,0,0.5)
-        renderer.render(cr, spatial_reference=srs)
-
-        # Fill amenity boundary polygons in translucent red with a dark red outline
-        cr.set_source_rgba(0.5,0,0,0.25)
-        renderer = GeometryRenderer(geom=self.amenity, fill=True, stroke=False)
-        renderer.render(cr, spatial_reference=srs)
-        renderer.fill = False
-        renderer.stroke = True
-        cr.set_source_rgb(0.5,0,0)
-        renderer.render(cr, spatial_reference=srs)
-
-        # Fill land-use boundary polygons in translucent green
-        cr.set_source_rgba(0,0.5,0,0.25)
-        renderer = GeometryRenderer(geom=self.land_use, fill=True, stroke=False)
-        renderer.render(cr, spatial_reference=srs)
-
-        # Stroke roads firstly in black, then overlay in yellow
-        renderer = GeometryRenderer(geom=self.highway)
-        cr.set_source_rgb(0,0,0)
-        cr.set_line_width(3.5 * metres_per_point)
-        renderer.render(cr, spatial_reference=srs)
-        cr.set_source_rgb(0.9,0.8,0)
-        cr.set_line_width(2.0 * metres_per_point)
-        renderer.render(cr, spatial_reference=srs)
-
-        # Draw shop locations in orange
-        cr.set_line_width(1.0 * metres_per_point)
-        renderer = GeometryRenderer(geom=self.shop, marker_radius=3.0*metres_per_point)
-        cr.set_source_rgba(0.6,0.3,0,0.5)
-        renderer.fill = True
-        renderer.stroke = False
-        renderer.render(cr, spatial_reference=srs)
-        cr.set_source_rgb(0.6,0.3,0)
-        renderer.fill = False
-        renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        # Actually render the map
+        self.osm_map_renderer(metres_per_point).render(cr, spatial_reference=srs)
 
         # Write the first page of the output
         cr.show_page()

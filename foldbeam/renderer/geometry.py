@@ -6,7 +6,7 @@ from foldbeam.core import Envelope
 from foldbeam.core import boundary_from_envelope
 from foldbeam.renderer import RendererBase
 
-class GeometryRenderer(RendererBase):
+class Geometry(RendererBase):
     """Render shapely geometric shapes into a context.
 
     If keyword arguments are supplied, set the attributes listed below.
@@ -31,7 +31,7 @@ class GeometryRenderer(RendererBase):
 
     """
     def __init__(self, **kwargs):
-        super(GeometryRenderer, self).__init__()
+        super(Geometry, self).__init__()
         self.geom = None
         self.marker_radius = 5
         self.stroke = True
