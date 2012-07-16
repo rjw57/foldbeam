@@ -12,10 +12,13 @@ import cairo
 from filecache import filecache
 from osgeo.osr import SpatialReference
 
+import httplib2
+
 from shapely.geometry import Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon
 from shapely.geometry.polygon import LinearRing
 
 from sqlalchemy import create_engine, MetaData
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import geoalchemy
@@ -28,12 +31,15 @@ from foldbeam.tests import surface_hash, output_surface
 
 log = logging.getLogger()
 
-@filecache(24*60*60)
 def test_url_fetcher(url):
     """A cached version of the default URL fetcher. This function uses filecache to cache the results for 24 hours.
     """
     logging.info('Fetching URL: {0}'.format(url))
-    return default_url_fetcher(url)
+    http = httplib2.Http(os.path.join(os.path.dirname(__file__), 'httpcache'))
+    rep, content = http.request(url, 'GET')
+    if rep.status != 200:
+        raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason)
+    return content
 
 class TestTileFetcher(unittest.TestCase):
     def setUp(self):
@@ -446,72 +452,78 @@ class TestGeometry(unittest.TestCase):
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
 
-def osm_map_renderer(metres_per_point):
+osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
+Base = declarative_base(metadata=MetaData(create_engine('sqlite:///' + osm_db_path), reflect=True))
+
+class PgLandUse(Base):
+    __tablename__ = 'pg_landuse'
+    __table_args__ = {'autoload': True, 'extend_existing': True}
+    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+class PgBuilding(Base):
+    __tablename__ = 'pg_building'
+    __table_args__ = {'autoload': True, 'extend_existing': True}
+    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+class PgAmenity(Base):
+    __tablename__ = 'pg_amenity'
+    __table_args__ = {'autoload': True, 'extend_existing': True}
+    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
+
+class LnHighway(Base):
+    __tablename__ = 'ln_highway'
+    __table_args__ = {'autoload': True, 'extend_existing': True}
+    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
+
+class PtShop(Base):
+    __tablename__ = 'pt_shop'
+    __table_args__ = {'autoload': True, 'extend_existing': True}
+    Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
+
+def osm_map_renderer(url_fetcher=None):
+    engine = create_engine('sqlite:///' + osm_db_path,
+            connect_args={'check_same_thread': False},
+            poolclass=StaticPool)
+
+    def query(cls):
+        def f(cls=cls):
+            session = sessionmaker(bind=engine)()
+            return session.query(cls)
+        return f
+
     # create an engine for the central cambridge DB
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
-    log.info('Loading DB from ' + db_path)
-    engine = create_engine('sqlite:///' + db_path)
-    session = sessionmaker(bind=engine)()
-    metadata = MetaData(engine, reflect=True)
-
-    Base = declarative_base(metadata=metadata)
-
     wgs84 = SpatialReference()
     wgs84.ImportFromEPSG(4326) # WGS84 lat/long
 
-    class PgLandUse(Base):
-        __tablename__ = 'pg_landuse'
-        __table_args__ = {'autoload': True, 'extend_existing': True}
-        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-    PgLandUse = PgLandUse
     land_use = GeoAlchemyGeometry(
-            session.query(PgLandUse),
+            query(PgLandUse),
             geom_cls=PgLandUse, geom_attr='Geometry',
             spatial_reference=wgs84)
 
-    class PgBuilding(Base):
-        __tablename__ = 'pg_building'
-        __table_args__ = {'autoload': True, 'extend_existing': True}
-        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-    PgBuilding = PgBuilding
     building = GeoAlchemyGeometry(
-            session.query(PgBuilding),
+            query(PgBuilding),
             geom_cls=PgBuilding, geom_attr='Geometry',
             spatial_reference=wgs84)
 
-    class PgAmenity(Base):
-        __tablename__ = 'pg_amenity'
-        __table_args__ = {'autoload': True, 'extend_existing': True}
-        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPolygon(dimension=2))
-    PgAmenity = PgAmenity
     amenity = GeoAlchemyGeometry(
-            session.query(PgAmenity),
+            query(PgAmenity),
             geom_cls=PgAmenity, geom_attr='Geometry',
             spatial_reference=wgs84)
 
-    class LnHighway(Base):
-        __tablename__ = 'ln_highway'
-        __table_args__ = {'autoload': True, 'extend_existing': True}
-        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiLineString(dimension=2))
-    LnHighway = LnHighway
     highway = GeoAlchemyGeometry(
-            session.query(LnHighway),
+            query(LnHighway),
             geom_cls=LnHighway, geom_attr='Geometry',
             spatial_reference=wgs84)
 
-    class PtShop(Base):
-        __tablename__ = 'pt_shop'
-        __table_args__ = {'autoload': True, 'extend_existing': True}
-        Geometry = geoalchemy.GeometryColumn(geoalchemy.MultiPoint(dimension=2))
-    PtShop = PtShop
     shop = GeoAlchemyGeometry(
-            session.query(PtShop),
+            query(PtShop),
             geom_cls=PtShop, geom_attr='Geometry',
             spatial_reference=wgs84)
 
     # Return a callable to set line width and source colour
     def prepare(rgba=None, lw=None):
         def f(cr, rgba=rgba, lw=lw):
+            metres_per_point = max([abs(x) for x in cr.device_to_user_distance(1,1)])
             rgba = rgba or (0,0,0,1)
             cr.set_source_rgba(*rgba)
             cr.set_line_width((lw or 1.0) * metres_per_point)
@@ -522,7 +534,7 @@ def osm_map_renderer(metres_per_point):
 
     # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
     # fetcher so we're kinder to MapQuest's servers.
-    map_renderer.layers.append(TileFetcher(url_fetcher=test_url_fetcher))
+    map_renderer.layers.append(TileFetcher(url_fetcher=url_fetcher or test_url_fetcher))
     
     # Fill building boundary polygons in translucent blue with a dark blue outline
     # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
@@ -563,11 +575,11 @@ def osm_map_renderer(metres_per_point):
 
     # Draw shop locations in orange
     map_renderer.layers.append(Wrapped(
-        Geometry(geom=shop, fill=True, stroke=False, marker_radius=3.0 * metres_per_point),
+        Geometry(geom=shop, fill=True, stroke=False, marker_radius=1.0583333333333331),
         pre=prepare(rgba=(0.6,0.3,0,0.5), lw=1.0)
     ))
     map_renderer.layers.append(Wrapped(
-        Geometry(geom=shop, fill=False, stroke=True, marker_radius=3.0 * metres_per_point),
+        Geometry(geom=shop, fill=False, stroke=True, marker_radius=1.0583333333333331),
         pre=prepare(rgba=(0.6,0.3,0,1), lw=1.0)
     ))
 
@@ -599,7 +611,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        osm_map_renderer(metres_per_point).render(cr, spatial_reference=srs)
+        osm_map_renderer().render(cr, spatial_reference=srs)
 
         # Write the first page of the output
         cr.show_page()

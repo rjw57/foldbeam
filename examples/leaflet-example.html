@@ -12,11 +12,11 @@
     </body>
     <script>
         var map = new L.Map('map');
-        var cloudmade = new L.TileLayer('http://localhost:8080/test/{z}/{x}/{y}.png', {
-            maxZoom: 18,
+        var foldbeam = new L.TileLayer('http://localhost:8080/test/{z}/{x}/{y}.png', {
+            maxZoom: 20,
         });
-        var london = new L.LatLng(51.505, -0.09); // geographical point (longitude and latitude)
-        map.setView(london, 13).addLayer(cloudmade);
+        var cambridge = new L.LatLng(52.205, 0.119); // geographical point (longitude and latitude)
+        map.setView(cambridge, 16).addLayer(foldbeam);
     </script>
 </html>
 

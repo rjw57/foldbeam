@@ -48,21 +48,21 @@ class IterableGeometry(object):
         return self.geom or []
 
 class GeoAlchemyGeometry(object):
-    def __init__(self, query=None, geom_cls=None, geom_attr=None, spatial_reference=None):
-        self.query = query
+    def __init__(self, query_cb=None, geom_cls=None, geom_attr=None, spatial_reference=None):
+        self.query_cb = query_cb
         self.geom_cls = geom_cls
         self.geom_attr = geom_attr or 'geom'
         self.native_spatial_reference = spatial_reference
 
     @reproject_from_native_spatial_reference
     def within(self, boundary, spatial_reference=None):
-        if self.query is None:
+        if self.query_cb is None:
             return []
 
         if self.geom_attr is None:
             return []
 
-        q = self.query
+        q = self.query_cb()
         if self.geom_cls is not None:
             q = q.filter(getattr(self.geom_cls, self.geom_attr).intersects(boundary.wkt))
 

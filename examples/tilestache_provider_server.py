@@ -3,6 +3,7 @@ import os
 import sys
 
 import foldbeam.renderer
+from foldbeam.tests.renderer_tests import osm_map_renderer
 import TileStache
 
 logging.basicConfig(level=logging.INFO if '-v' in sys.argv else logging.WARNING)
@@ -21,7 +22,7 @@ def url_fetcher(url):
 
 cache_path = os.path.join(os.path.dirname(__file__), 'cache')
 config = TileStache.Config.buildConfiguration({
-    'cache': { 'name': 'Disk', 'path': cache_path },
+    'cache': { 'name': 'Disk', 'path': cache_path } if '--cache' in sys.argv else { 'name': 'Test' },
     'layers': {
         'test': {
             'provider': {
@@ -33,7 +34,9 @@ config = TileStache.Config.buildConfiguration({
     },
 })
 
-config.layers['test'].provider.renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
+#renderer = foldbeam.renderer.TileFetcher(url_fetcher=url_fetcher)
+renderer = osm_map_renderer(url_fetcher=url_fetcher)
+config.layers['test'].provider.renderer = renderer
 
 app = TileStache.WSGITileServer(config)
 
