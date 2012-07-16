@@ -29,6 +29,16 @@ class Geometry(RendererBase):
         Default False. If True, call 'fill()' to fill the geometry. If both :py:attr:`fill` and :py:attr:`stroke` are
         True, then filling happens first.
 
+    .. py:attribute:: prepare_stroke
+
+        Default `None`. If not `None`, a callable which is called with a single argument of the cairo context to prepare
+        it for a stroke operation.
+
+    .. py:attribute:: prepare_fill
+
+        Default `None`. If not `None`, a callable which is called with a single argument of the cairo context to prepare
+        it for a fill operation.
+
     """
     def __init__(self, **kwargs):
         super(Geometry, self).__init__()
@@ -36,6 +46,8 @@ class Geometry(RendererBase):
         self.marker_radius = 5
         self.stroke = True
         self.fill = False
+        self.prepare_stroke = None
+        self.prepare_fill = None
 
         for k, v in kwargs.iteritems():
             if hasattr(self, k):
@@ -73,11 +85,19 @@ class Geometry(RendererBase):
 
     def _stroke_and_or_fill(self, context):
         if self.fill and not self.stroke:
+            if self.prepare_fill is not None:
+                self.prepare_fill(context)
             context.fill()
         elif self.fill and self.stroke:
+            if self.prepare_fill is not None:
+                self.prepare_fill(context)
             context.fill_preserve()
+            if self.prepare_stroke is not None:
+                self.prepare_stroke(context)
             context.stroke()
         elif self.stroke:
+            if self.prepare_stroke is not None:
+                self.prepare_stroke(context)
             context.stroke()
 
     def _render_point(self, p, context):

@@ -538,23 +538,17 @@ def osm_map_renderer(url_fetcher=None):
     
     # Fill building boundary polygons in translucent blue with a dark blue outline
     # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=building, fill=True, stroke=False),
-        pre=prepare(rgba=(0,0,0.5,0.5), lw=2.0)
-    ))
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=building, fill=False, stroke=True),
-        pre=prepare(rgba=(0,0,0.5,1), lw=2.0)
+    map_renderer.layers.append(Geometry(
+        geom=building,
+        fill=True, prepare_fill=prepare(rgba=(0,0,0.5,0.5)),
+        stroke=True, prepare_stroke=prepare(rgba=(0,0,0.5,1), lw=2.0),
     ))
 
     # Fill amenity boundary polygons in translucent red with a dark red outline
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=amenity, fill=True, stroke=False),
-        pre=prepare(rgba=(0.5,0,0,0.25), lw=2.0)
-    ))
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=amenity, fill=False, stroke=True),
-        pre=prepare(rgba=(0.5,0,0,1), lw=2.0)
+    map_renderer.layers.append(Geometry(
+        geom=amenity,
+        fill=True, prepare_fill=prepare(rgba=(0.5,0,0,0.25)),
+        stroke=True, prepare_stroke=prepare(rgba=(0.5,0,0,1), lw=2.0),
     ))
 
     # Fill land-use boundary polygons in translucent green
@@ -574,30 +568,42 @@ def osm_map_renderer(url_fetcher=None):
     ))
 
     # Draw shop locations in orange
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=shop, fill=True, stroke=False, marker_radius=1.0583333333333331),
-        pre=prepare(rgba=(0.6,0.3,0,0.5), lw=1.0)
-    ))
-    map_renderer.layers.append(Wrapped(
-        Geometry(geom=shop, fill=False, stroke=True, marker_radius=1.0583333333333331),
-        pre=prepare(rgba=(0.6,0.3,0,1), lw=1.0)
+    map_renderer.layers.append(Geometry(
+        geom=shop,
+        fill=True, prepare_fill=prepare(rgba=(0.6,0.3,0,0.5)),
+        stroke=True, prepare_stroke=prepare(rgba=(0.6,0.3,0,1)),
+        marker_radius=1.0583333333333331
     ))
 
     return map_renderer
 
 class TestOSMGeometry(unittest.TestCase):
     def test_osm(self):
-        # Do we want to create a PDF or image?
-        create_pdf = False
+        # Create an output image surface for the map at 640x360 pixels.
+        sw, sh = (640, 360)
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
 
-        if create_pdf:
-            # Create an output PDF surface for the map at 8.27x11.69 in (A4).
-            sw, sh = (int(8.27*72), int(11.69*72))
-            surface = cairo.PDFSurface('central-cambridge.pdf', sw, sh)
-        else:
-            # Create an output image surface for the map at 640x360 pixels.
-            sw, sh = (640, 360)
-            surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
+        # We will be using the British National Grid (OSGB 1936) as the map projestion
+        srs = SpatialReference()
+        srs.ImportFromEPSG(27700) # British National Grid
+
+        # Create a context for the output and centre it on Cambridge. Set the scale to be 10 metres to 1 cm (1000:1).
+        cr = cairo.Context(surface)
+        cx, cy = (544783, 258469) # BNG co-ordinates for Cambridge
+        metres_per_point = (2.54 * 10.0) / (72.0) # convert points -> inches -> cm -> 10 metres/cm
+        w, h = [dist * metres_per_point for dist in (sw, sh)]
+        set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
+
+        # Actually render the map
+        osm_map_renderer().render(cr, spatial_reference=srs)
+
+        output_surface(surface, 'geometryrenderer_osm')
+        self.assertEqual(surface_hash(surface)/10, 590026)
+
+    def test_osm_pdf(self):
+        # Create an output PDF surface for the map at 8.27x11.69 in (A4).
+        sw, sh = (int(8.27*72), int(11.69*72))
+        surface = cairo.PDFSurface('central-cambridge.pdf', sw, sh)
 
         # We will be using the British National Grid (OSGB 1936) as the map projestion
         srs = SpatialReference()
@@ -615,9 +621,4 @@ class TestOSMGeometry(unittest.TestCase):
 
         # Write the first page of the output
         cr.show_page()
-
-        # If we weren't creating a PDF, save the output image
-        if not create_pdf:
-            output_surface(surface, 'geometryrenderer_osm')
-            self.assertEqual(surface_hash(surface)/10, 590079)
 
