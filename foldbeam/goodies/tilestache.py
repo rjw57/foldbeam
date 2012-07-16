@@ -1,3 +1,5 @@
+"""Support for using a renderer as a provider with TileStache for serving slippy map tiles.
+"""
 import cairo
 from osgeo.osr import SpatialReference
 from PIL import Image
