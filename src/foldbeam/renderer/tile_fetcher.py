@@ -10,8 +10,8 @@ from osgeo.osr import SpatialReference
 from PIL import Image
 import httplib2
 
-from foldbeam.core import RendererBase, set_geo_transform
-from foldbeam.renderer import reproject_from_native_spatial_reference
+from foldbeam.renderer.base import RendererBase, set_geo_transform
+from foldbeam.renderer.decorator import reproject_from_native_spatial_reference
 
 log = logging.getLogger()
 

@@ -2,8 +2,9 @@ import math
 
 import cairo
 
-from foldbeam.core import RendererBase, Envelope
+from foldbeam.core import Envelope
 from foldbeam.core import boundary_from_envelope
+from foldbeam.renderer import RendererBase
 
 class GeometryRenderer(RendererBase):
     """Render shapely geometric shapes into a context.

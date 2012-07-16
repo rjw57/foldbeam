@@ -20,9 +20,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import geoalchemy
 
-from foldbeam.core import set_geo_transform
 from foldbeam.geometry import IterableGeometry, GeoAlchemyGeometry
-from foldbeam.renderer import TileFetcher, default_url_fetcher, TileStacheProvider, GeometryRenderer
+from foldbeam.renderer import set_geo_transform, default_url_fetcher
+from foldbeam.renderer import TileFetcher, TileStacheProvider, GeometryRenderer
 from foldbeam.tests import surface_hash, output_surface
 
 import TileStache

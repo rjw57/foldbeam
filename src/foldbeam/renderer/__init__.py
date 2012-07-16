@@ -3,8 +3,7 @@
 """
 import sys
 
-import TileStache
-
+from foldbeam.renderer.base import *
 from foldbeam.renderer.decorator import *
 from foldbeam.renderer.geometry_renderer import *
 from foldbeam.renderer.tile_fetcher import *
@@ -16,6 +15,8 @@ for k, v in sys.modules[__name__].__dict__.items():
         continue
     if v.__module__.startswith(__name__ + '.'):
         v.__module__ = __name__
+
+import TileStache
 
 class TileStacheProvider(object):
     """An object suitable for use as a TileStache provider.

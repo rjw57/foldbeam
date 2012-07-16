@@ -5,7 +5,7 @@ from osgeo.osr import SpatialReference
 import numpy as np
 
 from foldbeam import core
-from foldbeam.core import RendererBase, set_geo_transform
+from foldbeam.renderer import RendererBase, set_geo_transform
 from foldbeam.tests import surface_hash, output_surface
 
 class TestGeoTransform(unittest.TestCase):
