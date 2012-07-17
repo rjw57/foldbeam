@@ -16,7 +16,7 @@
             maxZoom: 18,
             subdomains: '1234',
         });
-        var foldbeam = new L.TileLayer('http://localhost:8080/test/{z}/{x}/{y}.png', {
+        var foldbeam = new L.TileLayer('/test/{z}/{x}/{y}.png', {
             maxZoom: 18,
         });
         var cambridge = new L.LatLng(52.205, 0.119); // geographical point (longitude and latitude)
