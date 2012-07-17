@@ -1,0 +1,30 @@
+%YAML 1.2
+--- # A simple map example
+
+# Define styles
+- style: &translucent_green
+    rgba: [ 0, 0.8, 0, 0.5 ]
+
+- style: &green
+    rgb: [ 0, 0.8, 0 ]
+
+- style: &thin
+    line_width: 5.0
+
+# Define geometry sources
+- geometry: &bus_stop_geom
+    type: 'foldbeam.geometry.DBTable'
+    location: 'postgres://gis:gis@localhost/bus_stops'
+
+# Define individual renderer
+- renderer: &bus_stop
+    type: 'foldbeam.renderer.Geometry'
+    geometry: *bus_stop_geom
+    fill: True
+    stroke: False
+    fill_style: *translucent_green
+    stroke_style: [ *green, *thin ]
+
+# A test map
+- map: &test
+    renderer: *bus_stop
