@@ -66,7 +66,7 @@ class Geometry(RendererBase):
         minx, miny, maxx, maxy = context.clip_extents()
         boundary = boundary_from_envelope(Envelope(minx, maxx, maxy, miny, spatial_reference))
 
-        geometry = list(self.geom.within(boundary, spatial_reference))
+        geometry = self.geom.within(boundary, spatial_reference)
 
         def f():
             for g in geometry:
