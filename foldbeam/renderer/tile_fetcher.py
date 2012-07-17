@@ -4,7 +4,6 @@ import StringIO
 import sys
 
 import cairo
-from concurrent import futures
 import numpy as np
 from osgeo.osr import SpatialReference
 from PIL import Image

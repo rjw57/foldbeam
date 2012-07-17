@@ -24,7 +24,8 @@ install_requires = [
     'shapely',
     'sqlalchemy',
     'tilestache',
-    # 'wsgiutils', # only required for examples
+    'selector',         # only required for examples
+    # 'wsgiutils',        # only required for examples
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
 ]
 

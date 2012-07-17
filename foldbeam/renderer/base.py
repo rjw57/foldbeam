@@ -1,7 +1,6 @@
 import os
 
 import cairo
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 _data_dir = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -131,16 +130,5 @@ class Layers(RendererBase):
         if self.layers is None:
             return lambda: None
 
-        executor = ThreadPoolExecutor(max_workers=len(self.layers))
-        render_futures = [
-            executor.submit(
-                lambda l: l.render_callable(context, spatial_reference=spatial_reference),
-                layer)
-            for layer in self.layers]
-
-        def f():
-            for future in render_futures:
-                cb = future.result()
-                cb()
-
-        return f
+        callables = [l.render_callable(context, spatial_reference=spatial_reference) for l in self.layers]
+        return lambda: [x() for x in callables]

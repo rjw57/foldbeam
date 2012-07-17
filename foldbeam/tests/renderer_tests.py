@@ -452,7 +452,7 @@ class TestGeometry(unittest.TestCase):
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
 
-def osm_map_renderer(url_fetcher=None, use_postgres=False):
+def osm_map_renderer(url_fetcher=None, use_postgres=False, use_tile_fetcher=True):
     osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
     #engine = create_engine('postgresql://gis:gis@localhost/central-cambridge', poolclass=StaticPool)
     engine = create_engine('sqlite:///' + osm_db_path,
@@ -537,7 +537,8 @@ def osm_map_renderer(url_fetcher=None, use_postgres=False):
 
     # Create a renderer for the base layer. By default this will fetch MapQuest tiles. Provide a custom caching URL
     # fetcher so we're kinder to MapQuest's servers.
-    map_renderer.layers.append(TileFetcher(url_fetcher=url_fetcher or test_url_fetcher))
+    if use_tile_fetcher:
+        map_renderer.layers.append(TileFetcher(url_fetcher=url_fetcher or test_url_fetcher))
     
     # Fill building boundary polygons in translucent blue with a dark blue outline
     # with a line width of 2 points == 2 / 72 in. (Device units are points for PDF.)
@@ -579,7 +580,7 @@ def osm_map_renderer(url_fetcher=None, use_postgres=False):
     ))
 
     if use_postgres:
-        stops_engine = create_engine('postgresql://gis:gis@localhost/public_transport')
+        stops_engine = create_engine('postgresql://gis:gis@localhost/public_transport', poolclass=StaticPool)
         stops_session = sessionmaker(bind=stops_engine)
 
         Base = declarative_base(metadata=MetaData(stops_engine, reflect=True))
