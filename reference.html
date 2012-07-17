@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-07-16',
+        VERSION:     '2012-07-17',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -318,12 +318,16 @@ and so the first-most layer will be the bottom-most in the output.</p>
 <dt id="foldbeam.renderer.base.RendererBase">
 <em class="property">class </em><tt class="descclassname">foldbeam.renderer.base.</tt><tt class="descname">RendererBase</tt><a class="headerlink" href="#foldbeam.renderer.base.RendererBase" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for all renderers. A renderer can take a cairo surface and render into it. The surface&#8217;s
-user-space co-ordinate system specifies the extent to render. The <a class="reference internal" href="#foldbeam.renderer.base.RendererBase.render" title="foldbeam.renderer.base.RendererBase.render"><tt class="xref py py-meth docutils literal"><span class="pre">render()</span></tt></a> method optionally takes a
+user-space co-ordinate system specifies the extent to render. The <tt class="xref py py-meth docutils literal"><span class="pre">render()</span></tt> method optionally takes a
 spatial reference allowing implicit transformation of the underlying data if necessary.</p>
 <dl class="method">
-<dt id="foldbeam.renderer.base.RendererBase.render">
-<tt class="descname">render</tt><big>(</big><em>context</em>, <em>spatial_reference=None</em><big>)</big><a class="headerlink" href="#foldbeam.renderer.base.RendererBase.render" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called to render the object to the specified cairo context.</p>
+<dt id="foldbeam.renderer.base.RendererBase.render_callable">
+<tt class="descname">render_callable</tt><big>(</big><em>context</em>, <em>spatial_reference=None</em><big>)</big><a class="headerlink" href="#foldbeam.renderer.base.RendererBase.render_callable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a callable which can be called to render the object to the specified cairo context.</p>
+<p>Calling this method will not modify the Cairo context but may perform an intensive operation to prepare for
+rendering (e.g. a database query). The callable returned from this method will modify the context and, if
+possible, should do as little work beyond rendering as possible. It is intended that this method be thread safe
+but that the callables returned will be called sequentially to perform the actual rendering.</p>
 <p>The user co-ordinates of the cairo context are respected. If you want to render a specific portion of the image,
 translate and scale the user co-ordinate system appropriately.</p>
 <p>The output context&#8217;s co-ordinate system optionally has a spatial reference associated with it. If this is not

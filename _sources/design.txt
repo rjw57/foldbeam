@@ -19,3 +19,9 @@ The overall effect is something like the following:
         "Vector Source" -> "Render Vector" -> "Display";
     }
 
+Map files
+---------
+
+.. literalinclude:: map_example.yaml
+    :language: yaml
+    :linenos:

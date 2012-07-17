@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-07-16',
+        VERSION:     '2012-07-17',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -66,6 +66,96 @@ Node is expected to fulfil the requirements.</p>
     &quot;Vector Source&quot; -&gt; &quot;Render Vector&quot; -&gt; &quot;Display&quot;;
 }" />
 </p>
+<div class="section" id="map-files">
+<h2>Map files<a class="headerlink" href="#map-files" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-yaml"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43</pre></div></td><td class="code"><div class="highlight"><pre><span class="c1"># Define styles</span>
+<span class="p-Indicator">-</span> <span class="kt">!!Style</span> <span class="nl">&amp;translucent_green</span>
+    <span class="l-Scalar-Plain">rgba</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span> <span class="nv">0</span><span class="p-Indicator">,</span> <span class="nv">0.8</span><span class="p-Indicator">,</span> <span class="nv">0</span><span class="p-Indicator">,</span> <span class="nv">0.5</span> <span class="p-Indicator">]</span>
+
+<span class="p-Indicator">-</span> <span class="kt">!!Style</span> <span class="nl">&amp;translucent_blue</span>
+    <span class="l-Scalar-Plain">rgba</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span> <span class="nv">0</span><span class="p-Indicator">,</span> <span class="nv">0</span><span class="p-Indicator">,</span> <span class="nv">0.8</span><span class="p-Indicator">,</span> <span class="nv">0.5</span> <span class="p-Indicator">]</span>
+
+<span class="p-Indicator">-</span> <span class="kt">!!Style</span> <span class="nl">&amp;green</span>
+    <span class="l-Scalar-Plain">rgb</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span> <span class="nv">0</span><span class="p-Indicator">,</span> <span class="nv">0.8</span><span class="p-Indicator">,</span> <span class="nv">0</span> <span class="p-Indicator">]</span>
+
+<span class="p-Indicator">-</span> <span class="kt">!!Style</span> <span class="nl">&amp;thin</span>
+    <span class="l-Scalar-Plain">line_width</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">5.0</span>
+
+<span class="c1"># Define geometry sources</span>
+<span class="p-Indicator">-</span> <span class="kt">!!Geometry/DatabaseTable</span> <span class="nl">&amp;bus_stops_geom</span>
+    <span class="l-Scalar-Plain">location</span><span class="p-Indicator">:</span> <span class="s">&#39;postgres://gis:gis@localhost/bus_stops&#39;</span>
+
+<span class="p-Indicator">-</span> <span class="kt">!!Geometry/DatabaseTable</span> <span class="nl">&amp;buildings_geom</span>
+    <span class="l-Scalar-Plain">location</span><span class="p-Indicator">:</span> <span class="s">&#39;postgres://gis:gis@localhost/buildings&#39;</span>
+
+<span class="c1"># Define individual renderer</span>
+<span class="p-Indicator">-</span> <span class="kt">!!Renderer/Geometry</span> <span class="nl">&amp;bus_stops</span>
+    <span class="l-Scalar-Plain">geometry</span><span class="p-Indicator">:</span> <span class="nv">*bus_stop_geom</span>
+    <span class="l-Scalar-Plain">fill</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">True</span>
+    <span class="l-Scalar-Plain">stroke</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">True</span>
+    <span class="l-Scalar-Plain">fill_style</span><span class="p-Indicator">:</span> <span class="nv">*translucent_green</span>
+    <span class="l-Scalar-Plain">stroke_style</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span> <span class="nv">*green</span><span class="p-Indicator">,</span> <span class="nv">*thin</span> <span class="p-Indicator">]</span>
+
+<span class="p-Indicator">-</span> <span class="kt">!!Renderer/Geometry</span> <span class="nl">&amp;buildings</span>
+    <span class="l-Scalar-Plain">geometry</span><span class="p-Indicator">:</span> <span class="nv">*bus_stop_geom</span>
+    <span class="l-Scalar-Plain">fill</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">True</span>
+    <span class="l-Scalar-Plain">stroke</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">False</span>
+    <span class="l-Scalar-Plain">fill_style</span><span class="p-Indicator">:</span> <span class="nv">*translucent_blue</span>
+
+<span class="c1"># A test map</span>
+<span class="p-Indicator">-</span> <span class="kt">!!HTTPTileServer</span>
+    <span class="l-Scalar-Plain">host</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">localhost</span>
+    <span class="l-Scalar-Plain">port</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">8080</span>
+    <span class="l-Scalar-Plain">layers</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">stops</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">renderer</span><span class="p-Indicator">:</span> <span class="nv">*bus_stops</span>
+        <span class="l-Scalar-Plain">projection</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">EPSG:27700</span>
+      <span class="l-Scalar-Plain">buildings</span><span class="p-Indicator">:</span> <span class="nv">*buildings</span> <span class="c1"># will use default projection</span>
+</pre></div>
+</td></tr></table></div>
+</div>
 </div>
 
 
@@ -74,6 +164,14 @@ Node is expected to fulfil the requirements.</p>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Design notes</a><ul>
+<li><a class="reference internal" href="#map-files">Map files</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="reference.html"
                         title="previous chapter">Reference</a></p>
