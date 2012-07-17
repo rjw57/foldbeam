@@ -1,30 +1,43 @@
-%YAML 1.2
---- # A simple map example
-
 # Define styles
-- style: &translucent_green
+- !!Style &translucent_green
     rgba: [ 0, 0.8, 0, 0.5 ]
 
-- style: &green
+- !!Style &translucent_blue
+    rgba: [ 0, 0, 0.8, 0.5 ]
+
+- !!Style &green
     rgb: [ 0, 0.8, 0 ]
 
-- style: &thin
+- !!Style &thin
     line_width: 5.0
 
 # Define geometry sources
-- geometry: &bus_stop_geom
-    type: 'foldbeam.geometry.DBTable'
+- !!Geometry/DatabaseTable &bus_stops_geom
     location: 'postgres://gis:gis@localhost/bus_stops'
 
+- !!Geometry/DatabaseTable &buildings_geom
+    location: 'postgres://gis:gis@localhost/buildings'
+
 # Define individual renderer
-- renderer: &bus_stop
-    type: 'foldbeam.renderer.Geometry'
+- !!Renderer/Geometry &bus_stops
     geometry: *bus_stop_geom
     fill: True
-    stroke: False
+    stroke: True
     fill_style: *translucent_green
     stroke_style: [ *green, *thin ]
 
+- !!Renderer/Geometry &buildings
+    geometry: *bus_stop_geom
+    fill: True
+    stroke: False
+    fill_style: *translucent_blue
+
 # A test map
-- map: &test
-    renderer: *bus_stop
+- !!HTTPTileServer
+    host: localhost
+    port: 8080
+    layers:
+      stops:
+        renderer: *bus_stops
+        projection: EPSG:27700
+      buildings: *buildings # will use default projection
