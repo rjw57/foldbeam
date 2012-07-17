@@ -1,6 +1,7 @@
 import os
 
 import cairo
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 _data_dir = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -42,8 +43,13 @@ class RendererBase(object):
     
     """
 
-    def render(self, context, spatial_reference=None):
-        """Called to render the object to the specified cairo context.
+    def render_callable(self, context, spatial_reference=None):
+        """Return a callable which can be called to render the object to the specified cairo context.
+        
+        Calling this method will not modify the Cairo context but may perform an intensive operation to prepare for
+        rendering (e.g. a database query). The callable returned from this method will modify the context and, if
+        possible, should do as little work beyond rendering as possible. It is intended that this method be thread safe
+        but that the callables returned will be called sequentially to perform the actual rendering.
 
         The user co-ordinates of the cairo context are respected. If you want to render a specific portion of the image,
         translate and scale the user co-ordinate system appropriately.
@@ -61,10 +67,13 @@ class RendererBase(object):
         # Get the user space distance of one output device unit
         placeholder_scale = max(*[abs(x) for x in context.user_to_device_distance(1, 1)])
 
-        context.set_source_surface(_get_placeholder_surface())
-        context.get_source().set_extend(cairo.EXTEND_REPEAT)
-        context.get_source().set_matrix(cairo.Matrix(xx=placeholder_scale, yy=-placeholder_scale))
-        context.paint()
+        def f():
+            context.set_source_surface(_get_placeholder_surface())
+            context.get_source().set_extend(cairo.EXTEND_REPEAT)
+            context.get_source().set_matrix(cairo.Matrix(xx=placeholder_scale, yy=-placeholder_scale))
+            context.paint()
+
+        return f
 
 class Wrapped(RendererBase):
     """Wrap a renderer with, optionally, a pre- or post-called callable. Each callable is passed the cairo context the
@@ -89,14 +98,19 @@ class Wrapped(RendererBase):
         self.post = post
         self.renderer = renderer
 
-    def render(self, context, spatial_reference=None):
-        if self.pre is not None:
-            self.pre(context)
+    def render_callable(self, context, spatial_reference=None):
+        wrapped_cb = self.renderer.render_callable(context, spatial_reference=spatial_reference)
 
-        self.renderer.render(context, spatial_reference=spatial_reference)
+        def f():
+            if self.pre is not None:
+                self.pre(context)
+            
+            wrapped_cb()
 
-        if self.post is not None:
-            self.post(context)
+            if self.post is not None:
+                self.post(context)
+
+        return f
 
 class Layers(RendererBase):
     """Render multiple layers one after another. Note that the layers are rendered in the order they are in the sequence
@@ -113,9 +127,20 @@ class Layers(RendererBase):
     def __init__(self, layers=None):
         self.layers = layers
 
-    def render(self, context, spatial_reference=None):
+    def render_callable(self, context, spatial_reference=None):
         if self.layers is None:
-            return
+            return lambda: None
 
-        for layer in self.layers:
-            layer.render(context, spatial_reference=spatial_reference)
+        executor = ThreadPoolExecutor(max_workers=len(self.layers))
+        render_futures = [
+            executor.submit(
+                lambda l: l.render_callable(context, spatial_reference=spatial_reference),
+                layer)
+            for layer in self.layers]
+
+        def f():
+            for future in render_futures:
+                cb = future.result()
+                cb()
+
+        return f

@@ -66,7 +66,7 @@ class TileFetcher(RendererBase):
         self._fetch_url = url_fetcher or default_url_fetcher
 
     @reproject_from_native_spatial_reference
-    def render(self, context, spatial_reference=None):
+    def render_callable(self, context, spatial_reference=None):
         if spatial_reference is not None and not spatial_reference.IsSame(self.native_spatial_reference):
             raise ValueError('TileFetcher asked to render tile from incompatible spatial reference.')
 
@@ -96,67 +96,54 @@ class TileFetcher(RendererBase):
         min_x, min_y = tl
         max_x, max_y = br
 
-        # kick off requests for the tiles (maximum 4 concurrent requests)
-        with futures.ThreadPoolExecutor(max_workers=5) as executor:
-            # we will load tiles in a thread pool with a maximum of 10 workers for a maximum of 10 concurrent requests
-            future_to_tile = {}
+        tiles_to_fetch = []
+        for x in range(min_x, max_x+1):
+            # wrap the x co-ordinate in the number of tiles
+            wrapped_x = x % n_tiles
+            if wrapped_x < 0:
+                wrapped_x += n_tiles
 
-            for x in range(min_x, max_x+1):
-                # wrap the x co-ordinate in the number of tiles
-                wrapped_x = x % n_tiles
-                if wrapped_x < 0:
-                    wrapped_x += n_tiles
+            for y in range(min_y, max_y+1):
+                # skip out of range y-tiles
+                if y < 0 or y >= n_tiles:
+                    continue
 
-                for y in range(min_y, max_y+1):
-                    # skip out of range y-tiles
-                    if y < 0 or y >= n_tiles:
-                        continue
+                url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
+                tiles_to_fetch.append((x,y,url,self._fetch_url(url)))
 
-                    url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
-
-                    future = executor.submit(self._fetch_url, url)
-                    future_to_tile[future] = (x,y,url)
-
+        def f():
             # render the tiles as they come in
-            for future in futures.as_completed(future_to_tile):
-                x, y, url = future_to_tile[future]
-                if future.exception():
-                    import traceback
-                    log.error("error loading '{url}':".format(url=url))
-                    e = future.exception()
-                    for line in traceback.format_exception_only(type(e), e):
-                        log.error('    ' + line)
-                else:
-                    # load the tile into a cairo surface
-                    data = future.result()
-                    surface = _cairo_surface_from_data(data)
+            for x, y, url, data in tiles_to_fetch:
+                # load the tile into a cairo surface
+                surface = _cairo_surface_from_data(data)
 
-                    # what extents should this tile have?
-                    tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
+                # what extents should this tile have?
+                tile_x, tile_y, tile_w, tile_h = self._tile_extents(x, y, zoom)
 
-                    tile_x_scale = surface.get_width() / tile_w
-                    tile_y_scale = -surface.get_height() / tile_h
+                tile_x_scale = surface.get_width() / tile_w
+                tile_y_scale = -surface.get_height() / tile_h
 
-                    # set up the tile as a source
-                    context.set_source_surface(surface)
-                    context.get_source().set_matrix(cairo.Matrix(
-                        xx = tile_x_scale,
-                        yy = tile_y_scale,
-                        x0 = -tile_x * tile_x_scale,
-                        y0 = -tile_y * tile_y_scale + surface.get_height()
-                    ))
+                # set up the tile as a source
+                context.set_source_surface(surface)
+                context.get_source().set_matrix(cairo.Matrix(
+                    xx = tile_x_scale,
+                    yy = tile_y_scale,
+                    x0 = -tile_x * tile_x_scale,
+                    y0 = -tile_y * tile_y_scale + surface.get_height()
+                ))
 
-                    # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
-                    context.get_source().set_extend(cairo.EXTEND_PAD)
+                # we need to set the extend options to avoid interpolating towards zero-alpha at the edges
+                context.get_source().set_extend(cairo.EXTEND_PAD)
 
-                    # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
-                    # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
-                    context.save()
-                    context.set_antialias(cairo.ANTIALIAS_NONE)
-                    context.rectangle(tile_x, tile_y, tile_w, tile_h)
-                    context.fill()
-                    context.restore()
+                # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
+                # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
+                context.save()
+                context.set_antialias(cairo.ANTIALIAS_NONE)
+                context.rectangle(tile_x, tile_y, tile_w, tile_h)
+                context.fill()
+                context.restore()
 
+        return f    
 
     def _tile_extents(self, tx, ty, zoom):
         """Return a tuple (minx, miny, width, height) giving the extents of a tile in projection co-ords."""

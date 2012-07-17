@@ -92,7 +92,7 @@ def run(args):
 
     context = cairo.Context(output_surface)
     set_geo_transform(context, left, right, top, bottom, size[0], size[1])
-    renderer.render(context, spatial_reference=srs)
+    renderer.render_callable(context, spatial_reference=srs)()
 
     output_surface.write_to_png(args.output)
 

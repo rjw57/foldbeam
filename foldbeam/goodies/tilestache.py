@@ -31,7 +31,7 @@ class TileStacheProvider(object):
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         cr = cairo.Context(surface)
         set_geo_transform(cr, xmin, xmax, ymax, ymin, width, height)
-        self.renderer.render(cr, spatial_reference=spatial_reference)
+        self.renderer.render_callable(cr, spatial_reference=spatial_reference)()
 
         im = Image.frombuffer('RGBA', (width, height), surface.get_data(), 'raw', 'BGRA', 0, 1)
         return im

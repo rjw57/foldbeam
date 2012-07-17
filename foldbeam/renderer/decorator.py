@@ -25,9 +25,8 @@ def reproject_from_native_spatial_reference(f):
     which is an instance of :py:class:`osgeo.osr.SpatialReference` giving the native spatial reference for that renderer.
 
     """
-
     @wraps(f)
-    def render(self, context, spatial_reference=None, **kwargs):
+    def render_callable(self, context, spatial_reference=None, f=f, **kwargs):
         # Find the native spatial reference
         native_spatial_reference = self.native_spatial_reference
         assert(native_spatial_reference is not None)
@@ -87,7 +86,7 @@ def reproject_from_native_spatial_reference(f):
         )
 
         # render the intermediate
-        f(self, intermediate_context, native_spatial_reference, **kwargs)
+        f(self, intermediate_context, native_spatial_reference, **kwargs)()
 
         # get hold of the intermediate surface as a dataset
         intermediate_dataset = _image_surface_to_dataset(intermediate_surface)
@@ -125,24 +124,27 @@ def reproject_from_native_spatial_reference(f):
         surface_array[:] = output_array.flat
         output_surface.mark_dirty()
 
-        # draw the transformed output to the context
-        context.set_source_surface(output_surface)
-        context.get_source().set_matrix(cairo.Matrix(
-            xx = 1.0 / abs(output_pixel_size[0]),
-            yy = -1.0 / abs(output_pixel_size[1]),
-            x0 = -target_min_x / abs(output_pixel_size[0]),
-            y0 = -target_max_y / -abs(output_pixel_size[1]),
-        ))
+        def f():
+            # draw the transformed output to the context
+            context.set_source_surface(output_surface)
+            context.get_source().set_matrix(cairo.Matrix(
+                xx = 1.0 / abs(output_pixel_size[0]),
+                yy = -1.0 / abs(output_pixel_size[1]),
+                x0 = -target_min_x / abs(output_pixel_size[0]),
+                y0 = -target_max_y / -abs(output_pixel_size[1]),
+            ))
 
-        # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
-        # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
-        context.save()
-        context.set_antialias(cairo.ANTIALIAS_NONE)
-        context.rectangle(target_min_x, target_min_y, target_max_x - target_min_x, target_max_y - target_min_y)
-        context.fill()
-        context.restore()
+            # draw the tile itself. We disable antialiasing because if the tile slightly overlaps an output
+            # pixel we want the interpolation of the tile to do the smoothing, not the rasteriser
+            context.save()
+            context.set_antialias(cairo.ANTIALIAS_NONE)
+            context.rectangle(target_min_x, target_min_y, target_max_x - target_min_x, target_max_y - target_min_y)
+            context.fill()
+            context.restore()
 
-    return render
+        return f
+
+    return render_callable
 
 def _image_surface_to_array(image_surface):
     """Return a numpy array pointing to a Cairo image surface

@@ -71,7 +71,7 @@ class TestTileFetcher(unittest.TestCase):
     def test_default(self):
         self.centre_on_big_ben()
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(self.cr)
+        renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_default')
         self.assertEqual(surface_hash(self.surface)/10, 723002)
 
@@ -81,7 +81,7 @@ class TestTileFetcher(unittest.TestCase):
             url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
             url_fetcher=test_url_fetcher
         )
-        renderer.render(self.cr)
+        renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_aerial')
         self.assertEqual(surface_hash(self.surface)/10, 720869)
 
@@ -92,7 +92,7 @@ class TestTileFetcher(unittest.TestCase):
             url_pattern='http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
             url_fetcher=test_url_fetcher
         )
-        renderer.render(self.cr)
+        renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_aerial_hawaii')
         self.assertEqual(surface_hash(self.surface)/10, 545209)
 
@@ -112,7 +112,7 @@ class TestTileFetcher(unittest.TestCase):
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid')
         self.assertEqual(surface_hash(surface)/10, 1893451)
 
@@ -132,7 +132,7 @@ class TestTileFetcher(unittest.TestCase):
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
         self.assertEqual(surface_hash(surface)/10, 1893451)
 
@@ -152,7 +152,7 @@ class TestTileFetcher(unittest.TestCase):
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
         self.assertEqual(surface_hash(surface)/10, 1893451)
 
@@ -172,7 +172,7 @@ class TestTileFetcher(unittest.TestCase):
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_wide')
         self.assertEqual(surface_hash(surface)/10, 2560541)
 
@@ -192,7 +192,7 @@ class TestTileFetcher(unittest.TestCase):
         srs.ImportFromEPSG(27700) # OSGB 1936
 
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
         self.assertEqual(surface_hash(surface)/10, 2651647)
 
@@ -201,7 +201,7 @@ class TestGeometry(unittest.TestCase):
         renderer = Geometry()
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
-        renderer.render(cr)
+        renderer.render_callable(cr)()
         output_surface(surface, 'geometryrenderer_default')
         self.assertEqual(surface_hash(surface)/10, 51840)
 
@@ -227,11 +227,11 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgb(0,1,0)
         renderer.fill = True
         renderer.stroke = False
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         cr.set_source_rgb(0,0.5,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_points')
         self.assertEqual(surface_hash(surface)/10, 53314)
@@ -260,11 +260,11 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgb(0,1,0)
         renderer.fill = True
         renderer.stroke = False
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
         cr.set_source_rgb(0,0.5,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_multipoints')
         self.assertEqual(surface_hash(surface)/10, 53314)
@@ -295,7 +295,7 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgb(0.8,0,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_linestrings')
         self.assertEqual(surface_hash(surface)/10, 55488)
@@ -328,7 +328,7 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgb(0.8,0,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_multilinestrings')
         self.assertEqual(surface_hash(surface)/10, 55488)
@@ -359,7 +359,7 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgb(0.8,0,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_linearrings')
         self.assertEqual(surface_hash(surface)/10, 56042)
@@ -398,12 +398,12 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgba(0.8,0,0,0.7)
         renderer.fill = True
         renderer.stroke = False
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         cr.set_source_rgb(0.3,0,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_polygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
@@ -442,19 +442,19 @@ class TestGeometry(unittest.TestCase):
         cr.set_source_rgba(0.8,0,0,0.7)
         renderer.fill = True
         renderer.stroke = False
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         cr.set_source_rgb(0.3,0,0)
         renderer.fill = False
         renderer.stroke = True
-        renderer.render(cr, spatial_reference=srs)
+        renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_multipolygons')
         self.assertEqual(surface_hash(surface)/10, 65083)
 
 def osm_map_renderer(url_fetcher=None, use_postgres=False):
     osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
-    # engine = create_engine('postgresql://gis:gis@localhost/central-cambridge')
+    #engine = create_engine('postgresql://gis:gis@localhost/central-cambridge', poolclass=StaticPool)
     engine = create_engine('sqlite:///' + osm_db_path,
         connect_args={'check_same_thread': False},
         poolclass=StaticPool)
@@ -630,7 +630,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        self.map_renderer.render(cr, spatial_reference=srs)
+        self.map_renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_osm')
         self.assertEqual(surface_hash(surface)/10, 590026)
@@ -652,7 +652,7 @@ class TestOSMGeometry(unittest.TestCase):
         set_geo_transform(cr, cx-0.5*w, cx+0.5*w, cy+0.5*h, cy-0.5*h, sw, sh)
 
         # Actually render the map
-        self.map_renderer.render(cr, spatial_reference=srs)
+        self.map_renderer.render_callable(cr, spatial_reference=srs)()
 
         # Write the first page of the output
         cr.show_page()

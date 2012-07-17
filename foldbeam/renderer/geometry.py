@@ -1,6 +1,7 @@
 import math
 
 import cairo
+import numpy as np
 
 from foldbeam.core import Envelope
 from foldbeam.core import boundary_from_envelope
@@ -55,33 +56,38 @@ class Geometry(RendererBase):
             else:
                 raise AttributeError(k)
 
-    def render(self, context, spatial_reference=None):
+    def render_callable(self, context, spatial_reference=None):
         if self.geom is None:
-            return
+            return lambda: None
 
         if not self.stroke and not self.fill:
-            return
+            return lambda: None
 
         minx, miny, maxx, maxy = context.clip_extents()
         boundary = boundary_from_envelope(Envelope(minx, maxx, maxy, miny, spatial_reference))
 
-        for g in self.geom.within(boundary, spatial_reference):
-            if g.geom_type == 'Point':
-                self._render_point(g, context)
-            elif g.geom_type == 'MultiPoint':
-                [self._render_point(x, context) for x in g]
-            elif g.geom_type == 'LineString':
-                self._render_line_string(g, context)
-            elif g.geom_type == 'MultiLineString':
-                [self._render_line_string(x, context) for x in g]
-            elif g.geom_type == 'LinearRing':
-                self._render_line_string(g, context, close_path=True)
-            elif g.geom_type == 'Polygon':
-                self._render_polygon(g, context)
-            elif g.geom_type == 'MultiPolygon':
-                [self._render_polygon(x, context) for x in g]
-            else:
-                log.warning('Unknown geometry type: ' + str(g.geom_type))
+        geometry = list(self.geom.within(boundary, spatial_reference))
+
+        def f():
+            for g in geometry:
+                if g.geom_type == 'Point':
+                    self._render_point(g, context)
+                elif g.geom_type == 'MultiPoint':
+                    [self._render_point(x, context) for x in g]
+                elif g.geom_type == 'LineString':
+                    self._render_line_string(g, context)
+                elif g.geom_type == 'MultiLineString':
+                    [self._render_line_string(x, context) for x in g]
+                elif g.geom_type == 'LinearRing':
+                    self._render_line_string(g, context, close_path=True)
+                elif g.geom_type == 'Polygon':
+                    self._render_polygon(g, context)
+                elif g.geom_type == 'MultiPolygon':
+                    [self._render_polygon(x, context) for x in g]
+                else:
+                    log.warning('Unknown geometry type: ' + str(g.geom_type))
+
+        return f
 
     def _stroke_and_or_fill(self, context):
         if self.fill and not self.stroke:
@@ -106,12 +112,12 @@ class Geometry(RendererBase):
         self._stroke_and_or_fill(context)
 
     def _path(self, ls, context, close_path=False):
-        xs, ys = ls.xy
-        if len(xs) == 0:
+        if ls.is_empty:
             return
-        context.move_to(xs[0], ys[0])
-        for x, y in zip(xs[1:], ys[1:]):
-            context.line_to(x, y)
+        coords = np.asarray(ls)
+        context.move_to(*coords[0,:2])
+        for p in coords:
+            context.line_to(*p[:2])
         if close_path:
             context.close_path()
 

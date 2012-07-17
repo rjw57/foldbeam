@@ -19,7 +19,7 @@ class TestGeoTransform(unittest.TestCase):
         set_geo_transform(self.cr, 49, 51, 2, 1, 640, 480)
         self.assertEqual(self.cr.clip_extents(), (49.0, 1.0, 51.0, 2.0))
         renderer = RendererBase()
-        renderer.render(self.cr)
+        renderer.render_callable(self.cr)()
         output_surface(self.surface, 'geo_transform')
         self.assertEqual(surface_hash(self.surface), 3127943)
 
@@ -35,7 +35,7 @@ class TestCore(unittest.TestCase):
 
     def test_render(self):
         renderer = RendererBase()
-        renderer.render(self.cr)
+        renderer.render_callable(self.cr)()
         output_surface(self.surface, 'renderer_base')
         self.assertEqual(surface_hash(self.surface), 2986593)
 
