@@ -1,3 +1,7 @@
+"""A simple example of serving map data for overlay on a web-accessible 'slippy' map.
+
+Run this script and go to http://localhost:8080/.
+"""
 import logging
 import os
 import sys
