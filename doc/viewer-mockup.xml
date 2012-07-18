@@ -1,0 +1,104 @@
+<mockup version="1.0" skin="sketch" measuredW="1321" measuredH="721" mockupW="1219" mockupH="656">
+  <controls>
+    <control controlID="37" controlTypeID="com.balsamiq.mockups::Map" x="110" y="164" w="794" h="525" measuredW="252" measuredH="222" zOrder="1" locked="false" isInGroup="-1"/>
+    <control controlID="39" controlTypeID="com.balsamiq.mockups::HSplitter" x="904" y="164" w="-1" h="525" measuredW="12" measuredH="100" zOrder="2" locked="false" isInGroup="-1"/>
+    <control controlID="44" controlTypeID="com.balsamiq.mockups::Tree" x="916" y="164" w="212" h="225" measuredW="300" measuredH="225" zOrder="3" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>%5Bx%5D%20Layer%20one%0A%5Bx%5D%20Layer%20two%0A%5B%20%5D%20Layer%20three</text>
+      </controlProperties>
+    </control>
+    <control controlID="45" controlTypeID="com.balsamiq.mockups::Accordion" x="916" y="389" w="213" h="300" measuredW="150" measuredH="234" zOrder="4" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Online%0ALoall%20%0A-%20Sub-Item%202.1%0A-%20Sub-Item%202.2%0AGeology%0AArchaeology</text>
+      </controlProperties>
+    </control>
+    <control controlID="46" controlTypeID="com.balsamiq.mockups::IconLabel" x="926" y="431" w="-1" h="-1" measuredW="64" measuredH="69" zOrder="5" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>MapQuest</text>
+      </controlProperties>
+    </control>
+    <control controlID="47" controlTypeID="com.balsamiq.mockups::IconLabel" x="1007" y="431" w="-1" h="-1" measuredW="97" measuredH="69" zOrder="6" locked="false" isInGroup="-1">
+      <controlProperties>
+        <icon>LinkGlobeIcon%7Clarge</icon>
+        <text>OpenStreetMap</text>
+      </controlProperties>
+    </control>
+    <control controlID="48" controlTypeID="com.balsamiq.mockups::IconLabel" x="934" y="515" w="-1" h="-1" measuredW="48" measuredH="69" zOrder="7" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Google</text>
+      </controlProperties>
+    </control>
+    <control controlID="49" controlTypeID="com.balsamiq.mockups::IconLabel" x="1011" y="515" w="-1" h="-1" measuredW="88" measuredH="69" zOrder="8" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Ordinance%20Su...</text>
+      </controlProperties>
+    </control>
+    <control controlID="50" controlTypeID="com.balsamiq.mockups::VerticalScrollBar" x="1108" y="420" w="-1" h="191" measuredW="16" measuredH="100" zOrder="9" locked="false" isInGroup="-1"/>
+    <control controlID="51" controlTypeID="com.balsamiq.mockups::IconLabel" x="795" y="298" w="-1" h="-1" measuredW="97" measuredH="69" zOrder="10" locked="false" isInGroup="-1">
+      <controlProperties>
+        <icon>LinkGlobeIcon%7Clarge</icon>
+        <state>disabled</state>
+        <text>OpenStreetMap</text>
+      </controlProperties>
+    </control>
+    <control controlID="52" controlTypeID="com.balsamiq.mockups::Arrow" x="842" y="367" w="180" h="93" measuredW="150" measuredH="100" zOrder="18" locked="false" isInGroup="-1">
+      <controlProperties>
+        <backgroundAlpha>1</backgroundAlpha>
+        <color>3355443</color>
+        <curvature>-1</curvature>
+        <direction>top</direction>
+        <leftArrow>true</leftArrow>
+        <rightArrow>false</rightArrow>
+        <text/>
+      </controlProperties>
+    </control>
+    <control controlID="53" controlTypeID="com.balsamiq.mockups::Arrow" x="842" y="218" w="77" h="74" measuredW="150" measuredH="100" zOrder="11" locked="false" isInGroup="-1">
+      <controlProperties>
+        <backgroundAlpha>1</backgroundAlpha>
+        <color>3355443</color>
+        <curvature>1</curvature>
+        <direction>bottom</direction>
+        <leftArrow>false</leftArrow>
+        <rightArrow>true</rightArrow>
+        <text/>
+      </controlProperties>
+    </control>
+    <control controlID="54" controlTypeID="com.balsamiq.mockups::StickyNote" x="747" y="367" w="109" h="105" measuredW="109" measuredH="123" zOrder="12" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Drag%20available%20layers%20out%20to%20add%20them.</text>
+      </controlProperties>
+    </control>
+    <control controlID="56" controlTypeID="com.balsamiq.mockups::BrowserWindow" x="102" y="65" w="1033" h="656" measuredW="450" measuredH="400" zOrder="0" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>WebGIS%0Ahttp%3A//example.com/user/db_name</text>
+      </controlProperties>
+    </control>
+    <control controlID="58" controlTypeID="com.balsamiq.mockups::LinkBar" x="110" y="143" w="-1" h="-1" measuredW="237" measuredH="21" zOrder="13" locked="false" isInGroup="-1">
+      <controlProperties>
+        <selectedIndex>0</selectedIndex>
+        <text>Map%2C%20Custom%20Layers%2C%20Data%20sources</text>
+      </controlProperties>
+    </control>
+    <control controlID="59" controlTypeID="com.balsamiq.mockups::Label" x="110" y="668" w="794" h="21" measuredW="163" measuredH="21" zOrder="14" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Map%20data%20%28C%29%20and%20Attribution</text>
+      </controlProperties>
+    </control>
+    <control controlID="61" controlTypeID="com.balsamiq.mockups::Button" x="117" y="173" w="-1" h="-1" measuredW="48" measuredH="30" zOrder="15" locked="false" isInGroup="-1">
+      <controlProperties>
+        <icon>EllipsisIcon%7Csmall</icon>
+        <text/>
+      </controlProperties>
+    </control>
+    <control controlID="62" controlTypeID="com.balsamiq.mockups::StickyNote" x="130" y="196" w="149" h="102" measuredW="109" measuredH="123" zOrder="16" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Click%20to%20access%20projection%2C%20location%2C%20export%2C%20etc</text>
+      </controlProperties>
+    </control>
+    <control controlID="63" controlTypeID="com.balsamiq.mockups::StickyNote" x="1143" y="488" w="178" h="123" measuredW="109" measuredH="123" zOrder="17" locked="false" isInGroup="-1">
+      <controlProperties>
+        <text>Available%20layers%20can%20be%20from%20marketplace%2C%20online%20datasets%20or%20custom%20data%20per-user.</text>
+      </controlProperties>
+    </control>
+  </controls>
+</mockup>
