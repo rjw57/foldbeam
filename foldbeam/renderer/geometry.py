@@ -44,7 +44,7 @@ class Geometry(RendererBase):
     def __init__(self, **kwargs):
         super(Geometry, self).__init__()
         self.geom = None
-        self.marker_radius = 5
+        self.marker_radius = 0
         self.stroke = True
         self.fill = False
         self.prepare_stroke = None
@@ -64,7 +64,16 @@ class Geometry(RendererBase):
             return lambda: None
 
         minx, miny, maxx, maxy = context.clip_extents()
-        boundary = boundary_from_envelope(Envelope(minx, maxx, maxy, miny, spatial_reference))
+
+        skirt = 0
+
+        if self.stroke:
+            skirt += context.get_line_width()
+
+        scale = max([abs(x) for x in context.device_to_user_distance(1,1)])
+        skirt += self.marker_radius * scale
+
+        boundary = boundary_from_envelope(Envelope(minx-skirt, maxx+skirt, maxy+skirt, miny-skirt, spatial_reference))
 
         geometry = self.geom.within(boundary, spatial_reference)
 
