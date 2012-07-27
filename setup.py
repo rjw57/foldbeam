@@ -22,6 +22,7 @@ install_requires = [
     'pyproj',
     'pyspatialite',
     'shapely',
+    'shove',
     'sqlalchemy',
     'tilestache',
     'selector',         # only required for examples
