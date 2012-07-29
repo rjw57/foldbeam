@@ -20,3 +20,7 @@ test-output/
 # The cached tiles from the renderer tests
 src/foldbeam/tests/renderer_tests.py.cache
 tests/httpcache/
+
+# ceverage output
+.coverage
+htmlcov/
