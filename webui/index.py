@@ -6,12 +6,9 @@ from pyjamas.ui.SimplePanel import SimplePanel
 from pyjamas.ui.HTML import HTML
 from pyjamas import Window
 
-from leaflet.LatLng import LatLng
-from leaflet.Map import Map
-from leaflet.TileLayer import TileLayer
-
 from HorizontalCollapsePanel import HorizontalCollapsePanel
 from Sidebar import Sidebar
+from Map import Map
 
 class Button(ButtonBase):
     def __init__(self, *args, **kwargs):
@@ -30,13 +27,7 @@ if __name__ == '__main__':
     sp.add(sidebar)
     sp.setCellWidth(sidebar, '25%')
 
-    map_quest = TileLayer(
-            'http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png',
-            maxZoom=18, attribution='Foo', subdomains='1234')
-
-    #map_ = SimplePanel(StyleName='map')
-    map_ = Map(StyleName='map')
-    map_.setView(LatLng(51.505, -0.09), 10).addLayer(map_quest)
+    map_ = Map(Size=('100%', '100%'))
     sp.add(map_)
 
     app.add(sp)

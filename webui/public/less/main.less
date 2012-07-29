@@ -1,23 +1,17 @@
-@import "../third-party/bootstrap/less/bootstrap.less";
-
-@navBarHeight: 40px;
-@sidebarWidth: @fluidGridColumnWidth * 3;
-@collapseWidgetSize: @gridGutterWidth;
-
-@highlight: #55dddd;
+@import "../third-party/bootstrap/less/mixins.less";
 
 /* Top-level layout: top container contains a sidebar and map */
 body, html { margin:0; padding:0; .square(100%); }
 .top-container {
     position: fixed;
     top: 0; left: 0; .square(100%);
-    padding-top: @navBarHeight;
 }
 
 /* Map viewport fills area */
 .map { background-image: url(../images/graphy.png); .square(100%); }
 
 /* Collapse panel */
+/*
 .rjw-HorizontalCollapsePanel { display: table; table-layout: fixed; .square(100%); }
 .rjw-HorizontalCollapsePanel-left, 
     .rjw-HorizontalCollapsePanel-right,
@@ -30,6 +24,7 @@ body, html { margin:0; padding:0; .square(100%); }
 .rjw-HorizontalCollapsePanel-collapse { background-color: @btnPrimaryBackground; }
 .rjw-HorizontalCollapsePanel-collapse:hover { background-color: @btnPrimaryBackgroundHighlight; }
 .rjw-HorizontalCollapsePanel-left { .transition(width 0.2s); }
+*/
 
 /* vim:filetype=css
  */
