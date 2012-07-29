@@ -1,0 +1,35 @@
+@import "../third-party/bootstrap/less/bootstrap.less";
+
+@navBarHeight: 40px;
+@sidebarWidth: @fluidGridColumnWidth * 3;
+@collapseWidgetSize: @gridGutterWidth;
+
+@highlight: #55dddd;
+
+/* Top-level layout: top container contains a sidebar and map */
+body, html { margin:0; padding:0; .square(100%); }
+.top-container {
+    position: fixed;
+    top: 0; left: 0; .square(100%);
+    padding-top: @navBarHeight;
+}
+
+/* Map viewport fills area */
+.map { background-image: url(../images/graphy.png); .square(100%); }
+
+/* Collapse panel */
+.rjw-HorizontalCollapsePanel { display: table; table-layout: fixed; .square(100%); }
+.rjw-HorizontalCollapsePanel-left, 
+    .rjw-HorizontalCollapsePanel-right,
+    .rjw-HorizontalCollapsePanel-collapse { display: table-cell; }
+
+.rjw-HorizontalCollapsePanel-collapsed > .rjw-HorizontalCollapsePanel-left { width: 0; overflow: hidden !important; }
+.rjw-HorizontalCollapsePanel-left { width: @sidebarWidth; }
+.rjw-HorizontalCollapsePanel-collapse { width: @collapseWidgetSize; }
+.rjw-HorizontalCollapsePanel-collapse-button { .square(100%); }
+.rjw-HorizontalCollapsePanel-collapse { background-color: @btnPrimaryBackground; }
+.rjw-HorizontalCollapsePanel-collapse:hover { background-color: @btnPrimaryBackgroundHighlight; }
+.rjw-HorizontalCollapsePanel-left { .transition(width 0.2s); }
+
+/* vim:filetype=css
+ */

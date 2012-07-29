@@ -1,0 +1,31 @@
+html, body { width: 100%; height: 100%; }
+.top-container {
+    height: 100%;
+    position: fixed; top: 40px; bottom: 0; left: 0; right: 0;
+    display: table;
+}
+.sidebar, .map { height: 100%; display: table-cell; }
+
+.sidebar-elements { height: 100%; }
+.sidebar-content { width: 300px; padding: 9px; }
+.sidebar-collapse {
+    float: right;
+    min-height: 100%;
+    width: 10px;
+    background-color: red;
+}
+.sidebar-collapse:focus { outline: none; }
+
+.sidebar.sidebar-collapsed .sidebar-content { margin-left: -309px; }
+.sidebar .sidebar-content {
+    -webkit-transition: margin-left 0.2s;
+    -moz-transition: margin-left 0.2s;
+    -o-transition: margin-left 0.2s;
+    transition: margin-left 0.2s;
+}
+
+.map { width: 100%; }
+.map { background-image: url('../images/graphy.png'); }
+
+.layers-tree .gwt-TreeItem { display: block !important; }
+.layers-tree .gwt-TreeItem-selected { background-color: #22bbbb; }

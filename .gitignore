@@ -24,3 +24,6 @@ tests/httpcache/
 # ceverage output
 .coverage
 htmlcov/
+
+# webui build
+webui/output/
