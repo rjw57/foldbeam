@@ -54,5 +54,5 @@ setup(name='foldbeam',
             'foldbeam-render=foldbeam.tool.render:main',
         ]
     },
-    test_suite='foldbeam.tests',
+    test_suite='tests',
 )

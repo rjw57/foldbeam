@@ -27,7 +27,8 @@ from foldbeam.geometry import IterableGeometry, GeoAlchemyGeometry
 from foldbeam.renderer import set_geo_transform, default_url_fetcher
 from foldbeam.renderer import TileFetcher, Geometry
 from foldbeam.renderer import Wrapped, Layers
-from foldbeam.tests import surface_hash, output_surface
+
+from .utils import surface_hash, output_surface
 
 log = logging.getLogger()
 
@@ -73,7 +74,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_default')
-        self.assertEqual(surface_hash(self.surface)/10, 723002)
+        self.assertEqual(surface_hash(self.surface)/10000, 723)
 
     def test_aerial(self):
         self.centre_on_big_ben(1000e3)
@@ -83,7 +84,7 @@ class TestTileFetcher(unittest.TestCase):
         )
         renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_aerial')
-        self.assertEqual(surface_hash(self.surface)/10, 720869)
+        self.assertEqual(surface_hash(self.surface)/10000, 720)
 
     def test_aerial_hawaii(self):
         # should be a large enough area to wrap over the -180/180 longitude
@@ -94,7 +95,7 @@ class TestTileFetcher(unittest.TestCase):
         )
         renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_aerial_hawaii')
-        self.assertEqual(surface_hash(self.surface)/10, 545209)
+        self.assertEqual(surface_hash(self.surface)/10000, 545)
 
     def test_british_national_grid(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -114,7 +115,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid')
-        self.assertEqual(surface_hash(surface)/10, 1893451)
+        self.assertEqual(surface_hash(surface)/10000, 1893)
 
     def test_british_national_grid_upside_down(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -134,7 +135,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_upside_down')
-        self.assertEqual(surface_hash(surface)/10, 1893451)
+        self.assertEqual(surface_hash(surface)/10000, 1893)
 
     def test_british_national_grid_mirrored(self):
         sw = int(671196.3657 - 1393.0196) / 1000
@@ -154,7 +155,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_mirrored')
-        self.assertEqual(surface_hash(surface)/10, 1893451)
+        self.assertEqual(surface_hash(surface)/10000, 1893)
 
     def test_british_national_grid_wide(self):
         sw = 1200
@@ -174,7 +175,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_wide')
-        self.assertEqual(surface_hash(surface)/10, 2560541)
+        self.assertEqual(surface_hash(surface)/10000, 2560)
 
     def test_british_national_grid_ultra_wide(self):
         sw = 1200
@@ -194,7 +195,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(cr, spatial_reference=srs)()
         output_surface(surface, 'tilefetcher_british_national_grid_ultra_wide')
-        self.assertEqual(surface_hash(surface)/10, 2651647)
+        self.assertEqual(surface_hash(surface)/10000, 2651)
 
 class TestGeometry(unittest.TestCase):
     def test_default(self):
@@ -203,7 +204,7 @@ class TestGeometry(unittest.TestCase):
         cr = cairo.Context(surface)
         renderer.render_callable(cr)()
         output_surface(surface, 'geometryrenderer_default')
-        self.assertEqual(surface_hash(surface)/10, 51840)
+        self.assertEqual(surface_hash(surface)/10000, 51)
 
     def test_points(self):
         geom = IterableGeometry([
@@ -215,11 +216,13 @@ class TestGeometry(unittest.TestCase):
             Point(45, 45),
             Point(30, 10),
         ])
-        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
         set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+        scale = max(cr.device_to_user_distance(1,1))
+
+        renderer = Geometry(geom=geom, marker_radius=5*scale)
 
         srs = SpatialReference()
         srs.ImportFromEPSG(4326) # WGS84 lat/long
@@ -234,7 +237,7 @@ class TestGeometry(unittest.TestCase):
         renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_points')
-        self.assertEqual(surface_hash(surface)/10, 53314)
+        self.assertEqual(surface_hash(surface)/10000, 53)
 
     def test_multipoints(self):
         geom = IterableGeometry([
@@ -248,11 +251,13 @@ class TestGeometry(unittest.TestCase):
                 Point(30, 10),
             ])
         ])
-        renderer = Geometry(geom=geom)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 360, 180)
         cr = cairo.Context(surface)
         set_geo_transform(cr, -180, 180, 90, -90, 360, 180)
+        scale = max(cr.device_to_user_distance(1,1))
+
+        renderer = Geometry(geom=geom, marker_radius=scale*5.0)
 
         srs = SpatialReference()
         srs.ImportFromEPSG(4326) # WGS84 lat/long
@@ -453,7 +458,7 @@ class TestGeometry(unittest.TestCase):
         self.assertEqual(surface_hash(surface)/10, 65083)
 
 def osm_map_renderer(url_fetcher=None, use_postgres=False, use_tile_fetcher=True):
-    osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
+    osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/central-cambridge.sqlite'))
     #engine = create_engine('postgresql://gis:gis@localhost/central-cambridge', poolclass=StaticPool)
     engine = create_engine('sqlite:///' + osm_db_path,
         connect_args={'check_same_thread': False},
@@ -634,7 +639,7 @@ class TestOSMGeometry(unittest.TestCase):
         self.map_renderer.render_callable(cr, spatial_reference=srs)()
 
         output_surface(surface, 'geometryrenderer_osm')
-        self.assertEqual(surface_hash(surface)/10, 590026)
+        self.assertEqual(surface_hash(surface)/10000, 590)
 
     def test_osm_pdf(self):
         # Create an output PDF surface for the map at 8.27x11.69 in (A4).
