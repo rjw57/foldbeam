@@ -3,6 +3,8 @@ from pyjamas.ui.Button import Button
 from pyjamas.ui.HTML import HTML
 from pyjamas.ui.FlowPanel import FlowPanel
 from pyjamas.ui.SimplePanel import SimplePanel
+from pyjamas.ui.Tree import Tree
+from pyjamas.ui.TreeItem import TreeItem
 from pyjamas.ui.VerticalPanel import VerticalPanel
 
 from bootstrap.NavigationBar import NavigationBar
@@ -20,6 +22,12 @@ class LayersPanel(VerticalPanel):
         navbar.add(b)
 
         self.add(navbar)
+
+        self._tree = Tree()
+        for x in ['fooble', 'biggle', 'booof']:
+            item = TreeItem(Text='Hello, ' + x)
+            self._tree.addItem(item)
+        self.add(self._tree)
 
 class Sidebar(SimplePanel):
     def __init__(self, *args, **kwargs):
