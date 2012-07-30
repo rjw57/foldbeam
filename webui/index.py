@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+
 from pyjamas.ui.Button import Button as ButtonBase
 from pyjamas.ui.HorizontalPanel import HorizontalPanel
 from pyjamas.ui.FlowPanel import FlowPanel
@@ -10,27 +13,55 @@ from HorizontalCollapsePanel import HorizontalCollapsePanel
 from Sidebar import Sidebar
 from Map import Map
 
-class Button(ButtonBase):
-    def __init__(self, *args, **kwargs):
-        super(Button, self).__init__(*args, **kwargs)
-        self.addStyleName('btn')
+from client.user import User
 
-def greet(sender):
-    Window.alert("Hello, AJAX!")
+class Application(SimplePanel):
+    def __init__(self, *args, **kwargs):
+        super(Application, self).__init__(*args, **kwargs)
+
+        self.user = User('http://localhost:8888/user1')
+        self.user.addErrorListener(self._user_error)
+
+        self.user.maps.addLoadedListener(self._update_user_maps)
+        self._update_user_maps(self.user.maps)
+
+        self.user.get()
+
+    def _user_error(self, user, status, response):
+        logging.error('Error loading user from %s: %s' % (user.get_resource_url(), status))
+
+    def _update_user_maps(self, maps):
+        if maps.items is None:
+            # Map list is not yet loaded
+            return
+
+        if len(maps.items) == 0:
+            logging.error('User has no maps')
+            return
+
+        m = maps.items[0]
+        m.addLoadedListener(self._update_map)
+        self._update_map(m)
+
+    def _update_map(self, m):
+        if m.name is None:
+            # Data is not yet loaded
+            return
+
+        logging.info('Changing to map: ' + m.name)
+
+        sp = HorizontalPanel(Size=('100%', '100%'))
+
+        sidebar = Sidebar()
+        sidebar.setLayersCollection(m.layers)
+        sp.add(sidebar)
+        sp.setCellWidth(sidebar, '25%')
+
+        map_ = Map(Size=('100%', '100%'))
+        sp.add(map_)
+
+        self.setWidget(sp)
 
 if __name__ == '__main__':
-    app = SimplePanel(StyleName='top-container')
-
-    sp = HorizontalPanel(Size=('100%', '100%'))
-
-    sidebar = Sidebar()
-    sp.add(sidebar)
-    sp.setCellWidth(sidebar, '25%')
-
-    map_ = Map(Size=('100%', '100%'))
-    sp.add(map_)
-
-    app.add(sp)
-
-    root = RootPanel()
-    root.add(app)
+    app = Application(StyleName='top-container')
+    RootPanel().add(app)
