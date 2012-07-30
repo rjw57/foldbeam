@@ -11,7 +11,7 @@ def static_file_server():
     webui_dir = os.path.join(os.path.dirname(__file__), 'output')
     os.chdir(webui_dir)
     handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-    httpd = SocketServer.TCPServer(('', 8000), handler)
+    httpd = SocketServer.TCPServer(('0.0.0.0', 8000), handler)
     print('Serving UI at http://0.0.0.0:8000')
     httpd.serve_forever()
 

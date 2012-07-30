@@ -16,13 +16,28 @@ class Map(FocusWidget):
         DOM.appendChild(element, map_element)
         JS('this._map = new $wnd.L.Map(map_element, pyjslib.toJSObjects(options));')
 
+        self._layers = []
+
     def setView(self, center, zoom, forceReset=False):
         JS('this._map.setView(center._lat_lng, zoom, forceReset);')
         return self
 
     def addLayer(self, tile_layer):
         JS('this._map.addLayer(tile_layer._tile_layer);')
+        self._layers.append(tile_layer)
         return self
+
+    def removeLayer(self, tile_layer):
+        JS('this._map.removeLayer(tile_layer._tile_layer);')
+        self._layers.remove(tile_layer)
+        return self
+
+    def getLayers(self):
+        return self._layers
+
+    def clearLayers(self):
+        for l in self._layers:
+            self.removeLayer(l)
 
     def invalidateSize(self):
         JS('this._map.invalidateSize();')

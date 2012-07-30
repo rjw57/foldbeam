@@ -11,7 +11,7 @@ class Map(BaseResource):
 
     def on_get(self, resource):
         self.name = resource['name']
-        self.layers.set_resource_url(resource['resources']['layer_collection']['url']).get()
+        self.layers.set_resource_url(resource['resources']['layer_collection']['url'])
 
 class MapCollection(BaseResource):
     def __init__(self, *args):

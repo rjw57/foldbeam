@@ -21,11 +21,18 @@ class Application(SimplePanel):
 
         self.user = User('http://localhost:8888/user1')
         self.user.addErrorListener(self._user_error)
-
-        self.user.maps.addLoadedListener(self._update_user_maps)
-        self._update_user_maps(self.user.maps)
+        self.user.addLoadedListener(self._update_user)
+        self._update_user(self.user)
 
         self.user.get()
+
+    def _update_user(self, user):
+        if user.username is None:
+            return
+
+        user.maps.get()
+        user.maps.addLoadedListener(self._update_user_maps)
+        self._update_user_maps(self.user.maps)
 
     def _user_error(self, user, status, response):
         logging.error('Error loading user from %s: %s' % (user.get_resource_url(), status))
@@ -48,7 +55,7 @@ class Application(SimplePanel):
             # Data is not yet loaded
             return
 
-        logging.info('Changing to map: ' + m.name)
+        m.layers.get()
 
         sp = HorizontalPanel(Size=('100%', '100%'))
 
@@ -58,6 +65,7 @@ class Application(SimplePanel):
         sp.setCellWidth(sidebar, '25%')
 
         map_ = Map(Size=('100%', '100%'))
+        map_.set_layer_collection(m.layers)
         sp.add(map_)
 
         self.setWidget(sp)

@@ -6,9 +6,11 @@ class Layer(BaseResource):
     def __init__(self, *args):
         super(Layer, self).__init__(*args)
         self.name = None
+        self.tiles = None
 
     def on_get(self, resource):
         self.name = resource['name']
+        self.tiles = resource['tiles']
 
 class LayerCollection(BaseResource):
     def __init__(self, *args):
