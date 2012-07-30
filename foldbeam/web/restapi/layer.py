@@ -73,6 +73,7 @@ class LayerHandler(BaseHandler):
         return {
             'name': layer.name,
             'owner': { 'url': self.user_url(layer.owner), 'username': layer.owner.username },
+            'tiles': layer.tiles,
             'uuid': layer.layer_id,
         }
 
@@ -90,3 +91,23 @@ class LayerHandler(BaseHandler):
             return
 
         self.write_layer_resource(layer)
+
+    @decode_request_body
+    def post(self, username, layer_id):
+        try:
+            user = model.User.from_name(username)
+        except KeyError as e:
+            self.send_error(404)
+            return
+
+        m = self.get_layer_or_404(layer_id)
+        if not m.is_owned_by(user):
+            self.send_error(404)
+            return
+
+        update_layer(m, self.request.body)
+        m.save()
+
+        self.set_status(201)
+        self.set_header('Location', self.layer_url(m))
+        self.write({ 'url': self.layer_url(m) })
