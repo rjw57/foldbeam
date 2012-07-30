@@ -10,6 +10,16 @@ class BaseHandler(RequestHandler):
     the resource URL for various model objects.
     
     """
+    def set_default_headers(self):
+        # Support CORS
+        if 'Origin' in self.request.headers:
+            self.set_header('Access-Control-Allow-Origin', self.request.headers['Origin'])
+            self.set_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.set_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE')
+
+    def options(self, *args):
+        pass
+
     def user_url(self, user):
         return urlparse.urljoin(self.request.full_url(), self.reverse_url('user', user.username))
 

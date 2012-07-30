@@ -10,7 +10,7 @@ def new_application(**kwargs):
     """Return a new tornado application which can handle the REST API. The
     dictionary *kwargs* is passed to the tornado.web.Application constructor as
     keyword arguments.
-    
+
     """
     return Application([
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)", UserHandler, name='user'),
