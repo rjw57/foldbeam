@@ -126,6 +126,11 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
 
         return layer_url
 
+    def bucket_collection_path(self, username):
+        response, data = self.get('/' + username)
+        self.assertEqual(response.code, 200)
+        return data['resources']['bucket_collection']['url']
+
 class Root(BaseRestApiTestCase):
     def test_root(self):
         response, _ = self.get('')
@@ -168,6 +173,8 @@ class User(BaseRestApiTestCase):
         self.assertIn('url', resources['map_collection'])
         self.assertIn('layer_collection', resources)
         self.assertIn('url', resources['layer_collection'])
+        self.assertIn('bucket_collection', resources)
+        self.assertIn('url', resources['bucket_collection'])
 
     def test_post_idempotency(self):
         response, _ = self.get('/test_user')

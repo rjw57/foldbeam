@@ -17,6 +17,9 @@ class UserHandler(BaseHandler):
                 'layer_collection': {
                     'url': self.layer_collection_url(user),
                 },
+                'bucket_collection': {
+                    'url': self.bucket_collection_url(user),
+                },
             },
         }
 

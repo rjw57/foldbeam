@@ -40,6 +40,16 @@ class BaseHandler(RequestHandler):
         return urlparse.urljoin(self.request.full_url(),
                 self.reverse_url('layer', layer.owner.username, layer.layer_id))
 
+    def bucket_collection_url(self, user):
+        return urlparse.urljoin(self.request.full_url(), self.reverse_url('bucket_collection', user.username))
+
+    def bucket_url(self, bucket_):
+        return urlparse.urljoin(self.request.full_url(), self.reverse_url('bucket', bucket_.owner.username, bucket_.bucket_id))
+
+    def bucket_file_url(self, bucket_, filename):
+        return urlparse.urljoin(self.request.full_url(), self.reverse_url('bucket_file', bucket_.owner.username,
+            bucket_.bucket_id, filename))
+
     def get_user_or_404(self, username):
         try:
             return model.User.from_name(username)
@@ -55,6 +65,12 @@ class BaseHandler(RequestHandler):
     def get_layer_or_404(self, layer_id):
         try:
             return model.Layer.from_id(layer_id)
+        except KeyError as e:
+            self.send_error(404)
+
+    def get_bucket_or_404(self, bucket_id):
+        try:
+            return model.Bucket.from_id(bucket_id)
         except KeyError as e:
             self.send_error(404)
 
