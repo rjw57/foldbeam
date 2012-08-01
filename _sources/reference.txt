@@ -13,6 +13,12 @@ Geometry manipulation and querying
 .. automodule:: foldbeam.geometry
     :members:
 
+Storing geographic data sets
+----------------------------
+
+.. automodule:: foldbeam.bucket
+    :members:
+
 Rendering
 ---------
 

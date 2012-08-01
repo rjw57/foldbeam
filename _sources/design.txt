@@ -25,3 +25,10 @@ Map files
 .. literalinclude:: map_example.yaml
     :language: yaml
     :linenos:
+
+Web GUI
+-------
+
+.. figure:: viewer-mockup.png
+
+    An example design for the map viewer GUI.

@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-07-17',
+        VERSION:     '2012-08-01',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -286,6 +286,92 @@ objects.</p>
 </dd></dl>
 
 </div>
+<div class="section" id="module-foldbeam.bucket">
+<span id="storing-geographic-data-sets"></span><h2>Storing geographic data sets<a class="headerlink" href="#module-foldbeam.bucket" title="Permalink to this headline">¶</a></h2>
+<p>Defines a mechanism for persistent storage of geographic data sets in a way which allows for progressive update of
+information such as extent and spatial reference.</p>
+<dl class="exception">
+<dt id="foldbeam.bucket.BadFileNameError">
+<em class="property">exception </em><tt class="descclassname">foldbeam.bucket.</tt><tt class="descname">BadFileNameError</tt><a class="headerlink" href="#foldbeam.bucket.BadFileNameError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raised when one attempts to use a bad file name in a bucket. A bad file name is one which contains path
+separators and other &#8216;special&#8217; characters in it.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.bucket.Bucket">
+<em class="property">class </em><tt class="descclassname">foldbeam.bucket.</tt><tt class="descname">Bucket</tt><big>(</big><em>storage_dir</em><big>)</big><a class="headerlink" href="#foldbeam.bucket.Bucket" title="Permalink to this definition">¶</a></dt>
+<dd><p>A bucket is a single unit of data storage corresponding with, usually, a single data source file. For example
+this might be a single shapefile or a single raster. This single file is called the &#8216;primary file&#8217;. There may be
+other files associated with the file. For example, a .SHP file may have an associated .PRJ, .SHX and .DBF file.</p>
+<p>A bucket is similar to a single directory with the restriction that there may be no sub-directories. Files are added
+to the bucket via the <a class="reference internal" href="#foldbeam.bucket.Bucket.add" title="foldbeam.bucket.Bucket.add"><tt class="xref py py-meth docutils literal"><span class="pre">add()</span></tt></a> method. The first file added becomes the &#8216;primary file&#8217;.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>storage_dir</strong> (<em>str</em>) &#8211; a pathname to the directory files within this bucket are stored</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="foldbeam.bucket.Bucket.add">
+<tt class="descname">add</tt><big>(</big><em>name</em>, <em>fobj</em><big>)</big><a class="headerlink" href="#foldbeam.bucket.Bucket.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a file named <cite>name</cite> to the bucket reading its contents from the file-like object <cite>fobj</cite>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name" colspan="2">Raises BadFileNameError:</th></tr>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body">When <cite>name</cite> is not a raw file name but has, e.g., a directory separator.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Bucket.layers">
+<tt class="descname">layers</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.layers" title="Permalink to this definition">¶</a></dt>
+<dd><p>A read only sequence of layers within this bucket. Each element is an object exposing the <a class="reference internal" href="#foldbeam.bucket.Layer" title="foldbeam.bucket.Layer"><tt class="xref py py-class docutils literal"><span class="pre">Layer</span></tt></a>
+interface. If the files within the bucket cannot yet be interpreted as a geographic data set then this attribute
+is an empty sequence.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Bucket.primary_file_name">
+<tt class="descname">primary_file_name</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.primary_file_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>The file name for the &#8216;primary&#8217; file in the bucket. It is this file from which data is loaded. Other files
+within the bucket should be auxiliary to this file. (E.g. they should contain projection information.)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="foldbeam.bucket.Layer">
+<em class="property">class </em><tt class="descclassname">foldbeam.bucket.</tt><tt class="descname">Layer</tt><a class="headerlink" href="#foldbeam.bucket.Layer" title="Permalink to this definition">¶</a></dt>
+<dd><p>An interface for objects returned as layers within a bucket.</p>
+<dl class="attribute">
+<dt id="foldbeam.bucket.Layer.name">
+<tt class="descname">name</tt><a class="headerlink" href="#foldbeam.bucket.Layer.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>A human-readable name for the layer.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Layer.spatial_reference">
+<tt class="descname">spatial_reference</tt><a class="headerlink" href="#foldbeam.bucket.Layer.spatial_reference" title="Permalink to this definition">¶</a></dt>
+<dd><p>An instance of <tt class="xref py py-class docutils literal"><span class="pre">osgeo.osr.SpatialReference</span></tt> giving the spatial reference for this layer or <cite>None</cite>
+if no such spatial reference is available.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Layer.type">
+<tt class="descname">type</tt><a class="headerlink" href="#foldbeam.bucket.Layer.type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Either <tt class="xref py py-attr docutils literal"><span class="pre">Layer.VECTOR_TYPE</span></tt> or <tt class="xref py py-attr docutils literal"><span class="pre">Layer.RASTER_TYPE</span></tt> depending on whether this layer
+is a vector or raster layer.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="module-foldbeam.renderer">
 <span id="rendering"></span><h2>Rendering<a class="headerlink" href="#module-foldbeam.renderer" title="Permalink to this headline">¶</a></h2>
 <p>Support for rendering directly to Cairo surfaces for display to the user.</p>
@@ -551,6 +637,7 @@ which is an instance of <tt class="xref py py-class docutils literal"><span clas
 <li><a class="reference internal" href="#">Reference</a><ul>
 <li><a class="reference internal" href="#module-foldbeam.core">Core functionality</a></li>
 <li><a class="reference internal" href="#module-foldbeam.geometry">Geometry manipulation and querying</a></li>
+<li><a class="reference internal" href="#module-foldbeam.bucket">Storing geographic data sets</a></li>
 <li><a class="reference internal" href="#module-foldbeam.renderer">Rendering</a><ul>
 <li><a class="reference internal" href="#module-foldbeam.renderer.base">Base functionality</a></li>
 <li><a class="reference internal" href="#module-foldbeam.renderer.tile_fetcher">Tiles from &#8216;slippy&#8217; maps</a></li>
