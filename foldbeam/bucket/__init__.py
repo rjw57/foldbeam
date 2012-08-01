@@ -46,6 +46,7 @@ class Layer(object):
     def mapnik_datasource(self):
         """A :py:class:`mapnik.Datasource` instance corresponding to this layer or `None` if no such datasource could be
         created."""
+        raise NotImplementedError   # pragma: no coverage
 
 class _GDALLayer(object):
     def __init__(self, ds, ds_path):
