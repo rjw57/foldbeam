@@ -118,6 +118,11 @@ class Bucket(object):
         os.mkdir(self._files_dir)
         assert os.path.exists(self._files_dir)
 
+    @property
+    def files(self):
+        """A list of files currently in this bucket."""
+        return os.listdir(self._files_dir)
+
     def add(self, name, fobj):
         """Add a file named `name` to the bucket reading its contents from the file-like object `fobj`.
 

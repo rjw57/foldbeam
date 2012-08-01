@@ -21,6 +21,7 @@ class TestCore(BaseTestBucket):
     def test_empty_bucket(self):
         self.assertEqual(len(self.bucket.layers), 0)
         self.assertIsNone(self.bucket.primary_file_name)
+        self.assertItemsEqual(self.bucket.files, [])
 
     def test_bad_file_name(self):
         this_file = open(__file__)
@@ -58,6 +59,8 @@ class TestShapeFile(BaseTestBucket):
         self.assertEqual(len(self.bucket.layers), 1)
         self.assertEqual(self.bucket.layers[0].name, 'foo')
         self.assertIsNotNone(self.bucket.layers[0].spatial_reference)
+
+        self.assertItemsEqual(self.bucket.files, ['foo.shp', 'foo.prj', 'foo.shx'])
 
         l = self.bucket.layers[0]
         self.assertEqual(l.type, Layer.VECTOR_TYPE)
