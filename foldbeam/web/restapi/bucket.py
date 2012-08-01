@@ -64,11 +64,16 @@ class BucketHandler(BaseHandler):
 
             layers[l.name] = d
 
+        files = {}
+        for f in bucket.bucket.files:
+            files[f] = { 'url': self.bucket_file_url(bucket, f) }
+
         return {
             'name': bucket.name,
             'owner': { 'url': self.user_url(bucket.owner), 'username': bucket.owner.username },
             'uuid': bucket.bucket_id,
-            'files': list( {'name': n, 'url': self.bucket_file_url(bucket, n)} for n in bucket.bucket.files ),
+            'files': files,
+            'primary_file': bucket.bucket.primary_file_name,
             'layers': layers,
         }
 
@@ -86,6 +91,29 @@ class BucketHandler(BaseHandler):
             return
 
         self.write_bucket_resource(bucket)
+
+    @decode_request_body
+    @removeslash
+    def post(self, username, bucket_id):
+        user = self.get_user_or_404(username)
+        if user is None:
+            return
+
+        bucket = self.get_bucket_or_404(bucket_id)
+        if bucket is None:
+            return
+
+        if bucket.owner.username != user.username:
+            self.send_error(404)
+            return
+
+        update_bucket(bucket, self.request.body)
+        bucket.save()
+
+        # Return it
+        self.set_status(201)
+        self.set_header('Location', self.bucket_url(bucket))
+        self.write({ 'url': self.bucket_url(bucket) })
 
 class BucketFileHandler(BaseHandler):
     def post(self, username, bucket_id, filename):
