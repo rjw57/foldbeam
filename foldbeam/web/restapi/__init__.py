@@ -22,4 +22,7 @@ def new_application(**kwargs):
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/layer", LayerCollectionHandler, name='layer_collection'),
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/layer/", LayerCollectionHandler),
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/layer/_uuid/([a-f0-9]+)", LayerHandler, name='layer'),
+#        URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket", BucketCollectionHandler, name='bucket_collection'),
+#        URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket/", BucketCollectionHandler),
+#        URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket/_uuid/([a-f0-9]+)", BucketHandler, name='bucket'),
     ], **kwargs)

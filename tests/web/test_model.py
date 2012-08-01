@@ -1,8 +1,11 @@
+import os
 import unittest
 
 from foldbeam.web import model
 
 from .util import TempDbMixin
+
+data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data'))
 
 class BaseTestCase(unittest.TestCase, TempDbMixin):
     def setUp(self):
@@ -175,3 +178,72 @@ class Layer(BaseTestCase):
         self.assertEqual(model.Layer.from_id(l1.layer_id).layer_id, l1.layer_id)
         self.assertNotEqual(model.Layer.from_id(l1.layer_id).layer_id, l2.layer_id)
 
+class Bucket(BaseTestCase):
+    def setUp(self):
+        BaseTestCase.setUp(self)
+        self.test_user = model.User('test_user')
+        self.test_user.save()
+
+    def test_missing_bucket(self):
+        self.assertRaises(KeyError, lambda: model.Bucket.from_id('nonuser'))
+
+    def test_create_bucket(self):
+        b1 = model.Bucket(self.test_user, name='My bucket')
+        self.assertEqual(str(b1), 'My bucket')
+        self.assertEqual(unicode(b1), u'My bucket')
+        self.assertGreater(len(b1.bucket_id), 20)
+        self.assertIsNotNone(b1.bucket)
+
+    def test_upload(self):
+        b1 = model.Bucket(self.test_user, name='My bucket')
+        self.assertEqual(len(b1.bucket.layers), 0)
+
+        shp_file_path = os.path.join(data_dir, 'ne_110m_admin_0_countries.shp')
+        self.assertTrue(os.path.exists(shp_file_path))
+        shp_file = open(shp_file_path)
+
+        shx_file_path = os.path.join(data_dir, 'ne_110m_admin_0_countries.shx')
+        self.assertTrue(os.path.exists(shx_file_path))
+        shx_file = open(shx_file_path)
+
+        prj_file_path = os.path.join(data_dir, 'ne_110m_admin_0_countries.prj')
+        self.assertTrue(os.path.exists(prj_file_path))
+        prj_file = open(prj_file_path)
+
+        b1.bucket.add('bar.shp', shp_file)
+        b1.bucket.add('bar.prj', prj_file)
+        b1.bucket.add('bar.shx', shx_file)
+
+        self.assertEqual(len(b1.bucket.layers), 1)
+        l1 = b1.bucket.layers[0]
+
+        self.assertEqual(l1.name, 'bar')
+        self.assertIsNotNone(l1.spatial_reference)
+
+class BucketOwners(BaseTestCase):
+    def setUp(self):
+        BaseTestCase.setUp(self)
+        self.test_user_1 = model.User('test_user1')
+        self.test_user_1.save()
+        self.test_user_2 = model.User('test_user2')
+        self.test_user_2.save()
+
+    def test_owners(self):
+        b1 = model.Bucket(self.test_user_1)
+        b1.save()
+
+        b2 = model.Bucket(self.test_user_1)
+        b2.save()
+
+        b3 = model.Bucket(self.test_user_2)
+        b3.save()
+
+        self.assertItemsEqual(self.test_user_1.bucket_ids, [b1.bucket_id, b2.bucket_id])
+        self.assertItemsEqual(self.test_user_2.bucket_ids, [b3.bucket_id])
+
+        self.assertItemsEqual([x.bucket_id for x in self.test_user_1.buckets], [b1.bucket_id, b2.bucket_id])
+        self.assertItemsEqual([x.bucket_id for x in self.test_user_2.buckets], [b3.bucket_id])
+        
+        self.assertEqual(b1.owner.username, 'test_user1')
+        self.assertEqual(b2.owner.username, 'test_user1')
+        self.assertEqual(b3.owner.username, 'test_user2')

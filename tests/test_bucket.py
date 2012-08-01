@@ -23,6 +23,13 @@ class TestCore(BaseTestBucket):
         self.assertIsNone(self.bucket.primary_file_name)
         self.assertItemsEqual(self.bucket.files, [])
 
+    def test_open_twice(self):
+        import StringIO
+        self.bucket.add('foo', StringIO.StringIO('foobar'))
+        self.assertEqual(self.bucket.primary_file_name, 'foo')
+        b2 = Bucket(self.tmp_dir)
+        self.assertEqual(b2.primary_file_name, 'foo')
+
     def test_bad_file_name(self):
         this_file = open(__file__)
         self.assertRaises(BadFileNameError, lambda: self.bucket.add('../bad_filename', this_file))

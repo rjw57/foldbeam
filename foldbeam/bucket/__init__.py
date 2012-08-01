@@ -112,10 +112,11 @@ class Bucket(object):
         self._storage_dir = storage_dir
         assert os.path.exists(self._storage_dir)
 
-        self._shove = Shove('file://' + os.path.join(self._storage_dir, 'metadata'))
+        self._shove_url = 'file://' + os.path.join(self._storage_dir, 'metadata')
 
         self._files_dir = os.path.join(self._storage_dir, 'files')
-        os.mkdir(self._files_dir)
+        if not os.path.exists(self._files_dir):
+            os.mkdir(self._files_dir)
         assert os.path.exists(self._files_dir)
 
     @property
@@ -175,15 +176,22 @@ class Bucket(object):
         """The file name for the 'primary' file in the bucket. It is this file from which data is loaded. Other files
         within the bucket should be auxiliary to this file. (E.g. they should contain projection information.)
         """
+        shove = Shove(self._shove_url)
         try:
-            return self._shove['primary_file_name']
+            return shove['primary_file_name']
         except KeyError:
             return None
+        finally:
+            shove.close()
 
     @primary_file_name.setter
     def primary_file_name(self, name):
         assert os.path.exists(self._file_name_to_path(name))
-        self._shove['primary_file_name'] = name
+        shove = Shove(self._shove_url)
+        try:
+            shove['primary_file_name'] = name
+        finally:
+            shove.close()
         self._invalidate_cache()
 
     def _invalidate_cache(self):

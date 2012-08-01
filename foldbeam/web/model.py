@@ -1,11 +1,15 @@
 import itertools
 import os
+import tempfile
 import uuid
 
 from shove import Shove
 
+from foldbeam import bucket
+
 _data_dir = os.path.dirname(__file__)
 _shelve_loc = os.path.join(_data_dir, 'db')
+_bucket_loc = os.path.join(_data_dir, 'db_bucket_storage')
 
 class _ShoveWrapper(object):
     def __init__(self, loc):
@@ -26,6 +30,9 @@ def _maps():
 
 def _layers():
     return _ShoveWrapper('file://' + _shelve_loc + '_layers')
+
+def _buckets():
+    return _ShoveWrapper('file://' + _shelve_loc + '_buckets')
 
 class User(object):
     @classmethod
@@ -56,6 +63,14 @@ class User(object):
     @property
     def layer_ids(self):
         return itertools.imap(lambda l: l.layer_id, self.layers)
+
+    @property
+    def buckets(self):
+        return itertools.ifilter(lambda l: l.is_owned_by(self), _buckets()._shove.itervalues())
+
+    @property
+    def bucket_ids(self):
+        return itertools.imap(lambda l: l.bucket_id, self.buckets)
 
     def save(self):
         with _users() as users:
@@ -131,6 +146,42 @@ class Layer(object):
     def save(self):
         with _layers() as layers:
             layers[self.layer_id] = self
+
+    def __str__(self):
+        return str(self.name)
+
+    def __unicode__(self):
+        return unicode(self.name)
+
+class Bucket(object):
+    @classmethod
+    def from_id(cls, bucket_id):
+        with _buckets() as buckets:
+           return buckets[bucket_id]
+
+    def __init__(self, owner, name=None):
+        self.bucket_id = uuid.uuid4().hex
+        self.owner_username = owner.username
+        self.name = name or 'Untitled bucket'
+
+        if not os.path.exists(_bucket_loc):
+            os.makedirs(_bucket_loc)
+        self.bucket_storage_dir = tempfile.mkdtemp(prefix='bucket_', dir=_bucket_loc)
+
+    def is_owned_by(self, user):
+        return self.owner_username == user.username
+
+    @property
+    def bucket(self):
+        return bucket.Bucket(self.bucket_storage_dir)
+
+    @property
+    def owner(self):
+        return User.from_name(self.owner_username)
+
+    def save(self):
+        with _buckets() as buckets:
+            buckets[self.bucket_id] = self
 
     def __str__(self):
         return str(self.name)
