@@ -27,6 +27,8 @@ install_requires = [
     'tilestache',
     'selector',         # only required for examples
     # 'wsgiutils',        # only required for examples
+
+    # 'mapnik', # unfortunately cannot be pip installed
     # 'pycairo', # pycairo does not build properly via pip/easy_install :(
 ]
 
