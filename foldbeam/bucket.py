@@ -69,7 +69,7 @@ class _GDALLayer(object):
         if self._cached_mapnik_datasource is not None:
             return self._cached_mapnik_datasource
 
-        self._cached_mapnik_datasource = mapnik.Gdal(file=self._ds_path)
+        self._cached_mapnik_datasource = mapnik.Gdal(file=str(self._ds_path))
         return self._cached_mapnik_datasource
 
 class _OGRLayer(object):
@@ -88,7 +88,7 @@ class _OGRLayer(object):
             return self._cached_mapnik_datasource
 
         self._cached_mapnik_datasource = mapnik.Ogr(
-                file=self._ds_path,
+                file=str(self._ds_path),
                 layer_by_index=self._layer_idx
         )
 

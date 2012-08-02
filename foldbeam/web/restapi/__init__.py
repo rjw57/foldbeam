@@ -4,6 +4,7 @@ from foldbeam.web import model
 
 from .user import UserHandler
 from .map import MapCollectionHandler, MapHandler
+from .rendering import TMSHandler
 from .layer import LayerCollectionHandler, LayerHandler
 from .bucket import BucketCollectionHandler, BucketHandler, BucketFileHandler
 
@@ -27,4 +28,6 @@ def new_application(**kwargs):
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket/", BucketCollectionHandler),
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket/_uuid/([a-f0-9]+)", BucketHandler, name='bucket'),
         URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/bucket/_uuid/([a-f0-9]+)/([^/]+)", BucketFileHandler, name='bucket_file'),
+
+        URLSpec(r"/([a-zA-Z][a-zA-Z0-9_.]+)/map/_uuid/([a-f0-9]+)/tms/([0-9]+)/([0-9]+)/([0-9]+).png", TMSHandler),
     ], **kwargs)

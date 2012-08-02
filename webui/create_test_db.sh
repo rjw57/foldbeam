@@ -57,14 +57,14 @@ put_file ${B4}/input.png ../data/spain.png
 put_file ${B4}/input.png.aux.xml ../data/spain.png.aux.xml
 
 M1=`post http://localhost:8888/user1/map`
-M1L1=`post ${M1}/layer`
-M1L2=`post ${M1}/layer name=Postcodes`
+M1L1=`post ${M1}/layer name=borders`
+M1L2=`post ${M1}/layer name=spain`
 
 B1ID=`get_uuid ${B1}`
-B2ID=`get_uuid ${B2}`
-
-post ${M1L1} "name:=\"spain_and_countries\"" >/dev/null
 post ${M1L1} "bucket:=\"${B1ID}\"" >/dev/null
+
+B2ID=`get_uuid ${B2}`
+post ${M1L2} "bucket:=\"${B2ID}\"" >/dev/null
 
 #M2=`post http://localhost:8888/user1/map`
 #M2L1=`post ${M2}/layer`

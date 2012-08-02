@@ -65,7 +65,7 @@ class Application(SimplePanel):
         sp.setCellWidth(sidebar, '25%')
 
         map_ = Map(Size=('100%', '100%'))
-        map_.set_layer_collection(m.layers)
+        map_.set_map(m)
         sp.add(map_)
 
         self.setWidget(sp)

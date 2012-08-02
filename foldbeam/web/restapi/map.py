@@ -53,6 +53,7 @@ class MapHandler(BaseHandler):
                     'url': self.layer_collection_url(map_.owner, map_),
                 },
             },
+            'tms_tile_base': self.map_url(map_) + '/tms/',
         }
 
     def get(self, username, map_id):

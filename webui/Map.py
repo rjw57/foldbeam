@@ -18,28 +18,21 @@ class Map(VerticalPanel):
         #self.add(navbar)
 
         self._map = LeafletMap(StyleName='map', Size=('100%', '100%'))
-        self._map.setView(LatLng(51.505, -0.09), 10)
+        self._map.setView(LatLng(51.505, -0.09), 0)
         self.add(self._map)
         self.setCellHeight(self._map, '100%')
 
-    def set_layer_collection(self, layers):
-        layers.addLoadedListener(self._update_layer_collection)
-        self._update_layer_collection(layers)
+    def set_map(self, m):
+        m.addLoadedListener(self._update_map)
+        self._update_map(m)
 
-    def _update_layer_collection(self, layers):
-        if layers.items is None:
+    def _update_map(self, m):
+        if m is None or m.name is None:
             # not yet loaded
             return
 
         self._map.clearLayers()
-
-        for layer in layers.items:
-            if layer.name is None:
-                layer.addLoadedListener(lambda l: self._update_layer_collection(layers))
-                continue
-
-            kwargs = {}
-            if 'subdomains' in layer.tiles:
-                kwargs['subdomains'] = layer.tiles['subdomains']
-            tile_layer = TileLayer(layer.tiles['pattern'], **kwargs)
-            self._map.addLayer(tile_layer)
+        pattern = m.tms_tile_base + '{z}/{x}/{y}.png'
+        logging.error(pattern)
+        layer = TileLayer(pattern, tms=True)
+        self._map.addLayer(layer)
