@@ -103,6 +103,10 @@ class Map(object):
     def is_owned_by(self, user):
         return self.owner_username == user.username
 
+    def add_layer(self, b):
+        if b.layer_id not in self.layer_ids:
+            self.layer_ids.append(b.layer_id)
+
     @property
     def owner(self):
         return User.from_name(self.owner_username)
@@ -127,13 +131,22 @@ class Layer(object):
         with _layers() as layers:
            return layers[layer_id]
 
-    def __init__(self, owner, name=None):
+    def __init__(self, owner, name=None, bucket_ids=None):
         self.layer_id = uuid.uuid4().hex
         self.owner_username = owner.username
         self.name = name or 'Untitled layer'
+        self.bucket_ids = bucket_ids or []
 
     def is_owned_by(self, user):
         return self.owner_username == user.username
+
+    def add_bucket(self, b):
+        if b.bucket_id not in self.bucket_ids:
+            self.bucket_ids.append(b.bucket_id)
+
+    @property
+    def buckets(self):
+        return [Bucket.from_id(i) for i in self.bucket_ids]
 
     @property
     def owner(self):

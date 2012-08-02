@@ -136,7 +136,7 @@ class Map(BaseTestCase):
 
         l1 = model.Layer(self.test_user)       
         l2 = model.Layer(self.test_user)
-        [m.layer_ids.append(x.layer_id) for x in (l1, l2)]
+        list(m.add_layer(x) for x in (l1, l2))
         m.save()
         self.assertRaises(KeyError, lambda: m.layers)
         l1.save()
@@ -177,6 +177,24 @@ class Layer(BaseTestCase):
         l1.save()
         self.assertEqual(model.Layer.from_id(l1.layer_id).layer_id, l1.layer_id)
         self.assertNotEqual(model.Layer.from_id(l1.layer_id).layer_id, l2.layer_id)
+
+    def test_add_bucket(self):
+        l = model.Layer(self.test_user)
+        self.assertItemsEqual(l.buckets, [])
+        self.assertItemsEqual(l.bucket_ids, [])
+
+        b = model.Bucket(self.test_user)
+        b.save()
+
+        l.add_bucket(b)
+        l.save()
+
+        l2 = model.Layer.from_id(l.layer_id)
+        self.assertTrue(l2.is_owned_by(self.test_user))
+
+        self.assertItemsEqual(l2.bucket_ids, [b.bucket_id])
+        b2 = l2.buckets[0]
+        self.assertEqual(b2.bucket_id, b.bucket_id)
 
 class Bucket(BaseTestCase):
     def setUp(self):

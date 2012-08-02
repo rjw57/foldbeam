@@ -34,5 +34,5 @@ def surface_hash(surface):
 
 def output_surface(surface, name):
     if not os.path.isdir('test-output'):
-        os.mkdir('test-output')
+        os.mkdir('test-output') # pragma: no coverage
     surface.write_to_png(os.path.join('test-output', name + '.png'))

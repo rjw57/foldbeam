@@ -39,7 +39,7 @@ def test_url_fetcher(url):
     http = httplib2.Http(os.path.join(os.path.dirname(__file__), 'httpcache'))
     rep, content = http.request(url, 'GET')
     if rep.status != 200:
-        raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason)
+        raise foldbeam.renderer.URLFetchError(str(rep.status) + ' ' + rep.reason) # pragma: no coverage
     return content
 
 class TestTileFetcher(unittest.TestCase):
