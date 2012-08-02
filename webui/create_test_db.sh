@@ -1,4 +1,6 @@
 #!/bin/sh
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd ${DIR}
 
 function put() {
     echo "Putting to $1" >&2
@@ -30,6 +32,10 @@ function put_file() {
     echo -n ${URL//[[:space:]]/}
 }
 
+function get_uuid() {
+    http -p b GET $* | sed -e 's/.*"uuid": "\([a-f0-9]*\)".*/\1/'
+}
+
 put http://localhost:8888/user1 >/dev/null
 put http://localhost:8888/user2 >/dev/null
 put http://localhost:8888/user3 >/dev/null
@@ -54,8 +60,11 @@ M1=`post http://localhost:8888/user1/map`
 M1L1=`post ${M1}/layer`
 M1L2=`post ${M1}/layer name=Postcodes`
 
-post ${M1L1} 'name=MapQuest' >/dev/null
-post ${M1L2} 'tiles:={"pattern":"http://www.raggedred.net/tiles/codepoint/{z}/{x}/{y}.png"}' >/dev/null
+B1ID=`get_uuid ${B1}`
+B2ID=`get_uuid ${B2}`
+
+post ${M1L1} "name:=\"spain_and_countries\"" >/dev/null
+post ${M1L1} "bucket:=\"${B1ID}\"" >/dev/null
 
 #M2=`post http://localhost:8888/user1/map`
 #M2L1=`post ${M2}/layer`

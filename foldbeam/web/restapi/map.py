@@ -37,7 +37,7 @@ class MapCollectionHandler(BaseCollectionHandler):
         # Return it
         self.set_status(201)
         self.set_header('Location', self.map_url(m))
-        self.write({ 'url': self.map_url(m) })
+        self.write({ 'url': self.map_url(m), 'uuid': m.map_id })
 
 class MapHandler(BaseHandler):
     def write_map_resource(self, map_):

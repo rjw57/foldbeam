@@ -141,6 +141,8 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
         self.assertEqual(response.code, 201)
 
         self.assertIn('url', data)
+        self.assertIn('uuid', data)
+        reported_uuid = data['uuid']
         self.assertIn('Location', response.headers)
         self.assertEqual(data['url'], response.headers['Location'])
         bucket_url = data['url']
@@ -148,6 +150,8 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
         response, data = self.get(bucket_url)
         self.assertEqual(response.code, 200)
         bucket_id = data['uuid']
+
+        self.assertEqual(bucket_id, reported_uuid)
 
         response, data = self.get(collection_path)
         self.assertEqual(response.code, 200)
@@ -158,7 +162,7 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
         resource_ids = list(x['uuid'] for x in resources)
         self.assertIn(bucket_id, resource_ids)
 
-        return bucket_url
+        return bucket_url, bucket_id
 
     def bucket_collection_path(self, username):
         response, data = self.get('/' + username)
@@ -526,6 +530,21 @@ class Layer(BaseRestApiTestCase):
         self.assertNotEqual(old_name, 'renamed_layer')
         self.assertEqual(data['name'], 'renamed_layer')
 
+    def test_add_buckets(self):
+        b1_url, b1_id = self.new_bucket('alice')
+        b2_url, b2_id = self.new_bucket('alice')
+
+        # Adding buckets from other users is fine for the moment
+        response, data = self.post(self.bob_layer_1_url, {'bucket': b1_id})
+        self.assertEqual(response.code, 201)
+
+        response, data = self.get(self.bob_layer_1_url)
+        self.assertEqual(response.code, 200)
+
+        self.assertIn('bucket', data)
+        self.assertEqual(data['bucket']['url'], b1_url)
+        self.assertEqual(data['bucket']['uuid'], b1_id)
+
 class BucketCollection(BaseRestApiTestCase):
     def setUp(self):
         BaseRestApiTestCase.setUp(self)
@@ -558,10 +577,10 @@ class BucketCollection(BaseRestApiTestCase):
         self.assertEqual(len(resources), 0)
 
     def test_create_bucket(self):
-        self.assertIsNotNone(self.new_bucket('alice'))
+        self.assertIsNotNone(self.new_bucket('alice')[0])
 
     def test_create_and_update_bucket(self):
-        bucket_url = self.new_bucket('alice', { 'name': 'FooBar', })
+        bucket_url, bucket_id = self.new_bucket('alice', { 'name': 'FooBar', })
         response, data = self.get(bucket_url)
         self.assertEqual(response.code, 200)
         self.assertEqual(data['name'], 'FooBar')
@@ -578,19 +597,19 @@ class Bucket(BaseRestApiTestCase):
         self.put('/alice')
         assert self.get('/alice')[0].code == 200
 
-        self.alice_bucket_1_url = self.new_bucket('alice')
+        self.alice_bucket_1_url, _ = self.new_bucket('alice')
         self.alice_bucket_1_id = self.get(self.alice_bucket_1_url)[1]['uuid']
-        self.alice_bucket_2_url = self.new_bucket('alice', { 'name': 'Alice bucket 2' })
+        self.alice_bucket_2_url, _ = self.new_bucket('alice', { 'name': 'Alice bucket 2' })
         self.alice_bucket_2_id = self.get(self.alice_bucket_2_url)[1]['uuid']
 
         self.put('/bob')
         assert self.get('/bob')[0].code == 200
 
-        self.bob_bucket_1_url = self.new_bucket('bob')
+        self.bob_bucket_1_url, _ = self.new_bucket('bob')
         self.bob_bucket_1_id = self.get(self.bob_bucket_1_url)[1]['uuid']
-        self.bob_bucket_2_url = self.new_bucket('bob', { 'name': 'Bob bucket 2' })
+        self.bob_bucket_2_url, _ = self.new_bucket('bob', { 'name': 'Bob bucket 2' })
         self.bob_bucket_2_id = self.get(self.bob_bucket_2_url)[1]['uuid']
-        self.bob_bucket_3_url = self.new_bucket('bob', { 'name': 'Bob bucket 3' })
+        self.bob_bucket_3_url, _ = self.new_bucket('bob', { 'name': 'Bob bucket 3' })
         self.bob_bucket_3_id = self.get(self.bob_bucket_3_url)[1]['uuid']
 
     def test_non_existant(self):

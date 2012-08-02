@@ -180,21 +180,27 @@ class Layer(BaseTestCase):
 
     def test_add_bucket(self):
         l = model.Layer(self.test_user)
-        self.assertItemsEqual(l.buckets, [])
-        self.assertItemsEqual(l.bucket_ids, [])
+        self.assertIsNone(l.bucket)
+        self.assertIsNone(l.bucket_id)
 
         b = model.Bucket(self.test_user)
         b.save()
 
-        l.add_bucket(b)
+        l.bucket = b
         l.save()
 
         l2 = model.Layer.from_id(l.layer_id)
         self.assertTrue(l2.is_owned_by(self.test_user))
 
-        self.assertItemsEqual(l2.bucket_ids, [b.bucket_id])
-        b2 = l2.buckets[0]
-        self.assertEqual(b2.bucket_id, b.bucket_id)
+        self.assertEqual(l2.bucket_id, b.bucket_id)
+        self.assertEqual(l2.bucket.bucket_id, b.bucket_id)
+
+        l2.bucket = None
+        l2.save()
+
+        l3 = model.Layer.from_id(l.layer_id)
+        self.assertIsNone(l3.bucket)
+        self.assertIsNone(l3.bucket_id)
 
 class Bucket(BaseTestCase):
     def setUp(self):

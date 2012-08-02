@@ -135,7 +135,7 @@ class Layer(object):
         self.layer_id = uuid.uuid4().hex
         self.owner_username = owner.username
         self.name = name or 'Untitled layer'
-        self.bucket_ids = bucket_ids or []
+        self.bucket_id = None
 
     def is_owned_by(self, user):
         return self.owner_username == user.username
@@ -145,8 +145,17 @@ class Layer(object):
             self.bucket_ids.append(b.bucket_id)
 
     @property
-    def buckets(self):
-        return [Bucket.from_id(i) for i in self.bucket_ids]
+    def bucket(self):
+        if self.bucket_id is None:
+            return None
+        return Bucket.from_id(self.bucket_id)
+
+    @bucket.setter
+    def bucket(self, b):
+        if b is None:
+            self.bucket_id = None
+        else:
+            self.bucket_id = b.bucket_id
 
     @property
     def owner(self):

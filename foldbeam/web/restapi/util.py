@@ -1,4 +1,5 @@
 import json
+from foldbeam.web import model
 
 def decode_request_body(f):
     """A decorator which will attempt to interpret the request body as JSON
@@ -28,6 +29,11 @@ def update_layer(l, request):
     """Given a decoded request, update an existing layer from it."""
     if 'name' in request:
         l.name = request['name']
+
+    if 'bucket' in request:
+        bucket = model.Bucket.from_id(request['bucket'])
+        assert bucket is not None
+        l.bucket = bucket
         
 def update_bucket(b, request):
     """Given a decoded request, update an existing bucket from it."""

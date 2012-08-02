@@ -38,7 +38,7 @@ class BucketCollectionHandler(BaseCollectionHandler):
         # Return it
         self.set_status(201)
         self.set_header('Location', self.bucket_url(b))
-        self.write({ 'url': self.bucket_url(b) })
+        self.write({ 'url': self.bucket_url(b), 'uuid': b.bucket_id })
 
 class BucketHandler(BaseHandler):
     def write_bucket_resource(self, bucket):

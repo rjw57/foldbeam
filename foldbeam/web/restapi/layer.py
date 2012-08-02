@@ -63,17 +63,22 @@ class LayerCollectionHandler(BaseCollectionHandler):
         # Return it
         self.set_status(201)
         self.set_header('Location', self.layer_url(l))
-        self.write({ 'url': self.layer_url(l) })
+        self.write({ 'url': self.layer_url(l), 'uuid': l.layer_id })
 
 class LayerHandler(BaseHandler):
     def write_layer_resource(self, layer):
         self.write(self.layer_resource(layer))
 
     def layer_resource(self, layer):
+        bucket = None
+        if layer.bucket is not None:
+            bucket = { 'url': self.bucket_url(layer.bucket), 'uuid': layer.bucket.bucket_id }
+
         return {
             'name': layer.name,
             'owner': { 'url': self.user_url(layer.owner), 'username': layer.owner.username },
             'uuid': layer.layer_id,
+            'bucket': bucket,
         }
 
     def get(self, username, layer_id):
@@ -100,7 +105,10 @@ class LayerHandler(BaseHandler):
             return
 
         m = self.get_layer_or_404(layer_id)
-        if m is None or not m.is_owned_by(user):
+        if m is None:
+            return
+        
+        if not m.is_owned_by(user):
             self.send_error(404)
             return
 
