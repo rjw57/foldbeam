@@ -28,8 +28,6 @@ def update_layer(l, request):
     """Given a decoded request, update an existing layer from it."""
     if 'name' in request:
         l.name = request['name']
-    if 'tiles' in request:
-        l.tiles = request['tiles']
         
 def update_bucket(b, request):
     """Given a decoded request, update an existing bucket from it."""

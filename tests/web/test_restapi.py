@@ -170,6 +170,19 @@ class Root(BaseRestApiTestCase):
         response, _ = self.get('')
         self.assertEqual(response.code, 404)
 
+    def test_cors(self):
+        response, _ = self.get('/joe_nobody')
+        self.assertEqual(response.code, 404)
+        self.assertNotIn('Access-Control-Allow-Headers', response.headers)
+
+        response, _ = self.get('/joe_nobody', headers={'Origin': 'example.com:1234'})
+        self.assertEqual(response.code, 404)
+
+        self.assertIn('Access-Control-Allow-Headers', response.headers)
+        self.assertIn('Access-Control-Allow-Origin', response.headers)
+        self.assertIn('Access-Control-Allow-Methods', response.headers)
+        self.assertEqual(response.headers['Access-Control-Allow-Origin'], 'example.com:1234')
+
 class User(BaseRestApiTestCase):
     def test_non_existant(self):
         response, _ = self.get('/joe_nobody')
@@ -476,6 +489,42 @@ class Layer(BaseRestApiTestCase):
         self.assertEqual(response.code, 404)
         response, _ = self.get('/noone/layer/_uuid/' + self.bob_layer_2_id)
         self.assertEqual(response.code, 404)
+
+    def test_non_existant_post(self):
+        body = { 'name': 'renamed_layer' }
+
+        response, _ = self.post('/alice/layer/_uuid/nosuchlayer', body)
+        self.assertEqual(response.code, 404)
+
+        # a plausible layer
+        import uuid
+        response, _ = self.post('/alice/layer/_uuid/' + uuid.uuid4().hex, body)
+        self.assertEqual(response.code, 404)
+
+        # someone else's layer
+        response, _ = self.post('/bob/layer/_uuid/' + self.bob_layer_2_id, body)
+        self.assertEqual(response.code, 201)
+        response, _ = self.post('/alice/layer/_uuid/' + self.bob_layer_2_id, body)
+        self.assertEqual(response.code, 404)
+
+        # no one's layer
+        response, _ = self.post('/joe_nobody/layer/_uuid/' + self.bob_layer_2_id, body)
+        self.assertEqual(response.code, 404)
+        response, _ = self.post('/noone/layer/_uuid/' + self.bob_layer_2_id, body)
+        self.assertEqual(response.code, 404)
+
+    def test_rename(self):
+        response, data = self.get(self.bob_layer_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('name', data)
+        old_name = data['name']
+
+        response, data = self.post(self.bob_layer_1_url, {'name': 'renamed_layer'})
+        response, data = self.get(self.bob_layer_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('name', data)
+        self.assertNotEqual(old_name, 'renamed_layer')
+        self.assertEqual(data['name'], 'renamed_layer')
 
 class BucketCollection(BaseRestApiTestCase):
     def setUp(self):

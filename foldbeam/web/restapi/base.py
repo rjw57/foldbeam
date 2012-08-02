@@ -18,7 +18,8 @@ class BaseHandler(RequestHandler):
             self.set_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE')
 
     def options(self, *args):
-        pass
+        # Don't test for coverage since this is just here to stop Chrome moaning during AJAX
+        pass    # pragma: no coverage
 
     def user_url(self, user):
         return urlparse.urljoin(self.request.full_url(), self.reverse_url('user', user.username))

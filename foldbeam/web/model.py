@@ -131,10 +131,6 @@ class Layer(object):
         self.layer_id = uuid.uuid4().hex
         self.owner_username = owner.username
         self.name = name or 'Untitled layer'
-        self.tiles = {
-            'pattern': 'http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png',
-            'subdomains': '1234',
-        }
 
     def is_owned_by(self, user):
         return self.owner_username == user.username

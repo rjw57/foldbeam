@@ -73,7 +73,6 @@ class LayerHandler(BaseHandler):
         return {
             'name': layer.name,
             'owner': { 'url': self.user_url(layer.owner), 'username': layer.owner.username },
-            'tiles': layer.tiles,
             'uuid': layer.layer_id,
         }
 
@@ -101,7 +100,7 @@ class LayerHandler(BaseHandler):
             return
 
         m = self.get_layer_or_404(layer_id)
-        if not m.is_owned_by(user):
+        if m is None or not m.is_owned_by(user):
             self.send_error(404)
             return
 
