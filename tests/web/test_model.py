@@ -194,7 +194,7 @@ class Bucket(BaseTestCase):
         self.assertGreater(len(b1.bucket_id), 20)
         self.assertIsNotNone(b1.bucket)
 
-    def test_upload(self):
+    def test_shapefile(self):
         b1 = model.Bucket(self.test_user, name='My bucket')
         self.assertEqual(len(b1.bucket.layers), 0)
 
