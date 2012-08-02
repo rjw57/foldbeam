@@ -140,10 +140,6 @@ class Layer(object):
     def is_owned_by(self, user):
         return self.owner_username == user.username
 
-    def add_bucket(self, b):
-        if b.bucket_id not in self.bucket_ids:
-            self.bucket_ids.append(b.bucket_id)
-
     @property
     def bucket(self):
         if self.bucket_id is None:
