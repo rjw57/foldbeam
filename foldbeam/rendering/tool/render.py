@@ -7,7 +7,7 @@ import httplib2
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 
-from foldbeam.renderer import TileFetcher, set_geo_transform
+from foldbeam.rendering.renderer import TileFetcher, set_geo_transform
 
 logging.basicConfig(level=logging.WARNING)
 

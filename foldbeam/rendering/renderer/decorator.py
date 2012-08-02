@@ -10,7 +10,7 @@ import numpy as np
 from osgeo import gdal, gdal_array
 from osgeo.ogr import CreateGeometryFromWkt
 
-from foldbeam.renderer.base import set_geo_transform
+from foldbeam.rendering.renderer.base import set_geo_transform
 
 log = logging.getLogger()
 

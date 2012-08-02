@@ -3,7 +3,7 @@ import unittest
 
 import TileStache
 
-from foldbeam.goodies.tilestache import TileStacheProvider
+from foldbeam.rendering.goodies.tilestache import TileStacheProvider
 
 class TestTileStacheProvider(unittest.TestCase):
     def setUp(self):

@@ -5,7 +5,7 @@ from osgeo.osr import SpatialReference
 from PIL import Image
 import TileStache
 
-from foldbeam.renderer import TileFetcher, set_geo_transform
+from foldbeam.rendering.renderer import TileFetcher, set_geo_transform
 
 class TileStacheProvider(object):
     """An object suitable for use as a TileStache provider.

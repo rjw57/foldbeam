@@ -3,9 +3,9 @@ import math
 import cairo
 import numpy as np
 
-from foldbeam.core import Envelope
-from foldbeam.core import boundary_from_envelope
-from foldbeam.renderer import RendererBase
+from foldbeam.rendering.core import Envelope
+from foldbeam.rendering.core import boundary_from_envelope
+from foldbeam.rendering.renderer import RendererBase
 
 class Geometry(RendererBase):
     """Render shapely geometric shapes into a context.

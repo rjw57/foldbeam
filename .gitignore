@@ -28,3 +28,4 @@ htmlcov/
 # webui build
 webui/output/
 foldbeam/web/db_*
+tests/rendering/httpcache/

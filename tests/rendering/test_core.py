@@ -4,10 +4,10 @@ import cairo
 from osgeo.osr import SpatialReference
 import numpy as np
 
-from foldbeam import core
-from foldbeam.renderer import RendererBase, set_geo_transform
+from foldbeam.rendering import core
+from foldbeam.rendering.renderer import RendererBase, set_geo_transform
 
-from .utils import surface_hash, output_surface
+from ..utils import surface_hash, output_surface
 
 class TestGeoTransform(unittest.TestCase):
     def setUp(self):

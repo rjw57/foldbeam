@@ -1,6 +1,6 @@
 import unittest
 
-from foldbeam.tool import render
+from foldbeam.rendering.tool import render
 
 class TestRender(unittest.TestCase):
     def test_wgs84_latlng(self):

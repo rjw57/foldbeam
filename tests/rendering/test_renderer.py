@@ -23,12 +23,12 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import geoalchemy
 
-from foldbeam.geometry import IterableGeometry, GeoAlchemyGeometry
-from foldbeam.renderer import set_geo_transform, default_url_fetcher
-from foldbeam.renderer import TileFetcher, Geometry
-from foldbeam.renderer import Wrapped, Layers
+from foldbeam.rendering.geometry import IterableGeometry, GeoAlchemyGeometry
+from foldbeam.rendering.renderer import set_geo_transform, default_url_fetcher
+from foldbeam.rendering.renderer import TileFetcher, Geometry
+from foldbeam.rendering.renderer import Wrapped, Layers
 
-from .utils import surface_hash, output_surface
+from ..utils import surface_hash, output_surface
 
 log = logging.getLogger()
 
@@ -458,7 +458,7 @@ class TestGeometry(unittest.TestCase):
         self.assertEqual(surface_hash(surface)/10, 65083)
 
 def osm_map_renderer(url_fetcher=None, use_postgres=False, use_tile_fetcher=True):
-    osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/central-cambridge.sqlite'))
+    osm_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/central-cambridge.sqlite'))
     #engine = create_engine('postgresql://gis:gis@localhost/central-cambridge', poolclass=StaticPool)
     engine = create_engine('sqlite:///' + osm_db_path,
         connect_args={'check_same_thread': False},

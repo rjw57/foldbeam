@@ -52,7 +52,7 @@ setup(name='foldbeam',
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'foldbeam-render=foldbeam.tool.render:main',
+            'foldbeam-render=foldbeam.rendering.tool.render:main',
         ]
     },
     test_suite='tests',
