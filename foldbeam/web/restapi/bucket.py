@@ -55,7 +55,7 @@ class BucketHandler(BaseHandler):
                 d['type'] = 'raster'
             else:
                 # should not be reached
-                assert false
+                assert false    # pragma: no coverage
 
             if l.spatial_reference is not None:
                 d['spatial_reference'] = { 'proj': l.spatial_reference.ExportToProj4(), 'wkt': l.spatial_reference.ExportToWkt() }
@@ -116,7 +116,7 @@ class BucketHandler(BaseHandler):
         self.write({ 'url': self.bucket_url(bucket) })
 
 class BucketFileHandler(BaseHandler):
-    def post(self, username, bucket_id, filename):
+    def put(self, username, bucket_id, filename):
         user = self.get_user_or_404(username)
         if user is None:
             return
@@ -130,7 +130,11 @@ class BucketFileHandler(BaseHandler):
             return
 
         import StringIO
-        bucket.bucket.add(filename, StringIO.StringIO(self.request.body))
+        try:
+            bucket.bucket.add(filename, StringIO.StringIO(self.request.body))
+        except foldbeam.bucket.BadFileNameError:
+            self.send_error(400) # Bad request
+            return
 
         self.set_status(201)
         self.set_header('Location', self.bucket_file_url(bucket, filename))

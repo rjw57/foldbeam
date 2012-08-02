@@ -131,7 +131,11 @@ class Bucket(object):
         """
         output_file_name = self._file_name_to_path(name)
         log.info('Writing to bucket file: %s' % (output_file_name,))
-        output = open(output_file_name, 'w')
+        try:
+            output = open(output_file_name, 'w')
+        except IOError: # pragma: no coverage
+            # some failure in creating file, we'll assume doe to a bad filename
+            raise BadFileNameError('Error creating file named: ' + str(name)) # pragma: no coverage
         shutil.copyfileobj(fobj, output)
 
         if self.primary_file_name is None:
@@ -201,7 +205,7 @@ class Bucket(object):
 
     def _file_name_to_path(self, name):
         # check that the file name doesn't try to do anything clever
-        if os.path.basename(name) != name:
+        if os.path.basename(name) != name or name == '..' or name == '.':
             raise BadFileNameError('%s is an invalid filename' % (name,))
         return os.path.join(self._files_dir, name)
 

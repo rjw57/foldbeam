@@ -1,4 +1,5 @@
 import json
+import os
 import urlparse
 
 from tornado.testing import AsyncHTTPTestCase
@@ -35,6 +36,9 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
     def put(self, path, body=None, **kwargs):
         if body is not None:
             body = json.dumps(body)
+        return self._decode(self._fetch_full(urlparse.urljoin(self.get_url('/'), path), method='PUT', body=body or '', **kwargs))
+
+    def put_raw(self, path, body=None, **kwargs):
         return self._decode(self._fetch_full(urlparse.urljoin(self.get_url('/'), path), method='PUT', body=body or '', **kwargs))
 
 #    def delete(self, path, **kwargs):
@@ -125,6 +129,36 @@ class BaseRestApiTestCase(AsyncHTTPTestCase, TempDbMixin):
         self.assertIn(layer_id, resource_ids)
 
         return layer_url
+
+    def new_bucket(self, username, request=None):
+        collection_path = self.bucket_collection_path(username)
+
+        response, data = self.get(collection_path)
+        self.assertEqual(response.code, 200)
+        old_resources = self.parse_collection(data)
+
+        response, data = self.post(collection_path, request)
+        self.assertEqual(response.code, 201)
+
+        self.assertIn('url', data)
+        self.assertIn('Location', response.headers)
+        self.assertEqual(data['url'], response.headers['Location'])
+        bucket_url = data['url']
+
+        response, data = self.get(bucket_url)
+        self.assertEqual(response.code, 200)
+        bucket_id = data['uuid']
+
+        response, data = self.get(collection_path)
+        self.assertEqual(response.code, 200)
+        resources = self.parse_collection(data)
+        self.assertEqual(len(resources), len(old_resources) + 1)
+        self.assertEqual(resources[0]['url'], bucket_url)
+
+        resource_ids = list(x['uuid'] for x in resources)
+        self.assertIn(bucket_id, resource_ids)
+
+        return bucket_url
 
     def bucket_collection_path(self, username):
         response, data = self.get('/' + username)
@@ -443,3 +477,262 @@ class Layer(BaseRestApiTestCase):
         response, _ = self.get('/noone/layer/_uuid/' + self.bob_layer_2_id)
         self.assertEqual(response.code, 404)
 
+class BucketCollection(BaseRestApiTestCase):
+    def setUp(self):
+        BaseRestApiTestCase.setUp(self)
+
+        self.put('/alice')
+        assert self.get('/alice')[0].code == 200
+        self.put('/bob')
+        assert self.get('/bob')[0].code == 200
+
+    def test_no_such_user_collection(self):
+        collection_path = '/nobody/bucket'
+        response, _ = self.get(collection_path)
+        self.assertEqual(response.code, 404)
+
+        response, _ = self.post(collection_path)
+        self.assertEqual(response.code, 404)
+
+        # check that the URL pattern is valid though
+        collection_path = '/bob/bucket'
+        response, data = self.get(collection_path)
+        self.assertEqual(response.code, 200)
+        response, data = self.post(collection_path)
+        self.assertEqual(response.code, 201)
+
+    def test_empty_collection(self):
+        collection_path = self.bucket_collection_path('alice')
+        response, data = self.get(collection_path)
+        self.assertEqual(response.code, 200)
+        resources = self.parse_collection(data)
+        self.assertEqual(len(resources), 0)
+
+    def test_create_bucket(self):
+        self.assertIsNotNone(self.new_bucket('alice'))
+
+    def test_create_and_update_bucket(self):
+        bucket_url = self.new_bucket('alice', { 'name': 'FooBar', })
+        response, data = self.get(bucket_url)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(data['name'], 'FooBar')
+
+class Bucket(BaseRestApiTestCase):
+    def data_file(self, name):
+        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data'))
+        path = os.path.join(data_dir, name)
+        return open(path)
+
+    def setUp(self):
+        BaseRestApiTestCase.setUp(self)
+
+        self.put('/alice')
+        assert self.get('/alice')[0].code == 200
+
+        self.alice_bucket_1_url = self.new_bucket('alice')
+        self.alice_bucket_1_id = self.get(self.alice_bucket_1_url)[1]['uuid']
+        self.alice_bucket_2_url = self.new_bucket('alice', { 'name': 'Alice bucket 2' })
+        self.alice_bucket_2_id = self.get(self.alice_bucket_2_url)[1]['uuid']
+
+        self.put('/bob')
+        assert self.get('/bob')[0].code == 200
+
+        self.bob_bucket_1_url = self.new_bucket('bob')
+        self.bob_bucket_1_id = self.get(self.bob_bucket_1_url)[1]['uuid']
+        self.bob_bucket_2_url = self.new_bucket('bob', { 'name': 'Bob bucket 2' })
+        self.bob_bucket_2_id = self.get(self.bob_bucket_2_url)[1]['uuid']
+        self.bob_bucket_3_url = self.new_bucket('bob', { 'name': 'Bob bucket 3' })
+        self.bob_bucket_3_id = self.get(self.bob_bucket_3_url)[1]['uuid']
+
+    def test_non_existant(self):
+        response, _ = self.get('/alice/bucket/_uuid/nosuchbucket')
+        self.assertEqual(response.code, 404)
+
+        # a plausible bucket
+        import uuid
+        response, _ = self.get('/alice/bucket/_uuid/' + uuid.uuid4().hex)
+        self.assertEqual(response.code, 404)
+
+        # someone else's bucket
+        response, _ = self.get('/bob/bucket/_uuid/' + self.bob_bucket_2_id)
+        self.assertEqual(response.code, 200)
+        response, _ = self.get('/alice/bucket/_uuid/' + self.bob_bucket_2_id)
+        self.assertEqual(response.code, 404)
+
+        # no one's bucket
+        response, _ = self.get('/joe_nobody/bucket/_uuid/' + self.bob_bucket_2_id)
+        self.assertEqual(response.code, 404)
+        response, _ = self.get('/noone/bucket/_uuid/' + self.bob_bucket_2_id)
+        self.assertEqual(response.code, 404)
+
+    def test_non_existant_post(self):
+        body = {'name': 'renamed_bucket'}
+
+        response, _ = self.post('/alice/bucket/_uuid/nosuchbucket', body)
+        self.assertEqual(response.code, 404)
+
+        # a plausible bucket
+        import uuid
+        response, _ = self.post('/alice/bucket/_uuid/' + uuid.uuid4().hex, body)
+        self.assertEqual(response.code, 404)
+
+        # someone else's bucket
+        response, _ = self.post('/bob/bucket/_uuid/' + self.bob_bucket_2_id, body)
+        self.assertEqual(response.code, 201)
+        response, _ = self.post('/alice/bucket/_uuid/' + self.bob_bucket_2_id, body)
+        self.assertEqual(response.code, 404)
+
+        # no one's bucket
+        response, _ = self.post('/joe_nobody/bucket/_uuid/' + self.bob_bucket_2_id, body)
+        self.assertEqual(response.code, 404)
+        response, _ = self.post('/noone/bucket/_uuid/' + self.bob_bucket_2_id, body)
+        self.assertEqual(response.code, 404)
+
+    def test_bad_urls(self):
+        # check that our idea of URLs is right
+        response, _ = self.put_raw('/bob/bucket/_uuid/' + self.bob_bucket_2_id + '/foo',
+                self.data_file('spain.tiff').read())
+        self.assertEqual(response.code, 201)
+
+        # someone else's bucket
+        response, _ = self.put_raw('/alice/bucket/_uuid/' + self.bob_bucket_2_id + '/foo',
+                self.data_file('spain.tiff').read())
+        self.assertEqual(response.code, 404)
+
+        # non-existant bucket
+        import uuid
+        response, _ = self.put_raw('/alice/bucket/_uuid/' + uuid.uuid4().hex + '/foo',
+                self.data_file('spain.tiff').read())
+        self.assertEqual(response.code, 404)
+
+        # someone who doesn't exist's bucket
+        response, _ = self.put_raw('/joe_nobody/bucket/_uuid/' + self.bob_bucket_2_id + '/foo',
+                self.data_file('spain.tiff').read())
+        self.assertEqual(response.code, 404)
+
+    def test_bad_filenames(self):
+        # check bucket exists
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+
+        # try to break out
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/../foo.shp', self.data_file('ne_110m_admin_0_countries.shp').read())
+        self.assertEqual(response.code, 404)
+
+        # encode slash
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/..%2Ffoo.shp', self.data_file('ne_110m_admin_0_countries.shp').read())
+        self.assertEqual(response.code, 400) # filenames with slashes in are bad m'kay?
+
+        # encode try to break out of bucket
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/..', self.data_file('ne_110m_admin_0_countries.shp').read())
+        self.assertEqual(response.code, 400) # filenames with slashes in are bad m'kay?
+
+    def test_empty_bucket(self):
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+
+        self.assertIn('layers', data)
+        self.assertItemsEqual(data['layers'], [])
+
+        self.assertIn('files', data)
+        self.assertItemsEqual(data['files'], [])
+
+    def test_rename(self):
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('name', data)
+        old_name = data['name']
+
+        response, data = self.post(self.bob_bucket_1_url, {'name': 'renamed_bucket'})
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('name', data)
+        self.assertNotEqual(old_name, 'renamed_bucket')
+        self.assertEqual(data['name'], 'renamed_bucket')
+
+    def test_shapefile_upload(self):
+        # check bucket exists
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+
+        # upload shape file
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/foo.shp', self.data_file('ne_110m_admin_0_countries.shp').read())
+        self.assertEqual(response.code, 201)
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('layers', data)
+        self.assertItemsEqual(data['layers'], [])
+        self.assertIn('files', data)
+        self.assertItemsEqual(data['files'], ['foo.shp'])
+
+        # upload shape index file
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/foo.shx', self.data_file('ne_110m_admin_0_countries.shx').read())
+        self.assertEqual(response.code, 201)
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('layers', data)
+        self.assertItemsEqual(data['files'], ['foo.shp', 'foo.shx'])
+        self.assertItemsEqual(data['layers'], ['foo'])
+
+        # check layer is vector but has no projection
+        l = data['layers']['foo']
+        self.assertIn('type', l)
+        self.assertEqual(l['type'], 'vector')
+        self.assertIn('spatial_reference', l)
+        self.assertEqual(l['spatial_reference'], None)
+
+        # upload shape projection file
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/foo.prj', self.data_file('ne_110m_admin_0_countries.prj').read())
+        self.assertEqual(response.code, 201)
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('layers', data)
+        self.assertItemsEqual(data['files'], ['foo.shp', 'foo.prj', 'foo.shx'])
+        self.assertItemsEqual(data['layers'], ['foo'])
+
+        # check layer is vector and has projection
+        l = data['layers']['foo']
+        self.assertIn('type', l)
+        self.assertEqual(l['type'], 'vector')
+        self.assertIn('spatial_reference', l)
+
+        srs = l['spatial_reference']
+        self.assertIn('proj', srs)
+        self.assertIn('wkt', srs)
+        self.assertEqual(srs['proj'], u'+proj=longlat +datum=WGS84 +no_defs ')
+        self.assertEqual(srs['wkt'],
+                u'GEOGCS["GCS_WGS_1984",DATUM["WGS_1984",SPHEROID["WGS_84",6378137.0,298.257223563]],' + 
+                u'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]')
+
+    def test_geotiff_upload(self):
+        # check bucket exists
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+
+        # upload tiff file
+        response, _ = self.put_raw(self.bob_bucket_1_url + '/image.tiff', self.data_file('spain.tiff').read())
+        self.assertEqual(response.code, 201)
+        response, data = self.get(self.bob_bucket_1_url)
+        self.assertEqual(response.code, 200)
+        self.assertIn('layers', data)
+        self.assertItemsEqual(data['layers'], ['image.tiff'])
+        self.assertIn('files', data)
+        self.assertItemsEqual(data['files'], ['image.tiff'])
+
+        # check layer is raster and has projection
+        l = data['layers']['image.tiff']
+        self.assertIn('type', l)
+        self.assertEqual(l['type'], 'raster')
+        self.assertIn('spatial_reference', l)
+
+        srs = l['spatial_reference']
+        self.assertIn('proj', srs)
+        self.assertIn('wkt', srs)
+        self.assertEqual(srs['proj'], u'+proj=utm +zone=30 +datum=WGS84 +units=m +no_defs ')
+        self.assertEqual(srs['wkt'],
+            u'PROJCS["WGS 84 / UTM zone 30N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",' +
+            u'6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],' +
+            u'PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4326"]],' +
+            u'PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-3],' +
+            u'PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],' +
+            u'UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","32630"]]')
