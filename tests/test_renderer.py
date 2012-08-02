@@ -74,7 +74,7 @@ class TestTileFetcher(unittest.TestCase):
         renderer = TileFetcher(url_fetcher=test_url_fetcher)
         renderer.render_callable(self.cr)()
         output_surface(self.surface, 'tilefetcher_default')
-        self.assertEqual(surface_hash(self.surface)/10000, 723)
+        self.assertEqual(surface_hash(self.surface)/10000, 722)
 
     def test_aerial(self):
         self.centre_on_big_ben(1000e3)
