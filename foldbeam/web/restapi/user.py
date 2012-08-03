@@ -1,40 +1,38 @@
-from foldbeam.web import model
+import json
 
-from .base import BaseHandler
-from .util import decode_request_body
+from flask import url_for, make_response
 
-class UserHandler(BaseHandler):
-    def write_user_resource(self, user):
-        self.write(self.user_resource(user))
+from .flaskapp import app, resource
+from .util import *
 
-    def user_resource(self, user):
-        return {
-            'username': user.username,
-            'resources': {
-                'map_collection': {
-                    'url': self.map_collection_url(user),
-                },
-                'layer_collection': {
-                    'url': self.layer_collection_url(user),
-                },
-                'bucket_collection': {
-                    'url': self.bucket_collection_url(user),
-                },
-            },
-        }
+@app.route('/<username>', methods=['GET', 'PUT'])
+def user(username):
+    if request.method == 'GET':
+        return get_user(username)
+    elif request.method == 'PUT':
+        return put_user(username)
 
-    def get(self, username):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
-        self.write_user_resource(user)
+    # should never be reached
+    abort(500) # pragma: no coverage
 
-    @decode_request_body
-    def put(self, username):
-        # This will replace the one currently in the DB
-        user = model.User(username)
-        user.save()
+@resource
+def get_user(username):
+    user = get_user_or_404(username)
+    return {
+        'username': user.username,
+        'resources': {
+            'maps': { 'url': url_for_user_maps(user) },
+            'layers': { 'url': url_for_user_layers(user) },
+            'buckets': { 'url': url_for_user_buckets(user) },
+        },
+    }
 
-        self.set_status(201)
-        self.set_header('Location', self.user_url(user))
-        self.write({ 'url': self.user_url(user) })
+def put_user(username):
+    # This will replace the one currently in the DB
+    user = model.User(username)
+    user.save()
+
+    response = make_response(json.dumps({ 'url': url_for_user(user) }), 201)
+    response.headers['Location'] = url_for_user(user)
+    response.headers['Content-Type'] = 'application/json'
+    return response

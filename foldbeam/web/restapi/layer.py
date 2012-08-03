@@ -1,120 +1,77 @@
-import itertools
+import json
 
-from tornado.web import removeslash
+from flask import url_for, make_response
 
-from foldbeam.web import model
+from .flaskapp import app, resource
+from .util import *
 
-from .base import BaseHandler, BaseCollectionHandler
-from .util import decode_request_body, update_layer
+@app.route('/<username>/layers', methods=['GET', 'POST'])
+def layers(username):
+    if request.method == 'GET':
+        return get_layers(username)
+    elif request.method == 'POST':
+        return post_layers(username)
 
-class LayerCollectionHandler(BaseCollectionHandler):
-    def get_collection(self, offset, limit, username, map_id=None):
-        try:
-            user = model.User.from_name(username)
-        except KeyError:
-            return None
+    # should never be reached
+    abort(500) # pragma: no coverage
 
-        if map_id is None:
-            return itertools.islice(user.layers, offset, offset+limit)
-        
-        try:
-            map_ = model.Map.from_id(map_id)
-        except KeyError:
-            return None
+@resource
+def get_layers(username):
+    user = get_user_or_404(username)
+    resources = []
+    for resource in user.layers:
+        resources.append({
+            'name': resource.name,
+            'url': url_for_layer(resource),
+            'urn': urn_for_layer(resource),
+        })
+    return {
+            'owner': { 'username': user.username, 'url': url_for_user(user) },
+            'resources': resources,
+    }
 
-        if not map_.is_owned_by(user):
-            return None
+def post_layers(username):
+    user = get_user_or_404(username)
 
-        return itertools.islice(map_.layers, offset, offset+limit)
+    # Create a new layer
+    l = model.Layer(user)
+    if request.json is not None:
+        update_layer(l, request.json)
+    l.save()
 
-    def item_resource(self, item):
-        return {
-            'url': self.layer_url(item),
-            'name': item.name,
-            'uuid': item.layer_id,
-        }
+    # Return it
+    response = make_response(json.dumps({ 'url': url_for_layer(l), 'urn': urn_for_layer(l) }), 201)
+    response.headers['Location'] = url_for_layer(l)
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
-    @decode_request_body
-    @removeslash
-    def post(self, username, map_id=None):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
+@app.route('/<username>/layers/<layer_id>', methods=['GET', 'PUT'])
+def layer(username, layer_id):
+    if request.method == 'GET':
+        return get_layer(username, layer_id)
+    elif request.method == 'PUT':
+        return put_layer(username, layer_id)
 
-        map_ = None
-        if map_id is not None:
-            map_ = self.get_map_or_404(map_id)
-            if map_ is None:
-                return None
+    # should never be reached
+    abort(500) # pragma: no coverage
 
-            if not map_.is_owned_by(user):
-                self.send_error(404)
-                return None
-
-        # Create a new layer
-        l = model.Layer(user)
-        update_layer(l, self.request.body)
-        l.save()
-
-        if map_ is not None:
-            map_.layer_ids.append(l.layer_id)
-            map_.save()
-
-        # Return it
-        self.set_status(201)
-        self.set_header('Location', self.layer_url(l))
-        self.write({ 'url': self.layer_url(l), 'uuid': l.layer_id })
-
-class LayerHandler(BaseHandler):
-    def write_layer_resource(self, layer):
-        self.write(self.layer_resource(layer))
-
-    def layer_resource(self, layer):
-        bucket = None
-        if layer.bucket is not None:
-            bucket = { 'url': self.bucket_url(layer.bucket), 'uuid': layer.bucket.bucket_id }
-
-        return {
+@resource
+def get_layer(username, layer_id):
+    user, layer = get_user_and_layer_or_404(username, layer_id)
+    return {
             'name': layer.name,
-            'owner': { 'url': self.user_url(layer.owner), 'username': layer.owner.username },
-            'uuid': layer.layer_id,
-            'bucket': bucket,
-        }
+            'urn': urn_for_layer(layer),
+            'owner': { 'username': user.username, 'url': url_for_user(user) },
+    }
 
-    def get(self, username, layer_id):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
+def put_layer(username, layer_id):
+    user, l = get_user_and_layer_or_404(username, layer_id)
+    if request.json is not None:
+        update_layer(l, request.json)
+    l.save()
 
-        layer = self.get_layer_or_404(layer_id)
-        if layer is None:
-            return
-
-        if layer.owner.username != user.username:
-            self.send_error(404)
-            return
-
-        self.write_layer_resource(layer)
-
-    @decode_request_body
-    def post(self, username, layer_id):
-        try:
-            user = model.User.from_name(username)
-        except KeyError as e:
-            self.send_error(404)
-            return
-
-        m = self.get_layer_or_404(layer_id)
-        if m is None:
-            return
-        
-        if not m.is_owned_by(user):
-            self.send_error(404)
-            return
-
-        update_layer(m, self.request.body)
-        m.save()
-
-        self.set_status(201)
-        self.set_header('Location', self.layer_url(m))
-        self.write({ 'url': self.layer_url(m) })
+    # Return it
+    response = make_response(json.dumps({ 'url': url_for_layer(l), 'urn': urn_for_layer(l) }), 201)
+    response.headers['Location'] = url_for_layer(l)
+    response.headers['Content-Type'] = 'application/json'
+    return response

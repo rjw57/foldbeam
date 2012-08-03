@@ -1,141 +1,135 @@
-import itertools
+import json
 
-from tornado.web import removeslash
+from flask import url_for, make_response
 
 import foldbeam.bucket
-from foldbeam.web import model
 
-from .base import BaseHandler, BaseCollectionHandler
-from .util import decode_request_body, update_bucket
+from .flaskapp import app, resource
+from .util import *
 
-class BucketCollectionHandler(BaseCollectionHandler):
-    def get_collection(self, offset, limit, username):
-        try:
-            user = model.User.from_name(username)
-        except KeyError:
-            return None
-        return itertools.islice(user.buckets, offset, offset+limit)
+@app.route('/<username>/buckets', methods=['GET', 'POST'])
+def buckets(username):
+    if request.method == 'GET':
+        return get_buckets(username)
+    elif request.method == 'POST':
+        return post_buckets(username)
 
-    def item_resource(self, item):
-        return {
-            'url': self.bucket_url(item),
-            'name': item.name,
-            'uuid': item.bucket_id,
+    # should never be reached
+    abort(500) # pragma: no coverage
+
+@resource
+def get_buckets(username):
+    user = get_user_or_404(username)
+    resources = []
+    for resource in user.buckets:
+        resources.append({
+            'name': resource.name,
+            'url': url_for_bucket(resource),
+            'urn': urn_for_bucket(resource),
+        })
+    return {
+            'owner': { 'username': user.username, 'url': url_for_user(user) },
+            'resources': resources,
+    }
+
+def post_buckets(username):
+    user = get_user_or_404(username)
+
+    # Create a new bucket
+    m = model.Bucket(user)
+    if request.json is not None:
+        update_bucket(m, request.json)
+    m.save()
+
+    # Return it
+    response = make_response(json.dumps({ 'url': url_for_bucket(m), 'urn': urn_for_bucket(m) }), 201)
+    response.headers['Location'] = url_for_bucket(m)
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+@app.route('/<username>/buckets/<bucket_id>', methods=['GET', 'PUT'])
+def bucket(username, bucket_id):
+    if request.method == 'GET':
+        return get_bucket(username, bucket_id)
+    elif request.method == 'PUT':
+        return put_bucket(username, bucket_id)
+    # should never be reached
+    abort(500) # pragma: no coverage
+
+@resource
+def get_bucket(username, bucket_id):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
+
+    sources = {}
+    for s in bucket.bucket.layers:
+        if s.type == foldbeam.bucket.Layer.VECTOR_TYPE:
+            type_ = 'vector'
+        elif s.type == foldbeam.bucket.Layer.RASTER_TYPE:
+            type_ = 'raster'
+        else:
+            # should not be reached
+            abort(500)
+
+        srs = None
+        if s.spatial_reference is not None:
+            srs = { 'proj': s.spatial_reference.ExportToProj4(), 'wkt': s.spatial_reference.ExportToWkt() }
+
+        sources[s.name] = {
+            'spatial_reference': srs,
+            'type': type_,
         }
 
-    @decode_request_body
-    @removeslash
-    def post(self, username):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
-
-        # Create a new bucket
-        b = model.Bucket(user)
-        update_bucket(b, self.request.body)
-        b.save()
-
-        # Return it
-        self.set_status(201)
-        self.set_header('Location', self.bucket_url(b))
-        self.write({ 'url': self.bucket_url(b), 'uuid': b.bucket_id })
-
-class BucketHandler(BaseHandler):
-    def write_bucket_resource(self, bucket):
-        self.write(self.bucket_resource(bucket))
-
-    def bucket_resource(self, bucket):
-        layers = {}
-        for l in bucket.bucket.layers:
-            d = {}
-
-            if l.type == foldbeam.bucket.Layer.VECTOR_TYPE:
-                d['type'] = 'vector'
-            elif l.type == foldbeam.bucket.Layer.RASTER_TYPE:
-                d['type'] = 'raster'
-            else:
-                # should not be reached
-                assert false    # pragma: no coverage
-
-            if l.spatial_reference is not None:
-                d['spatial_reference'] = { 'proj': l.spatial_reference.ExportToProj4(), 'wkt': l.spatial_reference.ExportToWkt() }
-            else:
-                d['spatial_reference'] = None
-
-            layers[l.name] = d
-
-        files = {}
-        for f in bucket.bucket.files:
-            files[f] = { 'url': self.bucket_file_url(bucket, f) }
-
-        return {
+    return {
             'name': bucket.name,
-            'owner': { 'url': self.user_url(bucket.owner), 'username': bucket.owner.username },
-            'uuid': bucket.bucket_id,
-            'files': files,
-            'primary_file': bucket.bucket.primary_file_name,
-            'layers': layers,
-        }
+            'urn': urn_for_bucket(bucket),
+            'owner': { 'username': user.username, 'url': url_for_user(user) },
+            'sources': sources,
+            'resources': { 'files': { 'url': url_for_bucket_files(bucket), } },
+    }
 
-    def get(self, username, bucket_id):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
+@ensure_json
+def put_bucket(username, bucket_id):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
+    update_bucket(bucket, request.json)
+    bucket.save()
 
-        bucket = self.get_bucket_or_404(bucket_id)
-        if bucket is None:
-            return
+    # Return it
+    response = make_response(json.dumps({ 'url': url_for_bucket(bucket) }), 201)
+    response.headers['Location'] = url_for_bucket(bucket)
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
-        if bucket.owner.username != user.username:
-            self.send_error(404)
-            return
+@app.route('/<username>/buckets/<bucket_id>/files')
+@resource
+def bucket_files(username, bucket_id):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
+    
+    files = []
+    for f in bucket.bucket.files:
+        files.append({
+            'url': url_for_bucket_file(bucket, f),
+            'name': f,
+        })
+    return { 'resources': files }
 
-        self.write_bucket_resource(bucket)
+@app.route('/<username>/buckets/<bucket_id>/files/<filename>', methods=['PUT'])
+def bucket_file(username, bucket_id, filename):
+    if request.method == 'PUT':
+        return put_bucket_file(username, bucket_id, filename)
+    # should never be reached
+    abort(500) # pragma: no coverage
 
-    @decode_request_body
-    @removeslash
-    def post(self, username, bucket_id):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
+def put_bucket_file(username, bucket_id, filename):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
 
-        bucket = self.get_bucket_or_404(bucket_id)
-        if bucket is None:
-            return
-
-        if bucket.owner.username != user.username:
-            self.send_error(404)
-            return
-
-        update_bucket(bucket, self.request.body)
-        bucket.save()
-
-        # Return it
-        self.set_status(201)
-        self.set_header('Location', self.bucket_url(bucket))
-        self.write({ 'url': self.bucket_url(bucket) })
-
-class BucketFileHandler(BaseHandler):
-    def put(self, username, bucket_id, filename):
-        user = self.get_user_or_404(username)
-        if user is None:
-            return
-
-        bucket = self.get_bucket_or_404(bucket_id)
-        if bucket is None:
-            return
-
-        if bucket.owner.username != user.username:
-            self.send_error(404)
-            return
-
+    try:
         import StringIO
-        try:
-            bucket.bucket.add(filename, StringIO.StringIO(self.request.body))
-        except foldbeam.bucket.BadFileNameError:
-            self.send_error(400) # Bad request
-            return
+        bucket.bucket.add(filename, StringIO.StringIO(request.data))
+    except foldbeam.bucket.BadFileNameError:
+        abort(400)
 
-        self.set_status(201)
-        self.set_header('Location', self.bucket_file_url(bucket, filename))
-        self.write({ 'url': self.bucket_file_url(bucket, filename) })
+    # Return it
+    response = make_response(json.dumps({ 'url': url_for_bucket_file(bucket, filename) }), 201)
+    response.headers['Location'] = url_for_bucket_file(bucket, filename)
+    response.headers['Content-Type'] = 'application/json'
+    return response

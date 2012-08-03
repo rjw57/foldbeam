@@ -5,7 +5,7 @@ import os
 
 from tornado.ioloop import IOLoop
 
-from foldbeam.web.restapi import new_application
+from foldbeam.web import restapi
 
 def static_file_server():
     webui_dir = os.path.join(os.path.dirname(__file__), 'output')
@@ -21,7 +21,9 @@ if __name__ == '__main__':
     p.start()
 
     print('Serving API at http://0.0.0.0:8888')
-    application = new_application()
+    import tornado.wsgi
+    application = tornado.wsgi.WSGIContainer(restapi.wsgi_application)
+#    application = new_application()
 #    application.listen(8888)
 
     import tornado.netutil

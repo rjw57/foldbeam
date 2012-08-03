@@ -12,10 +12,12 @@ install_requires = [
     # For more details, see:
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     'filecache',
+    'flask',
     'gdal',
     'geoalchemy',
     'httplib2',
     'numpy',
+    'mimereader',
     'modestmaps',
     'PIL',
     'pyproj',

@@ -40,23 +40,24 @@ put http://localhost:8888/user1 >/dev/null
 put http://localhost:8888/user2 >/dev/null
 put http://localhost:8888/user3 >/dev/null
 
-B1=`post http://localhost:8888/user1/bucket name="shapefile_test"`
-put_file ${B1}/foo.shp ../data/ne_110m_admin_0_countries.shp
-put_file ${B1}/foo.shx ../data/ne_110m_admin_0_countries.shx
-put_file ${B1}/foo.dbf ../data/ne_110m_admin_0_countries.dbf
-put_file ${B1}/foo.prj ../data/ne_110m_admin_0_countries.prj
+B1=`post http://localhost:8888/user1/buckets name="shapefile_test"`
+put_file ${B1}/files/foo.shp ../data/ne_110m_admin_0_countries.shp
+put_file ${B1}/files/foo.shx ../data/ne_110m_admin_0_countries.shx
+put_file ${B1}/files/foo.dbf ../data/ne_110m_admin_0_countries.dbf
+put_file ${B1}/files/foo.prj ../data/ne_110m_admin_0_countries.prj
 
-B2=`post http://localhost:8888/user1/bucket name="tiff_test"`
-put_file ${B2}/input.tiff ../data/spain.tiff
+B2=`post http://localhost:8888/user1/buckets name="tiff_test"`
+put_file ${B2}/files/input.tiff ../data/spain.tiff
 
-B3=`post http://localhost:8888/user1/bucket name="png_test_1"`
-put_file ${B3}/input.png ../data/spain.png
+B3=`post http://localhost:8888/user1/buckets name="png_test_1"`
+put_file ${B3}/files/input.png ../data/spain.png
 
-B4=`post http://localhost:8888/user1/bucket name="png_test_2"`
-put_file ${B4}/input.png ../data/spain.png
-put_file ${B4}/input.png.aux.xml ../data/spain.png.aux.xml
+B4=`post http://localhost:8888/user1/buckets name="png_test_2"`
+put_file ${B4}/files/input.png ../data/spain.png
+put_file ${B4}/files/input.png.aux.xml ../data/spain.png.aux.xml
 
-M1=`post http://localhost:8888/user1/map`
+M1=`post http://localhost:8888/user1/maps`
+
 M1L1=`post ${M1}/layer name=borders`
 M1L2=`post ${M1}/layer name=spain`
 

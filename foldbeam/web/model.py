@@ -107,6 +107,18 @@ class Map(object):
         if b.layer_id not in self.layer_ids:
             self.layer_ids.append(b.layer_id)
 
+    def remove_layer(self, b):
+        if b.layer_id in self.layer_ids:
+            self.layer_ids.remove(b.layer_id)
+
+    def move_layer(self, b, index):
+        """Move the layer `b` so that it now has the index `index`."""
+        if b.layer_id not in self.layer_ids:
+            raise KeyError
+
+        self.layer_ids.remove(b.layer_id)
+        self.layer_ids.insert(index, b.layer_id)
+
     @property
     def owner(self):
         return User.from_name(self.owner_username)
