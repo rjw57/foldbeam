@@ -17,7 +17,7 @@ install_requires = [
     'geoalchemy',
     'httplib2',
     'numpy',
-    'mimereader',
+    'mimerender',
     'modestmaps',
     'PIL',
     'pyproj',
