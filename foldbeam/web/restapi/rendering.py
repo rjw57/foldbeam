@@ -20,16 +20,28 @@ def map_layer_tms_tile(username, map_id, layer_id, zoom, x, y):
         abort(404)
     layer = get_layer_or_404(layer_id)
 
+    if layer.bucket is None:
+        abort(404)
+
+    source_layer = layer.source
+    if source_layer is None:
+        abort(404)
+
     map_srs = map_.srs
     map_extent = map_.extent
 
     tile_size = max(map_extent[2]-map_extent[0], map_extent[3]-map_extent[1]) * math.pow(2.0, -zoom)
-    tile_box = mapnik.Box2d(
+    tile_box = (
             map_extent[0] + tile_size * x,
             map_extent[1] + tile_size * y,
             map_extent[0] + tile_size * (x+1),
             map_extent[1] + tile_size * (y+1)
     )
+
+    response = make_response(source_layer.render_png(map_srs, tile_box, (256, 256)))
+    response.headers['Content-Type'] = 'image/png'
+    return response
+
 
     mapnik_map = mapnik.Map(256, 256, map_srs)
     mapnik_map.maximum_extent = mapnik.Box2d(*map_extent)

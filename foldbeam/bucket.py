@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import tempfile
+import uuid
 
 import mapnik
 from osgeo import ogr, osr, gdal
@@ -64,6 +65,55 @@ class Layer(object):
         created."""
         raise NotImplementedError   # pragma: no coverage
 
+    def render_png(self, srs, tile_box, tile_size):
+        raise NotImplementedError   # pragma: no coverage
+
+def _render_maknik_png(source_layer, datasource, map_srs, tile_box, tile_size):
+    tile_box = mapnik.Box2d(*tile_box)
+    mapnik_map = mapnik.Map(tile_size[0], tile_size[1], map_srs)
+    mapnik_map.background = mapnik.Color(0,0,0,0)
+    im = mapnik.Image(mapnik_map.width, mapnik_map.height)
+
+    style = mapnik.Style()
+    rule = mapnik.Rule()
+
+    subtype = source_layer.subtype
+    if source_layer.type is Layer.VECTOR_TYPE:
+        if subtype is Layer.POLYGON_SUBTYPE or subtype is Layer.MULTIPOLYGON_SUBTYPE:
+            symb = mapnik.PolygonSymbolizer()
+            symb.fill = mapnik.Color(127,0,0,127)
+            rule.symbols.append(symb)
+        elif subtype is Layer.POINT_SUBTYPE or subtype is Layer.MULTIPOINT_SUBTYPE:
+            symb = mapnik.PointSymbolizer()
+            rule.symbols.append(symb)
+        elif subtype is Layer.LINESTRING_SUBTYPE or subtype is Layer.MULTILINESTRING_SUBTYPE:
+            symb = mapnik.LineSymbolizer()
+            stroke = mapnik.Stroke()
+            stroke.color = mapnik.Color(0,127,0,127)
+            stroke.width = 2
+            symb.stroke = stroke
+            rule.symbols.append(symb)
+        else:
+            return None
+    elif source_layer.type is Layer.RASTER_TYPE:
+        rule.symbols.append(mapnik.RasterSymbolizer())
+
+    style.rules.append(rule)
+
+    name = uuid.uuid4().hex
+    style_name = 'style_%s' % (name,)
+    mapnik_map.append_style(style_name, style)
+
+    mapnik_layer = mapnik.Layer(str(name), source_layer.spatial_reference.ExportToProj4())
+    mapnik_layer.datasource = datasource
+    mapnik_layer.styles.append(style_name)
+    mapnik_map.layers.append(mapnik_layer)
+
+    mapnik_map.zoom_to_box(tile_box)
+    mapnik.render(mapnik_map, im)
+
+    return im.tostring('png')
+
 class _GDALLayer(object):
     def __init__(self, ds, ds_path):
         self.name = os.path.basename(ds_path)
@@ -88,6 +138,9 @@ class _GDALLayer(object):
 
         self._cached_mapnik_datasource = mapnik.Gdal(file=str(self._ds_path))
         return self._cached_mapnik_datasource
+
+    def render_png(self, srs, tile_box, tile_size):
+        return _render_maknik_png(self, self.mapnik_datasource, srs, tile_box, tile_size)
 
 class _OGRLayer(object):
     def __init__(self, layer, ds_path, layer_idx):
@@ -128,6 +181,9 @@ class _OGRLayer(object):
         )
 
         return self._cached_mapnik_datasource
+
+    def render_png(self, srs, tile_box, tile_size):
+        return _render_maknik_png(self, self.mapnik_datasource, srs, tile_box, tile_size)
 
 class Bucket(object):
     """A bucket is a single unit of data storage corresponding with, usually, a single data source file. For example
