@@ -1,6 +1,6 @@
 from .flaskapp import app, resource
 
-from . import user, map, layer, bucket
+from . import user, map, layer, bucket, rendering
 
 #@app.route('/')
 #@resource

@@ -62,7 +62,8 @@ def get_map(username, map_id):
             'name': map_.name,
             'urn': urn_for_map(map_),
             'owner': { 'username': user.username, 'url': url_for_user(user) },
-            'resources': { 'layers': { 'url': url_for_map_layers(map_) }, }
+            'resources': { 'layers': { 'url': url_for_map_layers(map_) }, },
+            'tms_tile_base': url_for_map_tms_tiles(map_),
     }
 
 @ensure_json
