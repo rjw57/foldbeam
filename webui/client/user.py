@@ -17,7 +17,7 @@ class User(BaseResource):
 
         if 'resources' in resource:
             rs = resource['resources']
-            if 'map_collection' in rs and 'url' in rs['map_collection']:
-                self.maps.set_resource_url(rs['map_collection']['url'])
-            if 'layer_collection' in rs and 'url' in rs['layer_collection']:
-                self.layers.set_resource_url(rs['layer_collection']['url'])
+            if 'maps' in rs and 'url' in rs['maps']:
+                self.maps.set_resource_url(rs['maps']['url'])
+            if 'layers' in rs and 'url' in rs['layers']:
+                self.layers.set_resource_url(rs['layers']['url'])

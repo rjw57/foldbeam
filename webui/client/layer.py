@@ -17,7 +17,7 @@ class LayerCollection(BaseResource):
 
     def on_get(self, resource):
         self.items = []
-        for r in resource['resources']:
-            l = Layer(r['url'])
+        for r in resource['linked_resources']:
+            l = Layer(r['link_url'])
             self.items.append(l)
             l.get()
