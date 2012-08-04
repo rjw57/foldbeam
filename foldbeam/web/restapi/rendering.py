@@ -20,8 +20,8 @@ def map_tms_tile(username, map_id, zoom, x, y):
     map_srs = '+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
     map_extent = (-20037508.3428, -15496570.7397, 20037508.3428, 18764656.2314)
 
-    map_srs = '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs'
-    map_extent = (1393.0196, 13494.9764, 671196.3657, 1230275.0454)
+#    map_srs = '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs'
+#    map_extent = (1393.0196, 13494.9764, 671196.3657, 1230275.0454)
 #        map_extent = (457900, 193700, 458000, 194700)
 
 #        map_srs = '+proj=lcc +lat_1=40 +lat_0=40 +lon_0=0 +k_0=0.9988085293 +x_0=600000 +y_0=600000 +a=6378298.3 +b=6356657.142669561 +pm=madrid +units=m +no_defs'
