@@ -58,12 +58,22 @@ def map(username, map_id):
 @resource
 def get_map(username, map_id):
     user, map_ = get_user_and_map_or_404(username, map_id)
+    from osgeo import osr
+    srs = osr.SpatialReference()
+    srs.ImportFromProj4(map_.srs)
+
+    layer_tiles = []
+    for l in map_.layers:
+        layer_tiles.append(url_for_map_layer_tms_tiles(map_, l))
+
     return {
             'name': map_.name,
             'urn': urn_for_map(map_),
             'owner': { 'username': user.username, 'url': url_for_user(user) },
             'resources': { 'layers': { 'url': url_for_map_layers(map_) }, },
-            'tms_tile_base': url_for_map_tms_tiles(map_),
+            'layer_tiles': layer_tiles,
+            'srs': { 'proj': srs.ExportToProj4(), 'wkt': srs.ExportToWkt() },
+            'extent': map_.extent,
     }
 
 @ensure_json

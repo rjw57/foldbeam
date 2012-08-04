@@ -25,10 +25,26 @@ class Layer(object):
     VECTOR_TYPE = 0
     RASTER_TYPE = 1
 
+    UNKNOWN_SUBTYPE         = 0
+    MIXED_SUBTYPE           = 1
+    POLYGON_SUBTYPE         = 2
+    POINT_SUBTYPE           = 3
+    LINESTRING_SUBTYPE      = 4
+    MULTIPOLYGON_SUBTYPE    = 5
+    MULTIPOINT_SUBTYPE      = 6
+    MULTILINESTRING_SUBTYPE = 7
+
     @property
     def type(self):
         """Either :py:attr:`Layer.VECTOR_TYPE` or :py:attr:`Layer.RASTER_TYPE` depending on whether this layer
         is a vector or raster layer."""
+        raise NotImplementedError   # pragma: no coverage
+
+    @property
+    def subtype(self):
+        """If :py:attr:`type` is :py:attr:`Layer.VECTOR_TYPE`, this is the subtype of the layer or
+        :py:attr:`Layer.UNKNOWN_SUBTYPE`.
+        """
         raise NotImplementedError   # pragma: no coverage
 
     @property
@@ -52,6 +68,7 @@ class _GDALLayer(object):
     def __init__(self, ds, ds_path):
         self.name = os.path.basename(ds_path)
         self.type = Layer.RASTER_TYPE
+        self.subtype = Layer.UNKNOWN_SUBTYPE
 
         proj_wkt = ds.GetProjection()
         if proj_wkt is not None and proj_wkt != '':
@@ -81,6 +98,24 @@ class _OGRLayer(object):
         self._ds_path = ds_path
         self._layer_idx = layer_idx
         self._cached_mapnik_datasource = None
+
+        wkb_type = layer.GetGeomType()
+        if wkb_type == ogr.wkbGeometryCollection:
+            self.subtype = Layer.MIXED_SUBTYPE
+        elif wkb_type == ogr.wkbPoint:
+            self.subtype = Layer.POINT_SUBTYPE
+        elif wkb_type == ogr.wkbPolygon:
+            self.subtype = Layer.POLYGON_SUBTYPE
+        elif wkb_type == ogr.wkbLineString:
+            self.subtype = Layer.LINESTRING_SUBTYPE
+        elif wkb_type == ogr.wkbMultiPoint:
+            self.subtype = Layer.MULTIPOINT_SUBTYPE
+        elif wkb_type == ogr.wkbMultiPolygon:
+            self.subtype = Layer.MULTIPOLYGON_SUBTYPE
+        elif wkb_type == ogr.wkbMultiLineString:
+            self.subtype = Layer.MULTILINESTRING_SUBTYPE
+        else:
+            self.subtype = Layer.UNKNOWN_SUBTYPE
 
     @property
     def mapnik_datasource(self):

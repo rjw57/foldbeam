@@ -8,24 +8,20 @@ from foldbeam import bucket
 from .flaskapp import app, resource
 from .util import *
 
-@app.route('/<username>/maps/<map_id>/tms')
-def map_tms_tile_base(username, map_id):
+@app.route('/<username>/maps/<map_id>/layers/<layer_id>/tms')
+def map_layer_tms_tile_base(username, map_id):
     user, map_ = get_user_and_map_or_404(username, map_id)
     return url_for_map_tms_tiles(map_)
 
-@app.route('/<username>/maps/<map_id>/tms/<int:zoom>/<int:x>/<int:y>.png')
-def map_tms_tile(username, map_id, zoom, x, y):
+@app.route('/<username>/maps/<map_id>/layers/<layer_id>/tms/<int:zoom>/<int:x>/<int:y>.png')
+def map_layer_tms_tile(username, map_id, layer_id, zoom, x, y):
     user, map_ = get_user_and_map_or_404(username, map_id)
+    if not layer_id in map_.layer_ids:
+        abort(404)
+    layer = get_layer_or_404(layer_id)
 
-    map_srs = '+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
-    map_extent = (-20037508.3428, -15496570.7397, 20037508.3428, 18764656.2314)
-
-#    map_srs = '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs'
-#    map_extent = (1393.0196, 13494.9764, 671196.3657, 1230275.0454)
-#        map_extent = (457900, 193700, 458000, 194700)
-
-#        map_srs = '+proj=lcc +lat_1=40 +lat_0=40 +lon_0=0 +k_0=0.9988085293 +x_0=600000 +y_0=600000 +a=6378298.3 +b=6356657.142669561 +pm=madrid +units=m +no_defs'
-#        map_extent = (93568.0098, 169918.9449, 1227661.0463, 1043747.4891)
+    map_srs = map_.srs
+    map_extent = map_.extent
 
     tile_size = max(map_extent[2]-map_extent[0], map_extent[3]-map_extent[1]) * math.pow(2.0, -zoom)
     tile_box = mapnik.Box2d(
@@ -36,16 +32,23 @@ def map_tms_tile(username, map_id, zoom, x, y):
     )
 
     mapnik_map = mapnik.Map(256, 256, map_srs)
-    mapnik_map.background = mapnik.Color(127,127,127,255)
+    mapnik_map.maximum_extent = mapnik.Box2d(*map_extent)
+    mapnik_map.background = mapnik.Color(0,0,0,0)
 
-    for layer in map_.layers:
-        if layer.bucket is None:
-            continue
+    im = mapnik.Image(mapnik_map.width, mapnik_map.height)
 
-        source_layer = layer.source
-        if source_layer is None:
-            continue
+    if layer.bucket is None:
+        response = make_response(im.tostring('png'))
+        response.headers['Content-Type'] = 'image/png'
+        return response
 
+    source_layer = layer.source
+    if source_layer is None:
+        response = make_response(im.tostring('png'))
+        response.headers['Content-Type'] = 'image/png'
+        return response
+
+    for source_layer in layer.bucket.bucket.layers:
         if source_layer.spatial_reference is None:
             continue
 
@@ -53,10 +56,24 @@ def map_tms_tile(username, map_id, zoom, x, y):
 
         rule = mapnik.Rule()
 
+        subtype = source_layer.subtype
         if source_layer.type is bucket.Layer.VECTOR_TYPE:
-            poly = mapnik.PolygonSymbolizer()
-            poly.fill = mapnik.Color(127,0,0,127)
-            rule.symbols.append(poly)
+            if subtype is bucket.Layer.POLYGON_SUBTYPE or subtype is bucket.Layer.MULTIPOLYGON_SUBTYPE:
+                symb = mapnik.PolygonSymbolizer()
+                symb.fill = mapnik.Color(127,0,0,127)
+                rule.symbols.append(symb)
+            elif subtype is bucket.Layer.POINT_SUBTYPE or subtype is bucket.Layer.MULTIPOINT_SUBTYPE:
+                symb = mapnik.PointSymbolizer()
+                rule.symbols.append(symb)
+            elif subtype is bucket.Layer.LINESTRING_SUBTYPE or subtype is bucket.Layer.MULTILINESTRING_SUBTYPE:
+                symb = mapnik.LineSymbolizer()
+                stroke = mapnik.Stroke()
+                stroke.color = mapnik.Color(0,127,0,127)
+                stroke.width = 2
+                symb.stroke = stroke
+                rule.symbols.append(symb)
+            else:
+                continue
         elif source_layer.type is bucket.Layer.RASTER_TYPE:
             rule.symbols.append(mapnik.RasterSymbolizer())
 
@@ -71,11 +88,8 @@ def map_tms_tile(username, map_id, zoom, x, y):
         mapnik_map.layers.append(mapnik_layer)
 
     mapnik_map.zoom_to_box(tile_box)
-
-    im = mapnik.Image(mapnik_map.width, mapnik_map.height)
     mapnik.render(mapnik_map, im)
     
     response = make_response(im.tostring('png'))
     response.headers['Content-Type'] = 'image/png'
-
     return response

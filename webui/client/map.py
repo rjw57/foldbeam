@@ -13,7 +13,7 @@ class Map(BaseResource):
     def on_get(self, resource):
         self.name = resource['name']
         self.layers.set_resource_url(resource['resources']['layers']['url'])
-        self.tms_tile_base = resource['tms_tile_base']
+        self.layer_tiles = resource['layer_tiles']
 
 class MapCollection(BaseResource):
     def __init__(self, *args):

@@ -70,6 +70,25 @@ def get_bucket(username, bucket_id):
             # should not be reached
             abort(500)
 
+        if s.subtype == foldbeam.bucket.Layer.UNKNOWN_SUBTYPE:
+            subtype = 'unknown'
+        elif s.subtype == foldbeam.bucket.Layer.MIXED_SUBTYPE:
+            subtype = 'mixed'
+        elif s.subtype == foldbeam.bucket.Layer.POLYGON_SUBTYPE:
+            subtype = 'polygon'
+        elif s.subtype == foldbeam.bucket.Layer.POINT_SUBTYPE:
+            subtype = 'point'
+        elif s.subtype == foldbeam.bucket.Layer.LINESTRING_SUBTYPE:
+            subtype = 'linestring'
+        elif s.subtype == foldbeam.bucket.Layer.MULTIPOLYGON_SUBTYPE:
+            subtype = 'multipolygon'
+        elif s.subtype == foldbeam.bucket.Layer.MULTIPOINT_SUBTYPE:
+            subtype = 'multipoint'
+        elif s.subtype == foldbeam.bucket.Layer.MULTILINESTRING_SUBTYPE:
+            subtype = 'multilinestring'
+        else:
+            abort(500) # pragma: no coverage
+
         srs = None
         if s.spatial_reference is not None:
             srs = { 'proj': s.spatial_reference.ExportToProj4(), 'wkt': s.spatial_reference.ExportToWkt() }

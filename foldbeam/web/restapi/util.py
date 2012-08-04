@@ -48,8 +48,8 @@ def url_for_map_layers(map_):
 def url_for_map_layer(map_, layer):
     return _url_for('map_layer', username=map_.owner.username, map_id=map_.map_id, layer_id=layer.layer_id)
 
-def url_for_map_tms_tiles(map_):
-    return _url_for('map_tms_tile_base', username=map_.owner.username, map_id=map_.map_id)
+def url_for_map_layer_tms_tiles(map_, layer):
+    return _url_for('map_layer_tms_tile_base', username=map_.owner.username, map_id=map_.map_id, layer_id=layer.layer_id)
 
 def url_for_layer(layer):
     return _url_for('layer', username=layer.owner.username, layer_id=layer.layer_id)
@@ -124,6 +124,19 @@ def update_map(m, request):
     """Given a decoded request, update an existing map from it."""
     if 'name' in request:
         m.name = request['name']
+    if 'srs' in request:
+        from osgeo import osr
+        srs = osr.SpatialReference()
+        srs.ImportFromProj4(request['srs'])
+        srs_proj4 = srs.ExportToProj4()
+        if srs_proj4 is None or srs_proj4 == '':
+            abort(400) # Bad request
+        m.srs = srs_proj4
+    if 'extent' in request:
+        e = list(request['extent'])
+        if len(e) < 4:
+            abort(400)
+        m.extent = tuple(float(x) for x in e[:4])
         
 def update_layer(l, request):
     """Given a decoded request, update an existing layer from it."""

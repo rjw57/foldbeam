@@ -32,7 +32,7 @@ class Map(VerticalPanel):
             return
 
         self._map.clearLayers()
-        pattern = m.tms_tile_base + '/{z}/{x}/{y}.png'
-        logging.error(pattern)
-        layer = TileLayer(pattern, tms=True)
-        self._map.addLayer(layer)
+        for base in m.layer_tiles:
+            pattern = base + '/{z}/{x}/{y}.png'
+            layer = TileLayer(pattern, tms=True)
+            self._map.addLayer(layer)
