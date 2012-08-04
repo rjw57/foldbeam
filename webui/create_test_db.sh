@@ -33,7 +33,7 @@ function put_file() {
 }
 
 function get_uuid() {
-    http -p b GET $* | sed -e 's/.*"uuid": "\([a-f0-9]*\)".*/\1/'
+    http -p b GET $* | sed -e 's/.*"urn": "\([^"]*\)".*/\1/'
 }
 
 put http://localhost:8888/user1 >/dev/null
@@ -58,14 +58,21 @@ put_file ${B4}/files/input.png.aux.xml ../data/spain.png.aux.xml
 
 M1=`post http://localhost:8888/user1/maps`
 
-M1L1=`post ${M1}/layer name=borders`
-M1L2=`post ${M1}/layer name=spain`
+L1=`post http://localhost:8888/user1/layers name=borders`
+L2=`post http://localhost:8888/user1/layers name=spain`
+echo ${L1}
+
+L1ID=`get_uuid ${L1}`
+L2ID=`get_uuid ${L2}`
+
+M1L1=`put ${M1}/layers urn=${L1ID}`
+M1L2=`put ${M1}/layers urn=${L2ID}`
 
 B1ID=`get_uuid ${B1}`
-post ${M1L1} "bucket:=\"${B1ID}\"" >/dev/null
+put ${L1} "source:={\"bucket\":\"${B1ID}\",\"source\":\"foo\"}" >/dev/null
 
 B2ID=`get_uuid ${B2}`
-post ${M1L2} "bucket:=\"${B2ID}\"" >/dev/null
+put ${L2} "source:={\"bucket\":\"${B2ID}\",\"source\":\"input.tiff\"}" >/dev/null
 
 #M2=`post http://localhost:8888/user1/map`
 #M2L1=`post ${M2}/layer`

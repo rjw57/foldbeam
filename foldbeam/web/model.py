@@ -148,9 +148,25 @@ class Layer(object):
         self.owner_username = owner.username
         self.name = name or 'Untitled layer'
         self.bucket_id = None
+        self.bucket_layer_name = None
 
     def is_owned_by(self, user):
         return self.owner_username == user.username
+
+    @property
+    def source(self):
+        if self.bucket_layer_name is None:
+            return None
+
+        b = self.bucket
+        if b is None:
+            return None
+
+        l = list(l for l in b.bucket.layers if l.name == self.bucket_layer_name)
+        if len(l) == 0:
+            return None
+
+        return l[0]
 
     @property
     def bucket(self):

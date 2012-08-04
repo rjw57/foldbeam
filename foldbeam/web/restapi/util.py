@@ -22,6 +22,11 @@ def get_layer_for_urn(layer_urn):
 def urn_for_bucket(bucket):
     return 'urn:uuid:' + bucket.bucket_id
 
+def get_bucket_for_urn(bucket_urn):
+    """:raises KeyError: when urn is invalid."""
+    bucket_id = bucket_urn.rsplit(':',1)[-1]
+    return model.Bucket.from_id(bucket_id)
+
 def url_for_user(user):
     return _url_for('user', username=user.username)
 
@@ -124,6 +129,13 @@ def update_layer(l, request):
     """Given a decoded request, update an existing layer from it."""
     if 'name' in request:
         l.name = request['name']
+
+    if 'source' in request:
+        s = request['source']
+        if 'bucket' in s:
+            l.bucket = get_bucket_for_urn(s['bucket'])
+        if 'source' in s:
+            l.bucket_layer_name = s['source']
 
 #    if 'bucket' in request:
 #        bucket = model.Bucket.from_id(request['bucket'])

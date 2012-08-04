@@ -19,7 +19,7 @@ class Application(SimplePanel):
     def __init__(self, *args, **kwargs):
         super(Application, self).__init__(*args, **kwargs)
 
-        self.user = User('http://localhost:8888/user1')
+        self.user = User('http://192.168.0.14:8888/user1')
         self.user.addErrorListener(self._user_error)
         self.user.addLoadedListener(self._update_user)
         self._update_user(self.user)

@@ -62,6 +62,7 @@ def get_layer(username, layer_id):
             'name': layer.name,
             'urn': urn_for_layer(layer),
             'owner': { 'username': user.username, 'url': url_for_user(user) },
+            'source': { 'bucket': urn_for_bucket(layer.bucket) if layer.bucket is not None else None, 'source': layer.bucket_layer_name },
     }
 
 def put_layer(username, layer_id):
