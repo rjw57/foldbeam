@@ -8,7 +8,10 @@ import shutil
 import tempfile
 import uuid
 
+import cairo
 import mapnik
+import numpy as np
+from PIL import Image
 from osgeo import ogr, osr, gdal
 from shove import Shove
 
@@ -59,13 +62,18 @@ class Layer(object):
         if no such spatial reference is available."""
         raise NotImplementedError   # pragma: no coverage
 
-    @property
-    def mapnik_datasource(self):
-        """A :py:class:`mapnik.Datasource` instance corresponding to this layer or `None` if no such datasource could be
-        created."""
-        raise NotImplementedError   # pragma: no coverage
-
     def render_png(self, srs, tile_box, tile_size):
+        """Return a PNG encoded representation of this layer for a particular spatial reference, tile extent and tile
+        width/height.
+
+        :param srs: the spatial reference for the tile as a Proj4 projection string
+        :param tile_box: the extent of the tile to render in projection co-ordinates
+        :type tile_box: tuple of float giving (minx, miny, maxx, maxy)
+        :param tile_size: the width and height of the tile to render
+        :type tile_size: pair of int giving (width, height)
+        :returns: a string containing the encoded PNG.
+
+        """
         raise NotImplementedError   # pragma: no coverage
 
 def _render_maknik_png(source_layer, datasource, map_srs, tile_box, tile_size):
@@ -131,16 +139,48 @@ class _GDALLayer(object):
         self._cached_mapnik_datasource = None
         self._ds_path = ds_path
 
-    @property
-    def mapnik_datasource(self):
-        if self._cached_mapnik_datasource is not None:
-            return self._cached_mapnik_datasource
-
-        self._cached_mapnik_datasource = mapnik.Gdal(file=str(self._ds_path))
-        return self._cached_mapnik_datasource
+    def render_png_old(self, srs, tile_box, tile_size):
+        if self._cached_mapnik_datasource is None:
+            self._cached_mapnik_datasource = mapnik.Gdal(file=str(self._ds_path))
+        return _render_maknik_png(self, self._cached_mapnik_datasource, srs, tile_box, tile_size)
 
     def render_png(self, srs, tile_box, tile_size):
-        return _render_maknik_png(self, self.mapnik_datasource, srs, tile_box, tile_size)
+        # get the input dataset
+        input_dataset = gdal.Open(self._ds_path)
+
+        input_srs_wkt = input_dataset.GetProjection()
+        if input_srs_wkt is None or input_srs_wkt == '':
+            return None
+
+        spatial_reference = osr.SpatialReference()
+        spatial_reference.ImportFromProj4(srs)
+
+        # create an output dataset
+        driver = gdal.GetDriverByName('MEM')
+        assert driver is not None
+        output_dataset = driver.Create('', tile_size[0], tile_size[1], 4, gdal.GDT_Byte)
+        assert output_dataset is not None
+        output_dataset.SetGeoTransform((
+            tile_box[0], float(tile_box[2]-tile_box[0])/float(tile_size[0]), 0.0,
+            tile_box[3], 0.0, -float(tile_box[3]-tile_box[1])/float(tile_size[1])
+        ))
+
+        # project input into output
+        gdal.ReprojectImage(
+                input_dataset, output_dataset,
+                input_srs_wkt, spatial_reference.ExportToWkt(),
+                gdal.GRA_NearestNeighbour
+        )
+
+        # create a cairo image surface for the output. This unfortunately necessitates a copy since the in-memory format
+        # for a GDAL Dataset is not interleaved.
+        output_array = np.array(np.transpose(output_dataset.ReadAsArray(), (1,2,0)).flat, copy=True)
+        im = Image.frombuffer('RGBA', tile_size, output_array.data, 'raw', 'RGBA', 0, 1)
+
+        import StringIO
+        out = StringIO.StringIO()
+        im.save(out, 'PNG')
+        return out.getvalue()
 
 class _OGRLayer(object):
     def __init__(self, layer, ds_path, layer_idx):
