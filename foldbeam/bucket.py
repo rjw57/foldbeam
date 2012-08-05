@@ -62,10 +62,11 @@ class Layer(object):
         if no such spatial reference is available."""
         raise NotImplementedError   # pragma: no coverage
 
-    def render_to_image_surface(self, srs, tile_box, tile_size):
+    def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         """Return a Cairo ImageSurface representation of this layer for a particular spatial reference, tile extent and tile
         width/height.
 
+        :param ctx: the cairo context to render to
         :param srs: the spatial reference for the tile as a Proj4 projection string
         :param tile_box: the extent of the tile to render in projection co-ordinates
         :type tile_box: tuple of float giving (minx, miny, maxx, maxy)
@@ -93,7 +94,7 @@ class _GDALLayer(object):
         self._cached_ds = None
         self._ds_path = ds_path
 
-    def render_to_image_surface(self, srs, tile_box, tile_size):
+    def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         # get the input dataset
         if self._cached_ds is None:
             input_dataset = gdal.Open(self._ds_path)
@@ -132,7 +133,9 @@ class _GDALLayer(object):
         surface_array = np.frombuffer(output_surface.get_data(), dtype=np.uint8)
         surface_array[:] = output_array.flat
         output_surface.mark_dirty()
-        return output_surface
+
+        ctx.set_source_surface(output_surface)
+        ctx.paint()
 
 class _OGRLayer(object):
     def __init__(self, layer, ds_path, layer_idx):
@@ -175,7 +178,7 @@ class _OGRLayer(object):
 
         return self._cached_mapnik_datasource
 
-    def render_to_image_surface(self, srs, tile_box, tile_size):
+    def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         if self._cached_mapnik_datasource is None:
             self._cached_mapnik_datasource = mapnik.Ogr(
                 file=str(self._ds_path),
@@ -232,7 +235,7 @@ class _OGRLayer(object):
         tile_box = mapnik.Box2d(*tile_box)
         im = mapnik.Image(mapnik_map.width, mapnik_map.height)
         mapnik_map.zoom_to_box(tile_box)
-        mapnik.render(mapnik_map, im)
+        mapnik.render(mapnik_map, ctx)
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, tile_size[0], tile_size[1])
         surface.get_data()[:] = im.tostring()

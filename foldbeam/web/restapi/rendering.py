@@ -41,10 +41,7 @@ def map_tms_tile(username, map_id, zoom, x, y):
                 map_extent[1] + tile_size * (y+1)
         )
 
-        surface = source_layer.render_to_image_surface(map_srs, tile_box, (256, 256))
-
-        context.set_source_surface(surface)
-        context.paint()
+        source_layer.render_to_cairo_context(context, map_srs, tile_box, (256, 256))
 
     im = Image.frombuffer('RGBA', (output_surface.get_width(), output_surface.get_height()), output_surface.get_data(), 'raw', 'BGRA', 0, 1)
     out = StringIO.StringIO()
