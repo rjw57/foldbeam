@@ -62,8 +62,8 @@ class Layer(object):
         if no such spatial reference is available."""
         raise NotImplementedError   # pragma: no coverage
 
-    def render_png(self, srs, tile_box, tile_size):
-        """Return a PNG encoded representation of this layer for a particular spatial reference, tile extent and tile
+    def render_to_image_surface(self, srs, tile_box, tile_size):
+        """Return a Cairo ImageSurface representation of this layer for a particular spatial reference, tile extent and tile
         width/height.
 
         :param srs: the spatial reference for the tile as a Proj4 projection string
@@ -75,52 +75,6 @@ class Layer(object):
 
         """
         raise NotImplementedError   # pragma: no coverage
-
-def _render_maknik_png(source_layer, datasource, map_srs, tile_box, tile_size):
-    tile_box = mapnik.Box2d(*tile_box)
-    mapnik_map = mapnik.Map(tile_size[0], tile_size[1], map_srs)
-    mapnik_map.background = mapnik.Color(0,0,0,0)
-    im = mapnik.Image(mapnik_map.width, mapnik_map.height)
-
-    style = mapnik.Style()
-    rule = mapnik.Rule()
-
-    subtype = source_layer.subtype
-    if source_layer.type is Layer.VECTOR_TYPE:
-        if subtype is Layer.POLYGON_SUBTYPE or subtype is Layer.MULTIPOLYGON_SUBTYPE:
-            symb = mapnik.PolygonSymbolizer()
-            symb.fill = mapnik.Color(127,0,0,127)
-            rule.symbols.append(symb)
-        elif subtype is Layer.POINT_SUBTYPE or subtype is Layer.MULTIPOINT_SUBTYPE:
-            symb = mapnik.PointSymbolizer()
-            rule.symbols.append(symb)
-        elif subtype is Layer.LINESTRING_SUBTYPE or subtype is Layer.MULTILINESTRING_SUBTYPE:
-            symb = mapnik.LineSymbolizer()
-            stroke = mapnik.Stroke()
-            stroke.color = mapnik.Color(0,127,0,127)
-            stroke.width = 2
-            symb.stroke = stroke
-            rule.symbols.append(symb)
-        else:
-            return None
-    elif source_layer.type is Layer.RASTER_TYPE:
-        rule.symbols.append(mapnik.RasterSymbolizer())
-
-    style.rules.append(rule)
-
-    name = uuid.uuid4().hex
-    style_name = 'style_%s' % (name,)
-    mapnik_map.append_style(style_name, style)
-
-    mapnik_layer = mapnik.Layer(str(name), source_layer.spatial_reference.ExportToProj4())
-    mapnik_layer.datasource = datasource
-    mapnik_layer.styles.append(style_name)
-    mapnik_map.layers.append(mapnik_layer)
-
-    mapnik_map.zoom_to_box(tile_box)
-    mapnik.render(mapnik_map, im)
-
-    return im.tostring('png')
 
 class _GDALLayer(object):
     def __init__(self, ds, ds_path):
@@ -136,17 +90,16 @@ class _GDALLayer(object):
         else:
             self.spatial_reference = None
 
-        self._cached_mapnik_datasource = None
+        self._cached_ds = None
         self._ds_path = ds_path
 
-    def render_png_old(self, srs, tile_box, tile_size):
-        if self._cached_mapnik_datasource is None:
-            self._cached_mapnik_datasource = mapnik.Gdal(file=str(self._ds_path))
-        return _render_maknik_png(self, self._cached_mapnik_datasource, srs, tile_box, tile_size)
-
-    def render_png(self, srs, tile_box, tile_size):
+    def render_to_image_surface(self, srs, tile_box, tile_size):
         # get the input dataset
-        input_dataset = gdal.Open(self._ds_path)
+        if self._cached_ds is None:
+            input_dataset = gdal.Open(self._ds_path)
+            self._cached_ds = input_dataset
+        else:
+            input_dataset = self._cached_ds
 
         input_srs_wkt = input_dataset.GetProjection()
         if input_srs_wkt is None or input_srs_wkt == '':
@@ -174,13 +127,12 @@ class _GDALLayer(object):
 
         # create a cairo image surface for the output. This unfortunately necessitates a copy since the in-memory format
         # for a GDAL Dataset is not interleaved.
-        output_array = np.array(np.transpose(output_dataset.ReadAsArray(), (1,2,0)).flat, copy=True)
-        im = Image.frombuffer('RGBA', tile_size, output_array.data, 'raw', 'RGBA', 0, 1)
-
-        import StringIO
-        out = StringIO.StringIO()
-        im.save(out, 'PNG')
-        return out.getvalue()
+        output_array = np.transpose(output_dataset.ReadAsArray(), (1,2,0))
+        output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, tile_size[0], tile_size[1])
+        surface_array = np.frombuffer(output_surface.get_data(), dtype=np.uint8)
+        surface_array[:] = output_array.flat
+        output_surface.mark_dirty()
+        return output_surface
 
 class _OGRLayer(object):
     def __init__(self, layer, ds_path, layer_idx):
@@ -191,6 +143,7 @@ class _OGRLayer(object):
         self._ds_path = ds_path
         self._layer_idx = layer_idx
         self._cached_mapnik_datasource = None
+        self._cached_mapnik_map = None
 
         wkb_type = layer.GetGeomType()
         if wkb_type == ogr.wkbGeometryCollection:
@@ -222,8 +175,69 @@ class _OGRLayer(object):
 
         return self._cached_mapnik_datasource
 
-    def render_png(self, srs, tile_box, tile_size):
-        return _render_maknik_png(self, self.mapnik_datasource, srs, tile_box, tile_size)
+    def render_to_image_surface(self, srs, tile_box, tile_size):
+        if self._cached_mapnik_datasource is None:
+            self._cached_mapnik_datasource = mapnik.Ogr(
+                file=str(self._ds_path),
+                layer_by_index=self._layer_idx
+            )
+        datasource = self._cached_mapnik_datasource
+
+        if self._cached_mapnik_map is None or \
+                self._cached_mapnik_map.srs != srs or \
+                self._cached_mapnik_map.width != tile_size[0] or \
+                self._cached_mapnik_map.height != tile_size[1]:
+            mapnik_map = mapnik.Map(tile_size[0], tile_size[1], srs)
+
+            mapnik_map.background = mapnik.Color(0,0,0,0)
+
+            style = mapnik.Style()
+            rule = mapnik.Rule()
+
+            subtype = self.subtype
+            if self.type is Layer.VECTOR_TYPE:
+                if subtype is Layer.POLYGON_SUBTYPE or subtype is Layer.MULTIPOLYGON_SUBTYPE:
+                    symb = mapnik.PolygonSymbolizer()
+                    symb.fill = mapnik.Color(127,0,0,127)
+                    rule.symbols.append(symb)
+                elif subtype is Layer.POINT_SUBTYPE or subtype is Layer.MULTIPOINT_SUBTYPE:
+                    symb = mapnik.PointSymbolizer()
+                    rule.symbols.append(symb)
+                elif subtype is Layer.LINESTRING_SUBTYPE or subtype is Layer.MULTILINESTRING_SUBTYPE:
+                    symb = mapnik.LineSymbolizer()
+                    stroke = mapnik.Stroke()
+                    stroke.color = mapnik.Color(0,127,0,127)
+                    stroke.width = 2
+                    symb.stroke = stroke
+                    rule.symbols.append(symb)
+                else:
+                    return None
+            elif self.type is Layer.RASTER_TYPE:
+                rule.symbols.append(mapnik.RasterSymbolizer())
+
+            style.rules.append(rule)
+
+            name = uuid.uuid4().hex
+            style_name = 'style_%s' % (name,)
+            mapnik_map.append_style(style_name, style)
+
+            mapnik_layer = mapnik.Layer(str(name), self.spatial_reference.ExportToProj4())
+            mapnik_layer.datasource = datasource
+            mapnik_layer.styles.append(style_name)
+            mapnik_map.layers.append(mapnik_layer)
+
+            self._cached_mapnik_map = mapnik_map
+
+        mapnik_map = self._cached_mapnik_map
+        tile_box = mapnik.Box2d(*tile_box)
+        im = mapnik.Image(mapnik_map.width, mapnik_map.height)
+        mapnik_map.zoom_to_box(tile_box)
+        mapnik.render(mapnik_map, im)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, tile_size[0], tile_size[1])
+        surface.get_data()[:] = im.tostring()
+        surface.mark_dirty()
+        return surface
 
 class Bucket(object):
     """A bucket is a single unit of data storage corresponding with, usually, a single data source file. For example

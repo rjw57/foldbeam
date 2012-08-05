@@ -62,9 +62,7 @@ def get_map(username, map_id):
     srs = osr.SpatialReference()
     srs.ImportFromProj4(map_.srs)
 
-    layer_tiles = []
-    for l in map_.layers:
-        layer_tiles.append(url_for_map_layer_tms_tiles(map_, l))
+    layer_tiles = [url_for_map_tms_tiles(map_)]
 
     return {
             'name': map_.name,

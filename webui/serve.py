@@ -23,14 +23,13 @@ if __name__ == '__main__':
     print('Serving API at http://0.0.0.0:8888')
     import tornado.wsgi
     application = tornado.wsgi.WSGIContainer(restapi.wsgi_application)
-#    application = new_application()
-#    application.listen(8888)
 
     import tornado.netutil
     import tornado.process
     import tornado.httpserver
 
     server = tornado.httpserver.HTTPServer(application)
+#    server.listen(8888)
     server.bind(8888)
     server.start(0)
 

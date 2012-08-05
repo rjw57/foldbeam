@@ -48,8 +48,8 @@ def url_for_map_layers(map_):
 def url_for_map_layer(map_, layer):
     return _url_for('map_layer', username=map_.owner.username, map_id=map_.map_id, layer_id=layer.layer_id)
 
-def url_for_map_layer_tms_tiles(map_, layer):
-    return _url_for('map_layer_tms_tile_base', username=map_.owner.username, map_id=map_.map_id, layer_id=layer.layer_id)
+def url_for_map_tms_tiles(map_):
+    return _url_for('map_tms_tile_base', username=map_.owner.username, map_id=map_.map_id)
 
 def url_for_layer(layer):
     return _url_for('layer', username=layer.owner.username, layer_id=layer.layer_id)
