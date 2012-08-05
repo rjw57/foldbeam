@@ -129,6 +129,10 @@ class _GDALLayer(object):
         # create a cairo image surface for the output. This unfortunately necessitates a copy since the in-memory format
         # for a GDAL Dataset is not interleaved.
         output_array = np.transpose(output_dataset.ReadAsArray(), (1,2,0))
+
+        # swizzle RGBA -> BGRA for Cairo
+        output_array = output_array[:,:,(2,1,0,3)]
+
         output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, tile_size[0], tile_size[1])
         surface_array = np.frombuffer(output_surface.get_data(), dtype=np.uint8)
         surface_array[:] = output_array.flat
