@@ -21,6 +21,8 @@ def map_tms_tile(username, map_id, zoom, x, y):
 
     output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 256, 256)
     context = cairo.Context(output_surface)
+    context.set_source_rgb(0.5,0.5,0.5)
+    context.paint()
 
     for layer in map_.layers:
         if layer.bucket is None:
