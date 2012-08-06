@@ -1,6 +1,9 @@
 import json
+import os
 
 from flask import url_for, make_response
+from git_http_backend import assemble_WSGI_git_app
+from flask import make_response, url_for
 
 import foldbeam.bucket
 
@@ -104,6 +107,7 @@ def get_bucket(username, bucket_id):
             'owner': { 'username': user.username, 'url': url_for_user(user) },
             'sources': sources,
             'resources': { 'files': { 'url': url_for_bucket_files(bucket), } },
+            'git': url_for_bucket_git_repo(bucket),
     }
 
 @ensure_json
@@ -118,22 +122,13 @@ def put_bucket(username, bucket_id):
     response.headers['Content-Type'] = 'application/json'
     return response
 
-
-def foo(environ, start_response):
-    print(environ)
-    print(start_response)
-    return ''
-
-@app.route('/<username>/buckets/<bucket_id>/git/<path:pathname>', methods=['GET', 'POST'])
-def bucket_git(username, bucket_id, pathname):
+@app.route('/<username>/buckets/<bucket_id>/git/<path:path>', methods=['GET', 'POST'])
+def bucket_git(username, bucket_id, path):
     user, bucket = get_user_and_bucket_or_404(username, bucket_id)
 
-    import os
-    from git_http_backend import assemble_WSGI_git_app
-    from flask import make_response, url_for
-
+    # This is a dirty hack to allow us to serve git repos from the bucket
     working_dir = os.path.abspath(os.path.join(bucket.bucket.repo.git_dir))
-    url_prefix = url_for('bucket_git', username=username, bucket_id=bucket_id, pathname='')
+    url_prefix = url_for('bucket_git', username=username, bucket_id=bucket_id, path='')
     def wsgi_wrapper(environ, start_response):
         assert environ['PATH_INFO'].startswith(url_prefix)
         environ['PATH_INFO'] = '/' + os.path.basename(working_dir) + '/' + environ['PATH_INFO'][len(url_prefix):]
