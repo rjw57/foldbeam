@@ -15,6 +15,7 @@ install_requires = [
     'flask',
     'gdal',
     'geoalchemy',
+    'GitPython',
     'httplib2',
     'numpy',
     'mimerender',

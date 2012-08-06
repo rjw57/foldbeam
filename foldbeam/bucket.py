@@ -9,6 +9,7 @@ import tempfile
 import uuid
 
 import cairo
+import git
 import mapnik
 import numpy as np
 from PIL import Image
@@ -91,16 +92,11 @@ class _GDALLayer(object):
         else:
             self.spatial_reference = None
 
-        self._cached_ds = None
-        self._ds_path = ds_path
+        self._dataset = ds
 
     def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         # get the input dataset
-        if self._cached_ds is None:
-            input_dataset = gdal.Open(self._ds_path)
-            self._cached_ds = input_dataset
-        else:
-            input_dataset = self._cached_ds
+        input_dataset = self._dataset
 
         input_srs_wkt = input_dataset.GetProjection()
         if input_srs_wkt is None or input_srs_wkt == '':
@@ -142,15 +138,10 @@ class _GDALLayer(object):
         ctx.paint()
 
 class _OGRLayer(object):
-    def __init__(self, layer, ds_path, layer_idx):
+    def __init__(self, layer, datasource):
         self.name = layer.GetName()
         self.spatial_reference = layer.GetSpatialRef()
         self.type = Layer.VECTOR_TYPE
-
-        self._ds_path = ds_path
-        self._layer_idx = layer_idx
-        self._cached_mapnik_datasource = None
-        self._cached_mapnik_map = None
 
         wkb_type = layer.GetGeomType()
         if wkb_type == ogr.wkbGeometryCollection:
@@ -170,25 +161,12 @@ class _OGRLayer(object):
         else:
             self.subtype = Layer.UNKNOWN_SUBTYPE
 
-    @property
-    def mapnik_datasource(self):
-        if self._cached_mapnik_datasource is not None:
-            return self._cached_mapnik_datasource
-
-        self._cached_mapnik_datasource = mapnik.Ogr(
-                file=str(self._ds_path),
-                layer_by_index=self._layer_idx
-        )
-
-        return self._cached_mapnik_datasource
+        self._layer = layer
+        self._datasource = datasource
+        self._cached_mapnik_map = None
 
     def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
-        if self._cached_mapnik_datasource is None:
-            self._cached_mapnik_datasource = mapnik.Ogr(
-                file=str(self._ds_path),
-                layer_by_index=self._layer_idx
-            )
-        datasource = self._cached_mapnik_datasource
+        datasource = self._datasource
 
         if self._cached_mapnik_map is None or \
                 self._cached_mapnik_map.srs != srs or \
@@ -258,9 +236,11 @@ class Bucket(object):
     :type storage_dir: str
 
     """
-    def __init__(self, storage_dir):
-        self._invalidate_cache()
 
+    # A cache keyed on head sha1
+    _persistent_layers_cache = {}
+
+    def __init__(self, storage_dir):
         self._storage_dir = storage_dir
         assert os.path.exists(self._storage_dir)
 
@@ -270,6 +250,10 @@ class Bucket(object):
         if not os.path.exists(self._files_dir):
             os.mkdir(self._files_dir)
         assert os.path.exists(self._files_dir)
+
+        if not git.repo.fun.is_git_dir(self._files_dir):
+            git.Repo.init(self._files_dir)
+        self._repo = git.Repo(self._files_dir)
 
     @property
     def files(self):
@@ -293,7 +277,8 @@ class Bucket(object):
         if self.primary_file_name is None:
             self.primary_file_name = name
 
-        self._invalidate_cache()
+        self._repo.index.add([name])
+        new_commit = self._repo.index.commit('auto commit')
 
     @property
     def layers(self):
@@ -301,31 +286,27 @@ class Bucket(object):
         interface. If the files within the bucket cannot yet be interpreted as a geographic data set then this attribute
         is an empty sequence.
         """
-        if self._cached_layers is not None:
-            return self._cached_layers
+        if len(self._repo.heads) == 0:
+            # no data -> no layers
+            return []
 
-        if self._cached_data_source is None:
-            if not self._attempt_to_load():
-                return []
+        # Get the current head and it's hex name
+        head = self._repo.heads[0]
+        key = head.commit.hexsha
 
-        self._cached_layers = self._layer_loader()
-        return self._cached_layers
+        # Do we have a cached copy of these layers?
+        if key in Bucket._persistent_layers_cache:
+            return Bucket._persistent_layers_cache[key]
 
-    def _load_ogr_layers(self):
-        assert self._cached_data_source is not None
-        ds_path = self._file_name_to_path(self.primary_file_name)
-        layers = []
-        for layer_idx in xrange(self._cached_data_source.GetLayerCount()):
-            layer = _OGRLayer(self._cached_data_source.GetLayerByIndex(layer_idx), ds_path, layer_idx)
-            layers.append(layer)
+        # Nope, try loading it.
+        # Make sure working directory matches head
+        head.checkout()
+
+        # Attempt to load the layers and record result in cache
+        layers = self._attempt_to_load_layers()
+        Bucket._persistent_layers_cache[key] = layers
+
         return layers
-
-    def _load_gdal_layers(self):
-        assert self._cached_data_source is not None
-        ds_path = self._file_name_to_path(self.primary_file_name)
-
-        # A GDAL raster has but one layer
-        return [_GDALLayer(self._cached_data_source, ds_path)]
 
     @property
     def primary_file_name(self):
@@ -348,12 +329,6 @@ class Bucket(object):
             shove['primary_file_name'] = name
         finally:
             shove.close()
-        self._invalidate_cache()
-
-    def _invalidate_cache(self):
-        self._cached_data_source = None
-        self._cached_layers = None
-        self._layer_loader = None
 
     def _file_name_to_path(self, name):
         # check that the file name doesn't try to do anything clever
@@ -361,25 +336,36 @@ class Bucket(object):
             raise BadFileNameError('%s is an invalid filename' % (name,))
         return os.path.join(self._files_dir, name)
 
-    def _attempt_to_load(self):
+    def _attempt_to_load_layers(self):
         if self.primary_file_name is None:
-            return
-
-        self._cached_layers = None
-        self._layer_loader = None
+            return []
 
         ds_path = self._file_name_to_path(self.primary_file_name)
 
         # Try with OGR
-        self._cached_data_source = ogr.Open(ds_path)
-        if self._cached_data_source is not None:
-            self._layer_loader = self._load_ogr_layers
-            return True
+        ds = ogr.Open(ds_path)
+        if ds is not None:
+            return self._load_ogr_layers(ds, ds_path)
 
         # Try with GDAL
-        self._cached_data_source = gdal.Open(ds_path)
-        if self._cached_data_source is not None:
-            self._layer_loader = self._load_gdal_layers
-            return True
+        ds = gdal.Open(ds_path)
+        if ds is not None:
+            return self._load_gdal_layers(ds, ds_path)
         
-        return False
+        # Fail
+        return []
+
+    def _load_ogr_layers(self, source, source_path):
+        layers = []
+        for layer_idx in xrange(source.GetLayerCount()):
+            mapnik_datasource = mapnik.Ogr(
+                file=str(source_path),
+                layer_by_index=layer_idx
+            )
+            layer = _OGRLayer(source.GetLayerByIndex(layer_idx), mapnik_datasource)
+            layers.append(layer)
+        return layers
+
+    def _load_gdal_layers(self, source, source_path):
+        # A GDAL raster has but one layer
+        return [_GDALLayer(source, source_path)]
