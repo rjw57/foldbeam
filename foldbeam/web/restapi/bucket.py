@@ -149,12 +149,27 @@ def bucket_files(username, bucket_id):
         })
     return { 'resources': files }
 
-@app.route('/<username>/buckets/<bucket_id>/files/<filename>', methods=['PUT'])
+@app.route('/<username>/buckets/<bucket_id>/files/<filename>', methods=['GET', 'PUT'])
 def bucket_file(username, bucket_id, filename):
-    if request.method == 'PUT':
+    if request.method == 'GET':
+        return get_bucket_file(username, bucket_id, filename)
+    elif request.method == 'PUT':
         return put_bucket_file(username, bucket_id, filename)
     # should never be reached
     abort(500) # pragma: no coverage
+
+def get_bucket_file(username, bucket_id, filename):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
+    repo = bucket.bucket.repo
+    if len(repo.heads) == 0:
+        abort(404)
+
+    tree = repo.heads[0].commit.tree
+
+    blob = tree/filename
+    response = make_response(blob.data_stream.read(), 200)
+    response.headers['Content-Type'] = blob.mime_type
+    return response
 
 def put_bucket_file(username, bucket_id, filename):
     user, bucket = get_user_and_bucket_or_404(username, bucket_id)
