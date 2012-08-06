@@ -3,10 +3,12 @@ information such as extent and spatial reference.
 
 """
 import logging
+import hashlib
 import os
 import shutil
 import tempfile
 import uuid
+import shutil
 
 import cairo
 import git
@@ -79,7 +81,7 @@ class Layer(object):
         raise NotImplementedError   # pragma: no coverage
 
 class _GDALLayer(object):
-    def __init__(self, ds, ds_path):
+    def __init__(self, ds, ds_path, bucket, temp_repo):
         self.name = os.path.basename(ds_path)
         self.type = Layer.RASTER_TYPE
         self.subtype = Layer.UNKNOWN_SUBTYPE
@@ -93,6 +95,7 @@ class _GDALLayer(object):
             self.spatial_reference = None
 
         self._dataset = ds
+        self._bucket = bucket
 
     def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         # get the input dataset
@@ -138,7 +141,7 @@ class _GDALLayer(object):
         ctx.paint()
 
 class _OGRLayer(object):
-    def __init__(self, layer, datasource):
+    def __init__(self, layer, datasource, bucket, temp_repo):
         self.name = layer.GetName()
         self.spatial_reference = layer.GetSpatialRef()
         self.type = Layer.VECTOR_TYPE
@@ -164,6 +167,7 @@ class _OGRLayer(object):
         self._layer = layer
         self._datasource = datasource
         self._cached_mapnik_map = None
+        self._bucket = bucket
 
     def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         datasource = self._datasource
@@ -224,6 +228,15 @@ class _OGRLayer(object):
         surface.mark_dirty()
         return surface
 
+class TemporaryClonedRepo(object):
+    def __init__(self, repo):
+        self._tmp_dir = tempfile.mkdtemp(prefix='git-repo-')
+        self.repo = repo.clone(self._tmp_dir)
+
+    def __del__(self):
+        log.warning('Removing temporary repo: %s' % (self._tmp_dir,))
+        shutil.rmtree(self._tmp_dir)
+
 class Bucket(object):
     """A bucket is a single unit of data storage corresponding with, usually, a single data source file. For example
     this might be a single shapefile or a single raster. This single file is called the 'primary file'. There may be
@@ -246,39 +259,67 @@ class Bucket(object):
 
         self._shove_url = 'file://' + os.path.join(self._storage_dir, 'metadata')
 
-        self._files_dir = os.path.join(self._storage_dir, 'files')
-        if not os.path.exists(self._files_dir):
-            os.mkdir(self._files_dir)
-        assert os.path.exists(self._files_dir)
+        self._repo_dir = os.path.join(self._storage_dir, 'files')
+        if not os.path.exists(self._repo_dir):
+            os.mkdir(self._repo_dir)
+        assert os.path.exists(self._repo_dir)
 
-        if not git.repo.fun.is_git_dir(self._files_dir):
-            git.Repo.init(self._files_dir)
-        self._repo = git.Repo(self._files_dir)
+        if not git.repo.fun.is_git_dir(self._repo_dir):
+            repo = git.Repo.init(self._repo_dir, bare=True)
+
+    @property
+    def repo(self):
+        """A :py:class:`git.Repo` object representing the wrapped git repository for this bucket."""
+        return git.Repo(self._repo_dir)
+
+    @property
+    def cache_key(self):
+        """A string which represents an opaque hash of this bucket which is suitable for use in caches."""
+        repo = self.repo
+        if len(repo.heads) == 0:
+            # empty buckets have a SHA1 corresponding to no data
+            sha1 = hashlib.sha1()
+            return sha1.hexdigest
+
+        # Get the current head and it's hex name
+        head = repo.heads[0]
+        return head.commit.hexsha
 
     @property
     def files(self):
         """A list of files currently in this bucket."""
-        return os.listdir(self._files_dir)
+        repo = self.repo
+        if len(repo.heads) == 0:
+            # no data -> no layers
+            return []
+
+        tree = repo.heads[0].commit.tree
+        return list(blob.name for blob in tree.blobs)
 
     def add(self, name, fobj):
         """Add a file named `name` to the bucket reading its contents from the file-like object `fobj`.
 
         :raises BadFileNameError: When `name` is not a raw file name but has, e.g., a directory separator.
         """
-        output_file_name = self._file_name_to_path(name)
+        clone = TemporaryClonedRepo(self.repo)
+
+        output_file_name = self._file_name_to_path(clone.repo, name)
         log.info('Writing to bucket file: %s' % (output_file_name,))
         try:
-            output = open(output_file_name, 'w')
+            with open(output_file_name, 'w') as output:
+                shutil.copyfileobj(fobj, output)
         except IOError: # pragma: no coverage
             # some failure in creating file, we'll assume doe to a bad filename
             raise BadFileNameError('Error creating file named: ' + str(name)) # pragma: no coverage
-        shutil.copyfileobj(fobj, output)
 
         if self.primary_file_name is None:
             self.primary_file_name = name
 
-        self._repo.index.add([name])
-        new_commit = self._repo.index.commit('auto commit')
+        index = clone.repo.index
+        index.add([name])
+        index.write()
+        new_commit = index.commit('auto commit of %s' % (name,))
+        clone.repo.remotes.origin.push('master:master')
 
     @property
     def layers(self):
@@ -286,26 +327,28 @@ class Bucket(object):
         interface. If the files within the bucket cannot yet be interpreted as a geographic data set then this attribute
         is an empty sequence.
         """
-        if len(self._repo.heads) == 0:
+        repo = self.repo
+        if len(repo.heads) == 0:
             # no data -> no layers
             return []
 
         # Get the current head and it's hex name
-        head = self._repo.heads[0]
+        head = repo.heads[0]
         key = head.commit.hexsha
 
         # Do we have a cached copy of these layers?
         if key in Bucket._persistent_layers_cache:
             return Bucket._persistent_layers_cache[key]
 
+        print('Loading bucket: %s' % (key,))
+
         # Nope, try loading it.
-        # Make sure working directory matches head
-        head.checkout()
+        clone = TemporaryClonedRepo(repo)
+        clone.repo.heads[0].checkout()
 
         # Attempt to load the layers and record result in cache
-        layers = self._attempt_to_load_layers()
+        layers = self._attempt_to_load_layers(clone)
         Bucket._persistent_layers_cache[key] = layers
-
         return layers
 
     @property
@@ -323,49 +366,49 @@ class Bucket(object):
 
     @primary_file_name.setter
     def primary_file_name(self, name):
-        assert os.path.exists(self._file_name_to_path(name))
         shove = Shove(self._shove_url)
         try:
             shove['primary_file_name'] = name
         finally:
             shove.close()
 
-    def _file_name_to_path(self, name):
+    def _file_name_to_path(self, repo, name):
         # check that the file name doesn't try to do anything clever
         if os.path.basename(name) != name or name == '..' or name == '.':
             raise BadFileNameError('%s is an invalid filename' % (name,))
-        return os.path.join(self._files_dir, name)
+        return os.path.join(repo.working_dir, name)
 
-    def _attempt_to_load_layers(self):
+    def _attempt_to_load_layers(self, temp_repo):
         if self.primary_file_name is None:
             return []
 
-        ds_path = self._file_name_to_path(self.primary_file_name)
+        repo = temp_repo.repo
+        ds_path = self._file_name_to_path(repo, self.primary_file_name)
 
         # Try with OGR
         ds = ogr.Open(ds_path)
         if ds is not None:
-            return self._load_ogr_layers(ds, ds_path)
+            return self._load_ogr_layers(ds, ds_path, temp_repo)
 
         # Try with GDAL
         ds = gdal.Open(ds_path)
         if ds is not None:
-            return self._load_gdal_layers(ds, ds_path)
+            return self._load_gdal_layers(ds, ds_path, temp_repo)
         
         # Fail
         return []
 
-    def _load_ogr_layers(self, source, source_path):
+    def _load_ogr_layers(self, source, source_path, temp_repo):
         layers = []
         for layer_idx in xrange(source.GetLayerCount()):
             mapnik_datasource = mapnik.Ogr(
                 file=str(source_path),
                 layer_by_index=layer_idx
             )
-            layer = _OGRLayer(source.GetLayerByIndex(layer_idx), mapnik_datasource)
+            layer = _OGRLayer(source.GetLayerByIndex(layer_idx), mapnik_datasource, self, temp_repo)
             layers.append(layer)
         return layers
 
-    def _load_gdal_layers(self, source, source_path):
+    def _load_gdal_layers(self, source, source_path, temp_repo):
         # A GDAL raster has but one layer
-        return [_GDALLayer(source, source_path)]
+        return [_GDALLayer(source, source_path, self, temp_repo)]

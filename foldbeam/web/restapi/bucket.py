@@ -118,6 +118,29 @@ def put_bucket(username, bucket_id):
     response.headers['Content-Type'] = 'application/json'
     return response
 
+
+def foo(environ, start_response):
+    print(environ)
+    print(start_response)
+    return ''
+
+@app.route('/<username>/buckets/<bucket_id>/git/<path:pathname>', methods=['GET', 'POST'])
+def bucket_git(username, bucket_id, pathname):
+    user, bucket = get_user_and_bucket_or_404(username, bucket_id)
+
+    import os
+    from git_http_backend import assemble_WSGI_git_app
+    from flask import make_response, url_for
+
+    working_dir = os.path.abspath(os.path.join(bucket.bucket.repo.git_dir))
+    url_prefix = url_for('bucket_git', username=username, bucket_id=bucket_id, pathname='')
+    def wsgi_wrapper(environ, start_response):
+        assert environ['PATH_INFO'].startswith(url_prefix)
+        environ['PATH_INFO'] = '/' + os.path.basename(working_dir) + '/' + environ['PATH_INFO'][len(url_prefix):]
+        return assemble_WSGI_git_app(content_path = os.path.dirname(working_dir))(environ, start_response)
+
+    return make_response(wsgi_wrapper)
+
 @app.route('/<username>/buckets/<bucket_id>/files')
 @resource
 def bucket_files(username, bucket_id):
