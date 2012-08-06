@@ -58,11 +58,17 @@ def layer(username, layer_id):
 @resource
 def get_layer(username, layer_id):
     user, layer = get_user_and_layer_or_404(username, layer_id)
+
+    bucket = None
+    b = layer.bucket
+    if b is not None:
+        bucket = { 'urn': urn_for_bucket(b), 'url': url_for_bucket(b) }
+
     return {
             'name': layer.name,
             'urn': urn_for_layer(layer),
             'owner': { 'username': user.username, 'url': url_for_user(user) },
-            'source': { 'bucket': urn_for_bucket(layer.bucket) if layer.bucket is not None else None, 'source': layer.bucket_layer_name },
+            'source': { 'bucket': bucket, 'source': layer.bucket_layer_name },
     }
 
 def put_layer(username, layer_id):
