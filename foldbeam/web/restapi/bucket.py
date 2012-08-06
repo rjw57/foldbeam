@@ -122,13 +122,13 @@ def put_bucket(username, bucket_id):
     response.headers['Content-Type'] = 'application/json'
     return response
 
-@app.route('/<username>/buckets/<bucket_id>/git/<path:path>', methods=['GET', 'POST'])
+@app.route('/<username>/git/bucket-<bucket_id>.git/<path:path>', methods=['GET', 'POST'])
 def bucket_git(username, bucket_id, path):
     user, bucket = get_user_and_bucket_or_404(username, bucket_id)
 
     # This is a dirty hack to allow us to serve git repos from the bucket
     working_dir = os.path.abspath(os.path.join(bucket.bucket.repo.git_dir))
-    url_prefix = url_for('bucket_git', username=username, bucket_id=bucket_id, path='')
+    url_prefix = url_for('bucket_git', username=user.username, bucket_id=bucket.bucket_id, path='')
     def wsgi_wrapper(environ, start_response):
         assert environ['PATH_INFO'].startswith(url_prefix)
         environ['PATH_INFO'] = '/' + os.path.basename(working_dir) + '/' + environ['PATH_INFO'][len(url_prefix):]

@@ -64,7 +64,7 @@ def url_for_bucket_file(bucket, filename):
     return _url_for('bucket_file', username=bucket.owner.username, bucket_id=bucket.bucket_id, filename=filename)
 
 def url_for_bucket_git_repo(bucket):
-    return _url_for('bucket_git', username=bucket.owner.username, bucket_id=bucket.bucket_id, path='')
+    return _url_for('bucket_git', username=bucket.owner.username, bucket_id=bucket.bucket_id, path='').rstrip('/')
 
 def get_user_or_404(username):
     try:
