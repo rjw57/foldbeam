@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>List user's resources</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+        <script src="foldbeam.js"></script>
+    </head>
+    <body>
+        <form>
+            <label for="username">Username: </label><input type="text" placeholder="username" id="username"/>
+        </form>
+        <h1>Maps</h1>
+        <ul id="map_list"></ul>
+        <h1>Layers</h1>
+        <ul id="layer_list"></ul>
+        <h1>Buckets</h1>
+        <ul id="bucket_list"></ul>
+        </ul>
+    </body>
+    <script>
+        $(document).ready(function() {
+            var maps = [], layers = [], buckets = [];
+
+            var map_element = function(map) {
+                var elem = $('<div>');
+
+                elem.append($('<h2>').text(map.name));
+                elem.append($('<h3>Extent</h3>'));
+                elem.append($('<p>').text(map.extent));
+                elem.append($('<h3>SRS</h3>'));
+                elem.append($('<p>').text(map.srs.proj));
+
+                return elem;
+            }
+
+            var layer_element = function(layer) {
+                var elem = $('<div>');
+
+                elem.append($('<h2>').text(layer.name));
+
+                return elem;
+            }
+
+            var bucket_element = function(bucket) {
+                var elem = $('<div>');
+
+                elem.append($('<h2>').text(bucket.name));
+
+                return elem;
+            }
+
+            var refresh_maps = function() {
+                $('#map_list').html('');
+                for(idx in maps) {
+                    map = maps[idx];
+                    $('#map_list').append($('<li>').append(map_element(map)));
+                }
+            }
+
+            var refresh_layers = function() {
+                $('#layer_list').html('');
+                for(idx in layers) {
+                    layer = layers[idx];
+                    $('#layer_list').append($('<li>').append(layer_element(layer)));
+                }
+            }
+
+            var refresh_buckets = function() {
+                $('#bucket_list').html('');
+                for(idx in buckets) {
+                    bucket = buckets[idx];
+                    $('#bucket_list').append($('<li>').append(bucket_element(bucket)));
+                }
+            }
+
+            var username = $('#username');
+            var username_changed = function() {
+                foldbeam.get_user(username.val()).ready(function() {
+                    this.maps.ready(function() {
+                        maps = this.resources; for(idx in this.resources) {
+                            this.resources[idx].ready(refresh_maps);
+                        }
+                    });
+                    this.layers.ready(function() {
+                        layers = this.resources; for(idx in this.resources) {
+                            this.resources[idx].ready(refresh_layers);
+                        }
+                    });
+                    this.buckets.ready(function() {
+                        buckets = this.resources; for(idx in this.resources) {
+                            this.resources[idx].ready(refresh_buckets);
+                        }
+                    });
+                });
+            }
+
+            desired_username = foldbeam.utils.getParameterByName('username');
+            if(desired_username !== undefined) {
+                username.val(desired_username);
+            }
+
+            username.focus();
+            username.change(username_changed).keyup(username_changed);
+            username_changed();
+        });
+    </script>
+</html>
