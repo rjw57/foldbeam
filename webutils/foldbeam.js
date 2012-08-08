@@ -77,6 +77,8 @@ var foldbeam = {
                     self.extent = data.extent;
                     self.layer_tiles = data.layer_tiles;
                     self.name = data.name;
+                    self.urn = data.urn;
+                    self.url = url;
                     self.srs = data.srs;
 
                     self._is_loaded = true;

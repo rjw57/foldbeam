@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html style="height: 100%;">
+    <head>
+        <title>Map viewer</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/js/bootstrap.min.js"></script>
+        <script src="http://cdn.leafletjs.com/leaflet-0.4/leaflet.js"></script>
+        <script src="foldbeam.js"></script>
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/css/bootstrap-combined.min.css" />
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4/leaflet.css" />
+    </head>
+    <body style="height: 100%;">
+        <div class="container">
+            <form class="form-inline">
+                <label for="username">Username: </label><input type="text" placeholder="username" id="username"/>
+                <label for="map">Map: </label><select id="maps"></select>
+            </form>
+        </div>
+        <div class="container" style="position: absolute; bottom: 0; top: 40px; left: 0; right: 0;">
+            <div id="map" style="background-color: #ddf; height: 100%;"></div>
+        </div>
+    </body>
+    <script>
+        $(document).ready(function() {
+            var leaflet = new L.Map('map').setView([0, 0], 2);
+            var map_layer = undefined;
+
+            var map_selected = function() {
+                var url;
+                var elem = $('#maps option:selected');
+                if(!elem) { return; }
+
+                url = elem.val();
+                foldbeam.Map(url).ready(function() {
+                    var tms_url;
+                    if(map_layer !== undefined) { leaflet.removeLayer(map_layer); }
+                    tms_url = this.layer_tiles[0] + '/{z}/{x}/{y}.png';
+                    map_layer = new L.TileLayer(tms_url, { tms: true });
+                    leaflet.addLayer(map_layer);
+                });
+            }
+            $('#maps').change(map_selected);
+
+            var refresh_maps = function() {
+                var new_opt;
+
+                $('#maps').html('');
+                for(idx in maps) {
+                    map = maps[idx];
+                    new_opt = $('<option>').val(map.url).text(map.name);
+                    if(idx == 0) { new_opt.attr('selected', '1'); }
+                    $('#maps').append(new_opt);
+                }
+                map_selected();
+            }
+
+            var username = $('#username');
+            var username_changed = function() {
+                foldbeam.get_user(username.val()).ready(function() {
+                    this.maps.ready(function() {
+                        maps = this.resources; for(idx in this.resources) {
+                            this.resources[idx].ready(refresh_maps);
+                        }
+                    });
+                });
+            }
+
+            desired_username = foldbeam.utils.getParameterByName('username');
+            if(desired_username !== undefined) {
+                username.val(desired_username);
+            }
+
+            username.focus();
+            username.change(username_changed).keyup(username_changed);
+            username_changed();
+        });
+    </script>
+</html>
