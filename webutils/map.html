@@ -16,13 +16,18 @@
                 <label for="map">Map: </label><select id="maps"></select>
             </form>
         </div>
-        <div class="container" style="position: absolute; bottom: 0; top: 40px; left: 0; right: 0;">
-            <div id="map" style="background-color: #ddf; height: 100%;"></div>
+        <div class="container-fluid" style="position: absolute; bottom: 0; top: 40px; left: 0; right: 0;">
+            <div class="row-fluid" style="height: 100%;">
+                <div class="span2"><h6>Layers</h6></div>
+                <div class="span8" style="height: 100%;"><div id="map" style="background-color: #ddf; height: 100%;"></div></div>
+                <div class="span2"><h6>Buckets</h6></div>
+            </div>
         </div>
     </body>
     <script>
         $(document).ready(function() {
-            var leaflet = new L.Map('map').setView([0, 0], 2);
+            var leaflet = new L.Map('map').setView([0, 0], 1);
+            leaflet.attributionControl.setPrefix('');
             var map_layer = undefined;
 
             var map_selected = function() {
@@ -35,7 +40,7 @@
                     var tms_url;
                     if(map_layer !== undefined) { leaflet.removeLayer(map_layer); }
                     tms_url = this.layer_tiles[0] + '/{z}/{x}/{y}.png';
-                    map_layer = new L.TileLayer(tms_url, { tms: true });
+                    map_layer = new L.TileLayer(tms_url, { tms: true, attribution: map.srs.proj });
                     leaflet.addLayer(map_layer);
                 });
             }
