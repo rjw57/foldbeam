@@ -70,7 +70,8 @@ class Layer(object):
         width/height.
 
         :param ctx: the cairo context to render to
-        :param srs: the spatial reference for the tile as a Proj4 projection string
+        :param srs: the spatial reference for the tile
+        :type srs: :py:class:`osgeo.osr.SpatialReference`
         :param tile_box: the extent of the tile to render in projection co-ordinates
         :type tile_box: tuple of float giving (minx, miny, maxx, maxy)
         :param tile_size: the width and height of the tile to render
@@ -105,9 +106,6 @@ class _GDALLayer(object):
         if input_srs_wkt is None or input_srs_wkt == '':
             return None
 
-        spatial_reference = osr.SpatialReference()
-        spatial_reference.ImportFromProj4(srs)
-
         # create an output dataset
         driver = gdal.GetDriverByName('MEM')
         assert driver is not None
@@ -121,7 +119,7 @@ class _GDALLayer(object):
         # project input into output
         gdal.ReprojectImage(
                 input_dataset, output_dataset,
-                input_srs_wkt, spatial_reference.ExportToWkt(),
+                input_srs_wkt, srs.ExportToWkt(),
                 gdal.GRA_NearestNeighbour
         )
 
@@ -171,6 +169,7 @@ class _OGRLayer(object):
 
     def render_to_cairo_context(self, ctx, srs, tile_box, tile_size):
         datasource = self._datasource
+        srs = srs.ExportToProj4()
 
         if self._cached_mapnik_map is None or \
                 self._cached_mapnik_map.srs != srs or \

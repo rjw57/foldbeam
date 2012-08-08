@@ -130,11 +130,11 @@ def update_map(m, request):
     if 'srs' in request:
         from osgeo import osr
         srs = osr.SpatialReference()
-        srs.ImportFromProj4(request['srs'])
+        srs.SetFromUserInput(request['srs'])
         srs_proj4 = srs.ExportToProj4()
         if srs_proj4 is None or srs_proj4 == '':
             abort(400) # Bad request
-        m.srs = srs_proj4
+        m.srs = request['srs']
     if 'extent' in request:
         e = list(request['extent'])
         if len(e) < 4:

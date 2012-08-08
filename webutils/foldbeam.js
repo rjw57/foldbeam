@@ -71,6 +71,18 @@ var foldbeam = {
 
     Map: function(url) {
         return {
+            set_projection: function(srs, extent) {
+                var self=this;
+                $.ajax({
+                    type: 'PUT',
+                    url: url,
+                    dataType: 'json',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({ srs: srs, extent: extent }),
+                    success: function() { self.fetch(); },
+                });
+            },
+
             fetch: function() {
                 var self = this;
                 $.getJSON(url, function(data) {

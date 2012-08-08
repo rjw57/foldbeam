@@ -5,6 +5,8 @@
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
         <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/js/bootstrap.min.js"></script>
         <script src="http://cdn.leafletjs.com/leaflet-0.4/leaflet.js"></script>
+        <script src="proj4js/lib/proj4js-compressed.js"></script>
+        <script src="proj4leaflet.js"></script>
         <script src="foldbeam.js"></script>
         <link rel="stylesheet" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/css/bootstrap-combined.min.css" />
         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4/leaflet.css" />
@@ -14,6 +16,13 @@
             <form class="form-inline">
                 <label for="username">Username: </label><input type="text" placeholder="username" id="username"/>
                 <label for="map">Map: </label><select id="maps"></select>
+                <label for="sts">Projection: </label>
+                <select id="projection">
+                    <option value="EPSG:27700">OSGB 1936 / British National Grid</option>
+                    <option value="EPSG:2400">RT90 2.5 gon W</option>
+                    <option value="EPSG:4326">WGS 84 / Latitude, Longitude</option>
+                    <option value="EPSG:3785">Popular Visualisation CRS / Mercator</option>
+                </select>
             </form>
         </div>
         <div class="container-fluid" style="position: absolute; bottom: 0; top: 40px; left: 0; right: 0;">
@@ -26,25 +35,130 @@
     </body>
     <script>
         $(document).ready(function() {
-            var leaflet = new L.Map('map').setView([0, 0], 1);
-            leaflet.attributionControl.setPrefix('');
+            var srsdb = [];
+
+            srsdb['EPSG:27700'] = {
+                srs: 'EPSG:27700',
+                extent: [1393.0196, 13494.9764, 671196.3657, 1230275.0454],
+            };
+
+            srsdb['EPSG:2400'] = {
+                srs: 'EPSG:2400',
+                extent: [-20037508.34,-20037508.34,20037508.34,20037508.34],
+            };
+
+            srsdb['EPSG:4326'] = {
+                srs: 'EPSG:4326',
+                extent: [-180.0000, -90.0000, 180.0000, 90.0000],
+            };
+
+            srsdb['EPSG:3785'] = {
+                srs: 'PROJCS["Popular Visualisation CRS / Mercator",GEOGCS["Popular Visualisation CRS",DATUM["Popular Visualisation Datum",SPHEROID["Popular Visualisation Sphere",6378137,0,AUTHORITY["EPSG","7059"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6055"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9102"]],AXIS[E,EAST],AXIS["N",NORTH],AUTHORITY["EPSG","4055"]],PROJECTION["Mercator_1SP"],PARAMETER["False_Easting",0],PARAMETER["False_Northing",0],PARAMETER["Central_Meridian",0],PARAMETER["Latitude_of_origin",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["East",EAST],AXIS["North",NORTH],AUTHORITY["EPSG","3785"]]',
+                extent: [-20037508.3428, -19971868.8804, 20037508.3428, 19971868.8804],
+            };
+
+            var leaflet = undefined;
+            var create_map = function() {
+                var crs, map_size, bounds = undefined, centre = undefined;
+                var new_div = $('<div style="width:100%; height:100%">');
+
+                // if we had a previous map, record its bounds
+                if(leaflet !== undefined) {
+                    bounds = leaflet.getBounds();
+                    center = leaflet.getCenter();
+                }
+
+                // clear any previous map
+                $('#map').html('').append(new_div);
+
+                // the size of the zoom 0 tile in projection co-ordinates
+                map_size = Math.max(
+                    current_map.extent[2] - current_map.extent[0],
+                    current_map.extent[3] - current_map.extent[1]
+                );
+
+                // create a projection for this map
+                crs = L.CRS.proj4js(
+                    current_map.srs.wkt,
+                    current_map.srs.proj,
+                    new L.Transformation(1, -current_map.extent[0], -1, current_map.extent[1] + map_size)
+                );
+                crs.scale = function(zoom) {
+                    // return scale such that pixel co-ood = projection co-ord * scale, i.e. the size of one pixel in
+                    // projection co-ords.
+                    return 256 * Math.pow(2, zoom) / map_size;
+                };
+
+                leaflet = new L.Map(new_div.get()[0], {
+                    crs: crs, 
+                });
+                leaflet.attributionControl.setPrefix('');
+
+                if(bounds !== undefined) {
+                    leaflet.fitBounds(bounds);
+                    leaflet.setView(center, leaflet.getZoom());
+                } else {
+                    leaflet.setView(
+                        crs.projection.unproject(new L.Point(
+                            0.5*(current_map.extent[0] + current_map.extent[2]),
+                            0.5*(current_map.extent[1] + current_map.extent[3])
+                        )),
+                        0
+                    );
+                }
+                
+                var big_ben = new L.LatLng(51.500611, -0.124611);
+                var stonehenge = new L.LatLng(51.178844, -1.826189);
+                var dorchester = new L.LatLng(51.644, -1.166);
+                L.marker(big_ben, {title: 'Big Ben'}).addTo(leaflet);
+                L.marker(stonehenge, {title: 'Stonehenge'}).addTo(leaflet);
+                L.marker(dorchester, {title: 'Dorchester on Thames'}).addTo(leaflet);
+            };
+
             var map_layer = undefined;
+
+            var current_map = undefined;
+
+            var reload_map = function() {
+                var tms_url, crs, map_size;
+                if(map_layer !== undefined) { leaflet.removeLayer(map_layer); }
+                tms_url = current_map.layer_tiles[0] + '/{z}/{x}/{y}.png';
+
+                map_layer = new L.TileLayer(tms_url, {
+                    tms: true,
+                    attribution: current_map.srs.name,
+//                    continuousWorld: true,
+                });
+
+                leaflet.addLayer(map_layer);
+            };
 
             var map_selected = function() {
                 var url;
                 var elem = $('#maps option:selected');
-                if(!elem) { return; }
+                if(elem.length == 0) { $('#maps option')[0].attr('selected', 'selected'); }
+                var did_selection = false;
 
                 url = elem.val();
                 foldbeam.Map(url).ready(function() {
-                    var tms_url;
-                    if(map_layer !== undefined) { leaflet.removeLayer(map_layer); }
-                    tms_url = this.layer_tiles[0] + '/{z}/{x}/{y}.png';
-                    map_layer = new L.TileLayer(tms_url, { tms: true, attribution: map.srs.proj });
-                    leaflet.addLayer(map_layer);
+                    current_map = this;
+                    create_map();
+                    reload_map();
+                    if(did_selection == false) {
+                        did_selection = true;
+                        projection_selected();
+                    }
                 });
-            }
+            };
             $('#maps').change(map_selected);
+
+            var projection_selected = function() {
+                srs = srsdb[$('#projection option:selected').val()];
+                if(srs === undefined) { return; }
+                if(current_map === undefined) { return; }
+                current_map.set_projection(srs.srs, srs.extent);
+            };
+            $('#projection').change(projection_selected);
 
             var refresh_maps = function() {
                 var new_opt;
@@ -57,7 +171,7 @@
                     $('#maps').append(new_opt);
                 }
                 map_selected();
-            }
+            };
 
             var username = $('#username');
             var username_changed = function() {
@@ -68,7 +182,7 @@
                         }
                     });
                 });
-            }
+            };
 
             desired_username = foldbeam.utils.getParameterByName('username');
             if(desired_username !== undefined) {

@@ -60,7 +60,7 @@ def get_map(username, map_id):
     user, map_ = get_user_and_map_or_404(username, map_id)
     from osgeo import osr
     srs = osr.SpatialReference()
-    srs.ImportFromProj4(map_.srs)
+    srs.SetFromUserInput(map_.srs)
 
     layer_tiles = [url_for_map_tms_tiles(map_)]
 
@@ -70,7 +70,7 @@ def get_map(username, map_id):
             'owner': { 'username': user.username, 'url': url_for_user(user) },
             'resources': { 'layers': { 'url': url_for_map_layers(map_) }, },
             'layer_tiles': layer_tiles,
-            'srs': { 'proj': srs.ExportToProj4(), 'wkt': srs.ExportToWkt() },
+            'srs': { 'proj': srs.ExportToProj4(), 'wkt': srs.ExportToWkt(), 'name': srs.GetAttrValue('PROJCS') },
             'extent': map_.extent,
     }
 

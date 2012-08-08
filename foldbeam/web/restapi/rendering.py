@@ -3,6 +3,7 @@ import StringIO
 import uuid
 
 import cairo
+from osgeo import osr
 from PIL import Image
 from flask import make_response
 
@@ -32,7 +33,8 @@ def map_tms_tile(username, map_id, zoom, x, y):
         if source_layer is None:
             continue
 
-        map_srs = map_.srs
+        map_srs = osr.SpatialReference()
+        map_srs.SetFromUserInput(map_.srs)
         map_extent = map_.extent
 
         tile_size = max(map_extent[2]-map_extent[0], map_extent[3]-map_extent[1]) * math.pow(2.0, -zoom)

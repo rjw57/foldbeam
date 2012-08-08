@@ -99,7 +99,7 @@ class Map(object):
         self.owner_username = owner.username
         self.name = name or 'Untitled map'
         self.layer_ids = layer_ids or []
-        self.srs = '+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
+        self.srs = 'EPSG:27700'
         self.extent = (-20037508.3428, -15496570.7397, 20037508.3428, 18764656.2314)
 
     def is_owned_by(self, user):
