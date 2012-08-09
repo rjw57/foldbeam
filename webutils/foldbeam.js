@@ -1,5 +1,5 @@
 var foldbeam = {
-    url_root: 'http://localhost:8888/',
+    url_root: '//' + window.location.hostname + ':8888/',
 
     utils: {
         getParameterByName: function(name) {

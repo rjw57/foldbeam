@@ -10,6 +10,7 @@
         <script src="foldbeam.js"></script>
         <link rel="stylesheet" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.0.4/css/bootstrap-combined.min.css" />
         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4/leaflet.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
     <body style="height: 100%;">
         <div class="container">
@@ -18,9 +19,9 @@
                 <label for="map">Map: </label><select id="maps"></select>
                 <label for="sts">Projection: </label>
                 <select id="projection">
+                    <option value="EPSG:4326">WGS 84 / Latitude, Longitude</option>
                     <option value="EPSG:27700">OSGB 1936 / British National Grid</option>
                     <option value="EPSG:2400">RT90 2.5 gon W</option>
-                    <option value="EPSG:4326">WGS 84 / Latitude, Longitude</option>
                     <option value="EPSG:3785">Popular Visualisation CRS / Mercator</option>
                 </select>
             </form>
