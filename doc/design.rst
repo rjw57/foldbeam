@@ -30,6 +30,7 @@ Web GUI
 -------
 
 .. figure:: viewer-mockup.png
+    :width: 100%
 
     An example design for the map viewer GUI.
 
@@ -75,6 +76,7 @@ should be created and updated on demand.
 One possible data flow would be the following:
 
 .. figure:: architecture.png
+    :width: 100%
 
     A possible data flow for the foldbeam system.
 
