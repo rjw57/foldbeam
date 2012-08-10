@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-08-01',
+        VERSION:     '2012-08-10',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -159,8 +159,81 @@ Node is expected to fulfil the requirements.</p>
 <div class="section" id="web-gui">
 <h2>Web GUI<a class="headerlink" href="#web-gui" title="Permalink to this headline">¶</a></h2>
 <div class="figure">
-<img alt="_images/viewer-mockup.png" src="_images/viewer-mockup.png" />
+<img alt="_images/viewer-mockup.png" src="_images/viewer-mockup.png" style="width: 100%;" />
 <p class="caption">An example design for the map viewer GUI.</p>
+</div>
+</div>
+<div class="section" id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h2>
+<p>The overall system needs to be architectured to pass the &#8216;Range Rover test&#8217; whereby a hypothetical deployment works like
+this:</p>
+<ol class="arabic simple">
+<li>The office/cloud has the overall foldbeam database.</li>
+<li>Subsets of this database are synchronised to a laptop.</li>
+<li>This laptop acts as the &#8216;field hub&#8217; out on a dig.</li>
+<li>Handheld devices join an ad hoc network in the field.</li>
+<li>Data capture happens on a device. Data is transparently streamed to the foldbeam laptop.</li>
+<li>On returning to the office data is transparently streamed to the office/cloud.</li>
+</ol>
+<p>The data model has the concept of a &#8216;bucket&#8217; of features. A bucket contains metadata about creator, location, project,
+etc. The bucket is itself a collection of features which may be of any type (line, polygon, point, etc). Each bucket is
+a single database which may be transparently sychronised online a la CouchDB.</p>
+<p>Once gathered, buckets may be filtered, combined and processed in a non-destructive fashion.</p>
+<p>Each bucket has a UUID as does each feature within the bucket. Said UUID can be used to determine a unique URN for a
+feature or bucket.</p>
+<p>An example of use: in the field a device maintains a set of buckets which may be updated individually. The device
+advertises these buckets via UPnP for syncing. Buckets may contain features which are themselves references to other
+buckets or to procedures for generating features from a bucket.</p>
+<p>A database must be complete: any buckets referenced by URN must have a record in the database. This record <em>could</em> be a
+reference to another database.</p>
+<p>Crucially the bucket data store should be cacheable: it should be trivial to determine if a cache is in sync with a
+bucket and it should be possible to incrementally update the cache. The idea is that one could, for example, use a
+CouchDB with GeoJSON documents for data storage and PostGIS for indexed retrieval for rendering. The PostGIS database
+should be created and updated on demand.</p>
+<p>One possible data flow would be the following:</p>
+<div class="figure">
+<img alt="_images/architecture.png" src="_images/architecture.png" style="width: 100%;" />
+<p class="caption">A possible data flow for the foldbeam system.</p>
+</div>
+<div class="section" id="thoughts">
+<h3>Thoughts<a class="headerlink" href="#thoughts" title="Permalink to this headline">¶</a></h3>
+<p>The most obvious synchronisation protocol is CouchDB&#8217;s wire protocol. It has the advantage of being HTTP-based, REST-ful
+and proven. If one is to use CouchDB, one might as well use GeoJSON or a superset as a feature description.</p>
+<p>For example, using CouchDB the following document could describe a bucket:</p>
+<div class="highlight-javascript"><div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">&quot;_id&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;unique id&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="s2">&quot;foldbeam.bucket&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;urn&quot;</span><span class="o">:</span> <span class="s2">&quot;urn:foldbeam:bucket:&lt;id&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metadata&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="c1">// whatever metadata the user wishes to use</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A feature within a bucket would look like this:</p>
+<div class="highlight-javascript"><div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">&quot;_id&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;unique id&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="s2">&quot;foldbeam.bucket.feature&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;urn&quot;</span><span class="o">:</span> <span class="s2">&quot;urn:foldbeam:bucket.feature:&lt;id&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bucket&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;bucket id&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;feature&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="c1">// GeoJSON feature</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;metadata&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="c1">// whatever metadata the user wishes to use</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This approach allows for single-bucket databases as a special case of many buckets in one database. In addition features
+may reference other buckets in other databases or may specify a filtering/mapping operation but the way this is to be
+achieved needs to be thought through carefully.</p>
+<p>A device may advertise bucket databases via UPnP. Synchronisation is two-way. Database synchronisation is an
+all-or-nothing affair. Merging buckets together is dove via bucket references/URNs.</p>
+<p>A key concept of buckets is that, due to them being cacheable and incrementally updatable, they can have a view on
+themselves appropriate for the use case. For example, a transparent copy of a bucket&#8217;s features can be maintained in a
+PostGIS table by a monitoring process. The PostGIS table will be eventually consistent with the CouchDB bucket.</p>
+<p>Conflict resolution is <em>only</em> performed by the CouchDB resolution system. All other views let the CouchDB store &#8216;win&#8217;.</p>
 </div>
 </div>
 </div>
@@ -176,6 +249,10 @@ Node is expected to fulfil the requirements.</p>
 <li><a class="reference internal" href="#">Design notes</a><ul>
 <li><a class="reference internal" href="#map-files">Map files</a></li>
 <li><a class="reference internal" href="#web-gui">Web GUI</a></li>
+<li><a class="reference internal" href="#architecture">Architecture</a><ul>
+<li><a class="reference internal" href="#thoughts">Thoughts</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

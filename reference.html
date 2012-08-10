@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2012-08-01',
+        VERSION:     '2012-08-10',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -329,6 +329,18 @@ to the bucket via the <a class="reference internal" href="#foldbeam.bucket.Bucke
 </dd></dl>
 
 <dl class="attribute">
+<dt id="foldbeam.bucket.Bucket.cache_key">
+<tt class="descname">cache_key</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.cache_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>A string which represents an opaque hash of this bucket which is suitable for use in caches.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Bucket.files">
+<tt class="descname">files</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.files" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of files currently in this bucket.</p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="foldbeam.bucket.Bucket.layers">
 <tt class="descname">layers</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.layers" title="Permalink to this definition">¶</a></dt>
 <dd><p>A read only sequence of layers within this bucket. Each element is an object exposing the <a class="reference internal" href="#foldbeam.bucket.Layer" title="foldbeam.bucket.Layer"><tt class="xref py py-class docutils literal"><span class="pre">Layer</span></tt></a>
@@ -343,6 +355,12 @@ is an empty sequence.</p>
 within the bucket should be auxiliary to this file. (E.g. they should contain projection information.)</p>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="foldbeam.bucket.Bucket.repo">
+<tt class="descname">repo</tt><a class="headerlink" href="#foldbeam.bucket.Bucket.repo" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">git.Repo</span></tt> object representing the wrapped git repository for this bucket.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -355,11 +373,42 @@ within the bucket should be auxiliary to this file. (E.g. they should contain pr
 <dd><p>A human-readable name for the layer.</p>
 </dd></dl>
 
+<dl class="method">
+<dt id="foldbeam.bucket.Layer.render_to_cairo_context">
+<tt class="descname">render_to_cairo_context</tt><big>(</big><em>ctx</em>, <em>srs</em>, <em>tile_box</em>, <em>tile_size</em><big>)</big><a class="headerlink" href="#foldbeam.bucket.Layer.render_to_cairo_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a Cairo ImageSurface representation of this layer for a particular spatial reference, tile extent and tile
+width/height.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>ctx</strong> &#8211; the cairo context to render to</li>
+<li><strong>srs</strong> (<tt class="xref py py-class docutils literal"><span class="pre">osgeo.osr.SpatialReference</span></tt>) &#8211; the spatial reference for the tile</li>
+<li><strong>tile_box</strong> (<em>tuple of float giving (minx, miny, maxx, maxy)</em>) &#8211; the extent of the tile to render in projection co-ordinates</li>
+<li><strong>tile_size</strong> (<em>pair of int giving (width, height)</em>) &#8211; the width and height of the tile to render</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a string containing the encoded PNG.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="attribute">
 <dt id="foldbeam.bucket.Layer.spatial_reference">
 <tt class="descname">spatial_reference</tt><a class="headerlink" href="#foldbeam.bucket.Layer.spatial_reference" title="Permalink to this definition">¶</a></dt>
 <dd><p>An instance of <tt class="xref py py-class docutils literal"><span class="pre">osgeo.osr.SpatialReference</span></tt> giving the spatial reference for this layer or <cite>None</cite>
 if no such spatial reference is available.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="foldbeam.bucket.Layer.subtype">
+<tt class="descname">subtype</tt><a class="headerlink" href="#foldbeam.bucket.Layer.subtype" title="Permalink to this definition">¶</a></dt>
+<dd><p>If <a class="reference internal" href="#foldbeam.bucket.Layer.type" title="foldbeam.bucket.Layer.type"><tt class="xref py py-attr docutils literal"><span class="pre">type</span></tt></a> is <tt class="xref py py-attr docutils literal"><span class="pre">Layer.VECTOR_TYPE</span></tt>, this is the subtype of the layer or
+<tt class="xref py py-attr docutils literal"><span class="pre">Layer.UNKNOWN_SUBTYPE</span></tt>.</p>
 </dd></dl>
 
 <dl class="attribute">
