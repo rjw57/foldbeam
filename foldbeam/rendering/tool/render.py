@@ -88,13 +88,33 @@ def run(args):
             url_pattern=url_patterns['aerial' if args.aerial else 'osm'],
             url_fetcher=url_fetcher)
 
-    output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size[0], size[1])
 
-    context = cairo.Context(output_surface)
-    set_geo_transform(context, left, right, top, bottom, size[0], size[1])
-    renderer.render_callable(context, spatial_reference=srs)()
+    if args.output.endswith('.tiff'):
+        from osgeo import gdal_array, gdal
+        import numpy as np
+        image_data = np.zeros((size[1], size[0], 4), dtype=np.uint8)
+        output_surface = cairo.ImageSurface.create_for_data(
+                image_data, cairo.FORMAT_ARGB32, size[0], size[1])
+        context = cairo.Context(output_surface)
+        set_geo_transform(context, left, right, top, bottom, size[0], size[1])
+        renderer.render_callable(context, spatial_reference=srs)()
+        ds = gdal_array.OpenArray(
+                np.transpose(image_data[:,:,[2,1,0,3]], (2,0,1)))
 
-    output_surface.write_to_png(args.output)
+        ds.SetGeoTransform((
+            left, (right - left) / size[0], 0,
+            top, 0, (bottom - top) / size[1]
+        ))
+
+        drv = gdal.GetDriverByName('GTiff')
+        drv.Delete(args.output)
+        drv.CreateCopy(args.output, ds)
+    else:
+        output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size[0], size[1])
+        context = cairo.Context(output_surface)
+        set_geo_transform(context, left, right, top, bottom, size[0], size[1])
+        renderer.render_callable(context, spatial_reference=srs)()
+        output_surface.write_to_png(args.output)
 
 if __name__ == '__main__':
     main()
