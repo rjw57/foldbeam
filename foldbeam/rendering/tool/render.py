@@ -108,7 +108,7 @@ def run(args):
 
         drv = gdal.GetDriverByName('GTiff')
         drv.Delete(args.output)
-        drv.CreateCopy(args.output, ds)
+        drv.CreateCopy(args.output, ds, options=('COMPRESS=JPEG',))
     else:
         output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size[0], size[1])
         context = cairo.Context(output_surface)
