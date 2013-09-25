@@ -95,7 +95,8 @@ def run(args):
 
     url_patterns = {
         'osm': 'http://otile1.mqcdn.com/tiles/1.0.0/osm/{zoom}/{x}/{y}.jpg',
-        'aerial': 'http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
+        'aerial': 'http://ecn.t1.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=1647',
+        #'aerial': 'http://oatile1.mqcdn.com/tiles/1.0.0/sat/{zoom}/{x}/{y}.jpg',
     }
 
     def url_fetcher(url):
