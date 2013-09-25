@@ -24,6 +24,9 @@ class TileFetcher(RendererBase):
     This is somewhat incomplete at the moment. Given a Google/Bing/OSM-style slippy map tile URL pattern of the form
     ``http://server/path/to/tiles/{zoom}/{x}/{y}.format``, this renderer can render the tiles to a Cairo context.
 
+    In addition to ``{x}`` and ``{y}``, ``{quadkey}`` can be used to support Bing-style quad keys. See
+    http://msdn.microsoft.com/en-us/library/bb259689.aspx.
+
     .. note::
         If no spatial reference is specified, it will default to EPSG:3857. Similarly, if no bounds are specified, the
         default is to assume the bounds of this projection (x and y being +/- 20037508.34 metres).
@@ -107,7 +110,13 @@ class TileFetcher(RendererBase):
                 if y < 0 or y >= n_tiles:
                     continue
 
-                url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom)
+                # Calculate quadkey
+                quadkey = ''
+                for bit in xrange(zoom):
+                    v = ((x>>bit)&0x1) + ((((y)>>bit)&0x1)<<1)
+                    quadkey = str(v) + quadkey
+                
+                url = self.url_pattern.format(x=wrapped_x, y=y, zoom=zoom, quadkey=quadkey)
                 tiles_to_fetch.append((x,y,url,self._fetch_url(url)))
 
         def f():
