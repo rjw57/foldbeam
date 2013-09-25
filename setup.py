@@ -20,7 +20,7 @@ install_requires = [
     'numpy',
     'mimerender',
     'modestmaps',
-    'PIL',
+    'Pillow',
     'pyproj',
     'pyspatialite',
     'shapely',
