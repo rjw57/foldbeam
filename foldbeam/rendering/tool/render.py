@@ -4,7 +4,7 @@ import sys
 
 import cairo
 import httplib2
-from osgeo import gdal
+from osgeo import gdal, gdal_array
 from osgeo.osr import SpatialReference
 
 from foldbeam.rendering.renderer import TileFetcher, set_geo_transform
@@ -20,16 +20,16 @@ parser.add_argument('-p', '--epsg', metavar='EPSG-CODE', type=int, nargs='?',
 parser.add_argument('--proj', metavar='PROJ-INITIALISER', type=str, nargs='?',
         help='the target projection\'s proj4-style initialiser')
 parser.add_argument('-l', '--left', metavar='NUMBER', type=float, nargs='?',
-        required=True, dest='left',
+        required=False, dest='left',
         help='the left-most envelope of the map in projection co-ordinates')
 parser.add_argument('-r', '--right', metavar='NUMBER', type=float, nargs='?',
-        required=True, dest='right',
+        required=False, dest='right',
         help='the right-most envelope of the map in projection co-ordinates')
 parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
-        required=True, dest='top',
+        required=False, dest='top',
         help='the top envelope of the map in projection co-ordinates')
 parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
-        required=True, dest='bottom',
+        required=False, dest='bottom',
         help='the bottom envelope of the map in projection co-ordinates')
 parser.add_argument('-u', '--units', metavar='NUMBER', type=float, nargs='?',
         default=1.0, help='scale left, right, top and bottom by NUMBER (default: 1)')
@@ -40,18 +40,39 @@ parser.add_argument('-e', '--height', metavar='NUMBER', type=int, nargs='?',
 parser.add_argument('--cache-dir', metavar='DIRECTORY', type=str, nargs='?',
         dest='cache_dir', help='cache downloaded tiles into this directory')
 parser.add_argument('--aerial', action='store_true', default=False, help='use aerial imagery')
+parser.add_argument('--like', metavar='FILENAME', type=str, nargs='?',
+        dest='like_filename', help='Match projection and region from the raster at FILENAME')
+
     
 def main(argv=None):
     run(parser.parse_args(argv))
 
 def run(args):
     srs = SpatialReference()
+    srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
+
+    if args.like_filename is not None:
+        like_ds = gdal.Open(args.like_filename)
+        ox, sx, _, oy, _, sy = like_ds.GetGeoTransform()
+
+        args.width = like_ds.RasterXSize
+        args.height = like_ds.RasterYSize
+
+        args.left = ox
+        args.right = ox + sx * args.width
+        args.top = oy
+        args.bottom = oy + sy * args.height
+        args.units = 1
+
+        # FIXME: projection
+    else:
+        if args.left is None or args.right is None or args.top is None or args.bottom is None:
+            print('error: all of left, right, top and bottom extent must be specified')
+
     if args.epsg is not None:
         srs.ImportFromEPSG(args.epsg)
     elif args.proj is not None:
         srs.ImportFromProj4(args.proj)
-    else:
-        srs.ImportFromEPSG(4326) # default to WGS84 lat/lng
 
     left, right, top, bottom = (
         args.left*args.units,
@@ -90,7 +111,6 @@ def run(args):
 
 
     if args.output.endswith('.tiff'):
-        from osgeo import gdal_array, gdal
         import numpy as np
         image_data = np.zeros((size[1], size[0], 4), dtype=np.uint8)
         output_surface = cairo.ImageSurface.create_for_data(
@@ -108,7 +128,7 @@ def run(args):
 
         drv = gdal.GetDriverByName('GTiff')
         drv.Delete(args.output)
-        drv.CreateCopy(args.output, ds, options=('COMPRESS=JPEG',))
+        drv.CreateCopy(args.output, ds, options=('COMPRESS=LZW',))
     else:
         output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size[0], size[1])
         context = cairo.Context(output_surface)
