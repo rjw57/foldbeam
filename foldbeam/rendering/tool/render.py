@@ -31,6 +31,18 @@ parser.add_argument('-t', '--top', metavar='NUMBER', type=float, nargs='?',
 parser.add_argument('-b', '--bottom', metavar='NUMBER', type=float, nargs='?',
         required=False, dest='bottom',
         help='the bottom envelope of the map in projection co-ordinates')
+parser.add_argument('-x', '--centre-x', metavar='NUMBER', type=float, nargs='?',
+        required=False, dest='cx',
+        help='the x-co-ordinate of the map\'s centre in projection co-ordinates')
+parser.add_argument('-y', '--centre-y', metavar='NUMBER', type=float, nargs='?',
+        required=False, dest='cy',
+        help='the y-co-ordinate of the map\'s centre in projection co-ordinates')
+parser.add_argument('--extent-x', metavar='NUMBER', type=float, nargs='?',
+        required=False, dest='ex',
+        help='the width of the map in projection x-co-ordinates')
+parser.add_argument('--extent-y', metavar='NUMBER', type=float, nargs='?',
+        required=False, dest='ey',
+        help='the height of the map in projection y-co-ordinates')
 parser.add_argument('-u', '--units', metavar='NUMBER', type=float, nargs='?',
         default=1.0, help='scale left, right, top and bottom by NUMBER (default: 1)')
 parser.add_argument('-w', '--width', metavar='PIXELS', type=int, nargs='?',
@@ -65,9 +77,13 @@ def run(args):
         args.units = 1
 
         # FIXME: projection
-    else:
-        if args.left is None or args.right is None or args.top is None or args.bottom is None:
-            print('error: all of left, right, top and bottom extent must be specified')
+    elif args.cx is not None and args.cy is not None and args.ex is not None and args.ey is not None:
+        args.left = args.cx - args.ex * 0.5
+        args.right = args.cx + args.ex * 0.5
+        args.top = args.cy + args.ey * 0.5
+        args.bottom = args.cy - args.ey * 0.5
+    elif args.left is None or args.right is None or args.top is None or args.bottom is None:
+        print('error: all of left, right, top and bottom extent must be specified')
 
     if args.epsg is not None:
         srs.ImportFromEPSG(args.epsg)
